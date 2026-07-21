@@ -1,0 +1,14 @@
+-- Pretoria MMA — schéma Supabase
+--
+-- Les migrations sont dans supabase/migrations/ (source de vérité).
+-- Ne pas exécuter ce fichier directement.
+--
+-- Déploiement recommandé :
+--   1. Créer un projet sur https://supabase.com/dashboard
+--   2. Copier les clés dans .env.local (voir .env.example)
+--   3. npx supabase login
+--   4. npx supabase link --project-ref VOTRE_PROJECT_REF
+--   5. npm run db:push
+--
+-- Alternative manuelle : copier le contenu des 3 fichiers de
+-- supabase/migrations/ dans le SQL Editor (dans l'ordre).

@@ -1,0 +1,48 @@
+{
+  "name": "pretoria-mma-site",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:start": "npx supabase start",
+    "db:stop": "npx supabase stop",
+    "db:reset": "npx supabase db reset",
+    "db:push": "npx supabase db push",
+    "db:link": "npx supabase link"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.9.0",
+    "@supabase/ssr": "^0.12.3",
+    "@supabase/supabase-js": "latest",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "framer-motion": "latest",
+    "lucide-react": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-hook-form": "^7.53.0",
+    "resend": "^6.17.2",
+    "tailwind-merge": "latest",
+    "tailwindcss-animate": "latest",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "autoprefixer": "^10.4.18",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "eslint-config-prettier": "latest",
+    "eslint-plugin-prettier": "latest",
+    "postcss": "^8.4.35",
+    "prettier": "latest",
+    "supabase": "latest",
+    "tailwindcss": "^3.4.1",
+    "typescript": "latest"
+  }
+}

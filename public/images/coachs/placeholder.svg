@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0A0A0A" />
+      <stop offset="1" stop-color="#111827" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="60%">
+      <stop offset="0" stop-color="#DC2626" stop-opacity="0.35" />
+      <stop offset="1" stop-color="#DC2626" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="800" fill="url(#bg)" />
+  <rect width="1200" height="800" fill="url(#glow)" />
+
+  <g fill="none" stroke="#374151" stroke-opacity="0.6" stroke-width="2">
+    <path d="M0 640 C 260 560, 380 720, 640 640 S 980 560, 1200 640" />
+    <path d="M0 680 C 260 600, 380 760, 640 680 S 980 600, 1200 680" />
+  </g>
+
+  <g transform="translate(600 330)">
+    <circle r="110" fill="#111827" stroke="#DC2626" stroke-opacity="0.6" stroke-width="6" />
+    <path d="M-110 250c40-90 130-150 220-150s180 60 220 150" transform="translate(-220 -40)" fill="#111827" stroke="#374151" stroke-opacity="0.75" stroke-width="6"/>
+    <circle r="44" cy="-30" fill="#374151" opacity="0.65" />
+    <path d="M-95 150c20-70 70-110 95-110s75 40 95 110" fill="#374151" opacity="0.65" />
+  </g>
+
+  <text x="50%" y="88%" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="28" fill="#9CA3AF">
+    Photo coach � ajouter
+  </text>
+</svg>
+
