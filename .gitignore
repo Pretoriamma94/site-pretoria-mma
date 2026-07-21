@@ -2,6 +2,9 @@
 node_modules/
 .next/
 
+# typescript build cache
+tsconfig.tsbuildinfo
+
 # env / secrets
 .env
 .env.local
