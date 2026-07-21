@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { isMinor } from '@/lib/inscription/schema';
 import { PhotoPublicationBadge } from '@/components/admin/PhotoPublicationBadge';
 import { cn } from '@/lib/utils';
+import { downloadAdherentsCsv } from '@/lib/admin/export-adherents';
 import { getInscriptionDocumentUrlAction } from '../actions';
 
 export type AdherentRow = {
@@ -132,13 +133,23 @@ export function AdherentsDirectory({
   return (
     <>
       <div className="flex flex-col gap-4">
-        <div>
-          <h2 className="font-display text-2xl uppercase tracking-[0.2em] text-white">
-            Adhérents
-          </h2>
-          <p className="mt-1 text-xs text-zinc-400">
-            Annuaire du club — {summary}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display text-2xl uppercase tracking-[0.2em] text-white">
+              Adhérents
+            </h2>
+            <p className="mt-1 text-xs text-zinc-400">
+              Annuaire du club — {summary}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => downloadAdherentsCsv(initialRows, anneeFilter)}
+            disabled={initialRows.length === 0}
+            className="rounded-full border border-zinc-600 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-100 transition hover:border-zinc-400 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Exporter (Excel)
+          </button>
         </div>
 
         <form
