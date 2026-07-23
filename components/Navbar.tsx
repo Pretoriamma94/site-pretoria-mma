@@ -23,6 +23,8 @@ export function Navbar() {
   const pathname = usePathname();
 
   useEffect(() => {
+    // Ferme le menu mobile lors d'un changement de route (retour navigateur inclus).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(false);
   }, [pathname]);
 

@@ -17,6 +17,8 @@ export function CookiePreferencesButton() {
   const [consent, setConsent] = useState<CookieConsent | null>(null);
 
   useEffect(() => {
+    // Lecture localStorage côté client uniquement (évite un mismatch d'hydratation SSR).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setConsent(getCookieConsent());
 
     function onConsentChange() {

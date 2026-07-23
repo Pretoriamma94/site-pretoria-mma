@@ -12,6 +12,8 @@ export function CookieConsent() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    // Lecture localStorage côté client uniquement (évite un mismatch d'hydratation SSR).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisible(getCookieConsent() === null);
 
     function onConsentChange() {

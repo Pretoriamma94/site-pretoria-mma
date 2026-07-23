@@ -6,7 +6,7 @@ export default function EspaceMembrePage() {
         Espace membre
       </h1>
       <p className="mt-4 text-sm text-zinc-300 md:text-base">
-        Tableau de bord personnel de l'adhérent. Cette page affichera le profil, l'abonnement et
+        Tableau de bord personnel de l&apos;adhérent. Cette page affichera le profil, l&apos;abonnement et
         les documents à signer.
       </p>
 
@@ -24,7 +24,7 @@ export default function EspaceMembrePage() {
             Mon abonnement
           </h2>
           <p className="mt-2 text-zinc-300">
-            Statut de l'abonnement, échéance et type de formule.
+            Statut de l&apos;abonnement, échéance et type de formule.
           </p>
         </div>
         <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 text-sm text-zinc-200">
