@@ -136,9 +136,10 @@ Alignés site + admin papier :
   - Migration `20260724120000_inscription_documents_token.sql` : colonne `documents_token uuid unique default gen_random_uuid()` (attribuée aussi aux inscriptions existantes). **⚠️ à pusher au déploiement.**
   - Jeton **généré côté client** à l'inscription et inséré (le RLS anonyme n'autorise pas la relecture après insert).
 - **Page publique** `/mon-inscription/[token]` (Server Component + `DocumentsClient`) : statut de chaque doc (Transmis / À fournir) + upload des manquants. `noindex`. Upload direct vers Storage (bucket `inscriptions`) puis server action `submitInscriptionDocumentAction` (jeton = authentification) qui met à jour l'URL, désactive l'engagement, recalcule Finalisé, revalide l'admin.
-- **Email (Option A retenue)** : `lib/email/inscription.ts` + `notifyInscriptionCreatedAction` envoient à l'adhérent le lien « complétez vos documents » (non bloquant). **Nécessite domaine vérifié Resend + `CONTACT_FROM_EMAIL` (Vercel).**
-- **Confirmation** `/inscription/paiement-en-attente` : section « Documents à compléter » avec le lien (jeton passé en query).
-- **Admin** : fiche inscription → `DocumentsLinkBox` affiche le lien personnel (copiable) pour le renvoyer à l'adhérent. `documents_token` ajouté au select admin + types.
+- **Email (Option A retenue)** : `lib/email/inscription.ts` + `notifyInscriptionCreatedAction` envoient à l'adhérent le lien « préinscription confirmée + documents ». **Nécessite domaine vérifié Resend + `CONTACT_FROM_EMAIL` (Vercel).**
+- **Fix 2026-07-24** : l'email était lancé en fire-and-forget puis la redirection annulait la Server Action → aucun envoi. Correction : **await** avant redirect + statut `emailSent` sur la page confirmation. Admin : bouton **Renvoyer l'email** dans `DocumentsLinkBox`.
+- **Confirmation** `/inscription/paiement-en-attente` : section « Documents à compléter » avec le lien (jeton passé en query) + feedback email envoyé / non envoyé.
+- **Admin** : fiche inscription → `DocumentsLinkBox` (copier le lien + renvoyer l'email). `documents_token` ajouté au select admin + types.
 - **Décision produit** : pas de champ « autre document » pour l'instant (uniquement certificat + photo).
 - **Au déploiement** : (1) `npm run db:push` pour la migration ; (2) vérifier le domaine dans Resend + définir `CONTACT_FROM_EMAIL` et `NEXT_PUBLIC_SITE_URL` sur Vercel.
 

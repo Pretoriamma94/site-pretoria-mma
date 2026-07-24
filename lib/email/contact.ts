@@ -22,7 +22,7 @@ export async function sendContactNotificationEmail(
 
   const to = (process.env.CONTACT_TO_EMAIL?.trim() || ASSOCIATION_EMAIL).toLowerCase();
   const from =
-    process.env.CONTACT_FROM_EMAIL?.trim() ||
+    process.env.CONTACT_FROM_EMAIL?.trim().replace(/^["']|["']$/g, '').trim() ||
     `${ASSOCIATION_NOM} <onboarding@resend.dev>`;
 
   try {

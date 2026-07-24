@@ -1426,3 +1426,83 @@ export async function deleteDepenseAction(id: string): Promise<DeleteDepenseResu
     };
   }
 }
+
+export type ResendDocumentsEmailResult =
+  | { success: true }
+  | { success: false; error: string };
+
+/** Renvoie l'email « préinscription + lien documents » à l'adhérent. */
+export async function resendInscriptionDocumentsEmailAction(
+  inscriptionId: string,
+): Promise<ResendDocumentsEmailResult> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { success: false, error: 'Accès administrateur requis.' };
+  }
+
+  const idParsed = z.string().uuid().safeParse(inscriptionId);
+  if (!idParsed.success) {
+    return { success: false, error: 'Identifiant invalide.' };
+  }
+
+  try {
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from('inscriptions')
+      .select(
+        'id, prenom, email, documents_token, certificat_medical_url, photo_url',
+      )
+      .eq('id', idParsed.data)
+      .maybeSingle();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    if (!data) {
+      return { success: false, error: 'Inscription introuvable.' };
+    }
+    if (!data.email?.trim()) {
+      return { success: false, error: 'Aucun email sur cette inscription.' };
+    }
+    if (!data.documents_token) {
+      return {
+        success: false,
+        error: 'Pas de lien documents (token manquant) sur cette inscription.',
+      };
+    }
+
+    const missingCertificat = !data.certificat_medical_url;
+    const missingPhoto = !data.photo_url;
+    if (!missingCertificat && !missingPhoto) {
+      return {
+        success: false,
+        error: 'Certificat et photo déjà présents — rien à réclamer par email.',
+      };
+    }
+
+    const { sendInscriptionDocumentsEmail } = await import('@/lib/email/inscription');
+    const result = await sendInscriptionDocumentsEmail({
+      email: data.email,
+      prenom: data.prenom || 'Adhérent',
+      token: data.documents_token,
+      missingCertificat,
+      missingPhoto,
+    });
+
+    if (!result.sent) {
+      return {
+        success: false,
+        error:
+          result.error ||
+          "Échec d'envoi Resend (vérifiez RESEND_API_KEY et CONTACT_FROM_EMAIL).",
+      };
+    }
+    return { success: true };
+  } catch {
+    return {
+      success: false,
+      error: 'Connexion impossible. Vérifiez Supabase / Resend (clés Vercel).',
+    };
+  }
+}

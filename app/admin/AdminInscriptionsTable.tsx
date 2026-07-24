@@ -821,7 +821,14 @@ export function AdminInscriptionsTable({
                       }
                     }}
                   />
-                  <DocumentsLinkBox token={selected.documents_token} />
+                  <DocumentsLinkBox
+                    token={selected.documents_token}
+                    inscriptionId={selected.id}
+                    canResendEmail={
+                      Boolean(selected.email) &&
+                      (!selected.certificat_medical_url || !selected.photo_url)
+                    }
+                  />
                 </div>
               );
             })()}

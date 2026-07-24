@@ -1,13 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
+import { resendInscriptionDocumentsEmailAction } from './actions';
 
 /**
  * Affiche le lien personnel de l'adhérent pour compléter ses documents,
- * avec un bouton « Copier » (pour le renvoyer par email/SMS si besoin).
+ * avec Copier + Renvoyer l'email.
  */
-export function DocumentsLinkBox({ token }: { token: string | null }) {
+export function DocumentsLinkBox({
+  token,
+  inscriptionId,
+  canResendEmail,
+}: {
+  token: string | null;
+  inscriptionId?: string;
+  /** true si certificat ou photo manquant et email présent */
+  canResendEmail?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
+  const [mailStatus, setMailStatus] = useState<'idle' | 'ok' | 'err'>('idle');
+  const [mailError, setMailError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   if (!token) return null;
 
@@ -25,6 +38,21 @@ export function DocumentsLinkBox({ token }: { token: string | null }) {
     }
   };
 
+  const resend = () => {
+    if (!inscriptionId) return;
+    setMailStatus('idle');
+    setMailError(null);
+    startTransition(async () => {
+      const result = await resendInscriptionDocumentsEmailAction(inscriptionId);
+      if (result.success) {
+        setMailStatus('ok');
+      } else {
+        setMailStatus('err');
+        setMailError(result.error);
+      }
+    });
+  };
+
   return (
     <div className="mt-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2">
       <p className="text-[0.65rem] uppercase tracking-wide text-zinc-500">
@@ -39,7 +67,23 @@ export function DocumentsLinkBox({ token }: { token: string | null }) {
         >
           {copied ? 'Copié ✓' : 'Copier'}
         </button>
+        {canResendEmail && inscriptionId ? (
+          <button
+            type="button"
+            onClick={resend}
+            disabled={pending}
+            className="shrink-0 rounded-full border border-red-700/70 bg-red-950/40 px-3 py-1 text-[0.7rem] font-semibold text-red-100 hover:bg-red-900/50 disabled:opacity-50"
+          >
+            {pending ? 'Envoi…' : 'Renvoyer l’email'}
+          </button>
+        ) : null}
       </div>
+      {mailStatus === 'ok' ? (
+        <p className="mt-2 text-[0.7rem] text-emerald-400">Email renvoyé.</p>
+      ) : null}
+      {mailStatus === 'err' && mailError ? (
+        <p className="mt-2 text-[0.7rem] text-amber-300">{mailError}</p>
+      ) : null}
     </div>
   );
 }

@@ -475,16 +475,30 @@ export function InscriptionWizard() {
 
       const missingCertificat = !certificatFile;
       const missingPhoto = !photoFile;
+      const needsDocumentsEmail =
+        Boolean(documentsToken) &&
+        Boolean(emailPrincipal) &&
+        (missingCertificat || missingPhoto);
 
-      // Email « complétez vos documents » — best-effort, ne bloque pas la redirection.
-      if (documentsToken && emailPrincipal && (missingCertificat || missingPhoto)) {
-        void notifyInscriptionCreatedAction({
-          email: emailPrincipal,
-          prenom: values.prenom,
-          token: documentsToken,
-          missingCertificat,
-          missingPhoto,
-        }).catch(() => {});
+      // Await obligatoire : une redirection immédiate annule la Server Action
+      // et l'email n'est jamais envoyé.
+      let emailSent = false;
+      if (needsDocumentsEmail) {
+        try {
+          const mail = await notifyInscriptionCreatedAction({
+            email: emailPrincipal,
+            prenom: values.prenom,
+            token: documentsToken,
+            missingCertificat,
+            missingPhoto,
+          });
+          emailSent = mail.sent;
+          if (!mail.sent) {
+            console.error('Email préinscription non envoyé', mail.error);
+          }
+        } catch (mailErr) {
+          console.error('Exception envoi email préinscription', mailErr);
+        }
       }
 
       const query = new URLSearchParams({
@@ -495,6 +509,7 @@ export function InscriptionWizard() {
         mode: paiementResult.data.modePaiement,
         echeances: String(paiementResult.data.nombreEcheances),
         ...(documentsToken ? { token: documentsToken } : {}),
+        ...(needsDocumentsEmail ? { emailSent: emailSent ? '1' : '0' } : {}),
       }).toString();
       router.push(`/inscription/paiement-en-attente?${query}`);
     } catch (err) {

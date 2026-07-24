@@ -29,6 +29,9 @@ export function PaiementEnAttenteContent() {
   const parEcheance =
     montant != null && echeances != null ? montantParEcheance(montant, echeances) : null;
   const token = searchParams.get('token') ?? '';
+  const emailSentParam = searchParams.get('emailSent');
+  const emailSent =
+    emailSentParam === '1' ? true : emailSentParam === '0' ? false : null;
 
   const hasParams = Boolean(nom || prenom || cours || montant);
 
@@ -152,10 +155,21 @@ export function PaiementEnAttenteContent() {
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm text-zinc-200">
                     <p>
-                      Il vous manque un document (certificat médical et/ou photo) ? Vous pouvez le
-                      transmettre plus tard — dans les 3 semaines — grâce à votre lien personnel.
-                      Un email de rappel avec ce lien vous a également été envoyé.
+                      Il vous manque un document (certificat médical et/ou photo). Vous pouvez le
+                      transmettre plus tard — dans les 3 semaines — grâce à votre lien personnel
+                      ci-dessous.
                     </p>
+                    {emailSent === true ? (
+                      <p className="rounded-lg border border-emerald-800/60 bg-emerald-950/40 px-3 py-2 text-emerald-200">
+                        Un email de confirmation avec ce lien a été envoyé à votre adresse.
+                        Pensez à vérifier vos spams.
+                      </p>
+                    ) : emailSent === false ? (
+                      <p className="rounded-lg border border-amber-700/60 bg-amber-950/40 px-3 py-2 text-amber-100">
+                        L&apos;email n&apos;a pas pu être envoyé automatiquement. Conservez bien
+                        le lien ci-dessous (ou demandez-le au club).
+                      </p>
+                    ) : null}
                     <Link
                       href={`/mon-inscription/${token}`}
                       className="inline-flex h-11 items-center justify-center rounded-full bg-red-600 px-6 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-red-700"
@@ -163,7 +177,7 @@ export function PaiementEnAttenteContent() {
                       Transmettre mes documents
                     </Link>
                     <p className="text-xs text-zinc-400">
-                      Conservez cet email : il contient votre lien pour revenir quand vous voulez.
+                      Conservez ce lien : il vous permet de revenir sans créer de compte.
                     </p>
                   </CardContent>
                 </Card>
