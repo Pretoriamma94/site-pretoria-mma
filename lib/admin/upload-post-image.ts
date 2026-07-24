@@ -20,7 +20,7 @@ export async function uploadPostImageFile(
     return { success: false, error: 'Fichier image manquant.' };
   }
   if (file.size > MAX_BYTES) {
-    return { success: false, error: 'Image trop volumineuse (max 5 Mo).' };
+    return { success: false, error: 'Image trop volumineuse (max 4 Mo).' };
   }
   if (!isAllowedImage(file)) {
     return { success: false, error: 'Format non accepté (JPG, PNG ou WebP).' };
@@ -54,3 +54,5 @@ export function collectGalleryFiles(formData: FormData): File[] {
   }
   return files.slice(0, 12);
 }
+
+export const POST_IMAGE_MAX_BYTES = MAX_BYTES;

@@ -6,17 +6,26 @@ import { AdminCreatePostForm } from '../AdminCreatePostForm';
 import { setPostPublishStateAction } from '../actions';
 import { DeletePostButton } from './DeletePostButton';
 
-export default async function AdminActualitesPage() {
+type SearchParams = Promise<{ created?: string; photos?: string }>;
+
+export default async function AdminActualitesPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const user = await getAuthUser();
   if (!user || !isAdminUser(user)) {
     redirect('/admin/login');
   }
 
+  const params = await searchParams;
+  const justCreated = params.created === '1';
+
   const supabase = createServerClient();
-  const { data: posts } = await supabase
+  const { data: posts, error: postsError } = await supabase
     .from('posts')
-    .select('id, titre, slug, categorie, publie, date_publication, image_url')
-    .order('date_publication', { ascending: false })
+    .select('id, titre, slug, categorie, publie, date_publication, image_url, created_at')
+    .order('created_at', { ascending: false })
     .limit(50);
 
   return (
@@ -27,6 +36,20 @@ export default async function AdminActualitesPage() {
       <p className="mt-3 text-sm text-zinc-300">
         Création, modification, publication et suivi des articles du club.
       </p>
+
+      {justCreated ? (
+        <p className="mt-6 rounded-xl border border-green-900/50 bg-green-950/40 px-4 py-3 text-sm text-green-300">
+          Actualité créée avec succès
+          {params.photos === '1' ? ' (avec photo).' : '.'} Elle apparaît dans la liste
+          ci-dessous.
+        </p>
+      ) : null}
+
+      {postsError ? (
+        <p className="mt-6 rounded-xl border border-red-900/50 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+          Impossible de charger les actualités : {postsError.message}
+        </p>
+      ) : null}
 
       <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-950/40 p-5">
         <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-300">

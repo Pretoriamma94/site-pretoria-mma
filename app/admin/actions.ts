@@ -59,6 +59,37 @@ function formatZodError(error: z.ZodError): string {
   return error.issues.map((issue) => issue.message).join(' ');
 }
 
+function parseGalerieUrls(raw: FormDataEntryValue | null): string[] {
+  if (typeof raw !== 'string' || !raw.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((u): u is string => typeof u === 'string' && u.startsWith('https://'))
+      .slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
+/** Upload une seule image d'actualité (appelé depuis le client, 1 fichier à la fois). */
+export async function uploadAdminPostImageAction(
+  formData: FormData,
+): Promise<{ success: true; url: string } | { success: false; error: string }> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { success: false, error: 'Accès administrateur requis.' };
+  }
+
+  const folder = String(formData.get('folder') ?? 'posts').replace(/[^a-zA-Z0-9/_-]/g, '');
+  const file = formData.get('file');
+  if (!(file instanceof File)) {
+    return { success: false, error: 'Fichier image manquant.' };
+  }
+  return uploadPostImageFile(file, folder || 'posts');
+}
+
 export async function createPostAction(
   _prevState: CreatePostActionState,
   formData: FormData,
@@ -76,7 +107,7 @@ export async function createPostAction(
     contenu: String(formData.get('contenu') ?? ''),
     categorie: String(formData.get('categorie') ?? ''),
     imageUrl: String(formData.get('image_url') ?? '').trim(),
-    publie: formData.get('publie') === 'on',
+    publie: formData.get('publie') === 'on' || formData.get('publie') === 'true',
   });
 
   if (!parsed.success) {
@@ -86,8 +117,9 @@ export async function createPostAction(
   const payload = parsed.data;
   const generatedSlug = payload.slug ? slugify(payload.slug) : slugify(payload.titre);
   const finalSlug = generatedSlug || `actualite-${Date.now()}`;
+  // URLs déjà uploadées côté client (évite la limite 4 Mo des Server Actions).
   let imageUrl: string | null = payload.imageUrl || null;
-  let galleryCount = 0;
+  const galerieUrls = parseGalerieUrls(formData.get('galerie_urls'));
 
   try {
     const supabase = createServerClient();
@@ -99,9 +131,10 @@ export async function createPostAction(
       .maybeSingle();
 
     if (existingPost) {
-      return { error: 'Ce slug existe déjà, merci d en choisir un autre.' };
+      return { error: 'Ce slug existe déjà, merci d’en choisir un autre.' };
     }
 
+    // Rétrocompatibilité : si un fichier est encore envoyé dans le FormData.
     const vignette = formData.get('image');
     if (vignette instanceof File && vignette.size > 0) {
       const uploaded = await uploadPostImageFile(vignette, `posts/${finalSlug}`);
@@ -110,8 +143,6 @@ export async function createPostAction(
     }
 
     const galleryFiles = collectGalleryFiles(formData);
-    galleryCount = galleryFiles.length;
-    const galerieUrls: string[] = [];
     for (const file of galleryFiles) {
       const uploaded = await uploadPostImageFile(file, `posts/${finalSlug}/galerie`);
       if (!uploaded.success) return { error: uploaded.error };
@@ -130,15 +161,22 @@ export async function createPostAction(
       date_publication: payload.publie ? new Date().toISOString() : null,
     };
 
-    const { error } = await supabase.from('posts').insert(insertRow);
+    const { data: inserted, error } = await supabase
+      .from('posts')
+      .insert(insertRow)
+      .select('id')
+      .single();
 
     if (error) {
       return { error: `Création impossible : ${error.message}` };
     }
-  } catch {
+    if (!inserted) {
+      return { error: 'Création impossible : aucune confirmation de la base.' };
+    }
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : 'erreur inconnue';
     return {
-      error:
-        'Connexion Supabase impossible. Vérifiez votre connexion internet et les clés dans .env.local.',
+      error: `Création impossible (${detail}). Vérifiez la connexion et les variables Supabase.`,
     };
   }
 
@@ -147,17 +185,12 @@ export async function createPostAction(
   revalidatePath('/');
   revalidatePath(`/actualites/${finalSlug}`);
 
-  return { success: galerieUrlsMessage(imageUrl, galleryCount) };
-}
-
-function galerieUrlsMessage(imageUrl: string | null, galleryCount: number): string {
-  if (!imageUrl && galleryCount === 0) {
-    return 'Actualité créée avec succès (sans photo).';
-  }
-  if (galleryCount > 0) {
-    return `Actualité créée avec succès (${galleryCount} photo${galleryCount > 1 ? 's' : ''} en galerie).`;
-  }
-  return 'Actualité créée avec succès (vignette ajoutée).';
+  const hasPhotos = Boolean(imageUrl) || galerieUrls.length > 0;
+  return {
+    success: hasPhotos
+      ? 'Actualité créée avec succès (avec photo).'
+      : 'Actualité créée avec succès.',
+  };
 }
 
 function revalidateAdminPaths() {

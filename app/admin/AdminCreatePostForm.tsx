@@ -1,38 +1,142 @@
 'use client';
 
-import { useActionState, useState } from 'react';
-import { createPostAction, type CreatePostActionState } from './actions';
-
-const initialState: CreatePostActionState = {};
-
-// Limite plateforme des Server Actions (voir next.config.mjs : bodySizeLimit 4mb).
-// On garde une marge pour l'overhead multipart afin d'éviter un rejet transport.
-const MAX_TOTAL_BYTES = 3.8 * 1024 * 1024;
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  createPostAction,
+  uploadAdminPostImageAction,
+} from './actions';
+import { POST_IMAGE_MAX_BYTES } from '@/lib/admin/upload-post-image';
 
 function formatMo(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 }
 
+function slugifyFolder(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+async function uploadOne(file: File, folder: string): Promise<string> {
+  const fd = new FormData();
+  fd.set('file', file);
+  fd.set('folder', folder);
+  const result = await uploadAdminPostImageAction(fd);
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+  return result.url;
+}
+
+/**
+ * Création d'actualité :
+ * 1) upload des photos une par une (évite la limite body des Server Actions)
+ * 2) création de l'article avec les URLs seulement
+ * 3) redirection avec message de confirmation
+ */
 export function AdminCreatePostForm() {
-  const [state, formAction, isPending] = useActionState(createPostAction, initialState);
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const [vignetteName, setVignetteName] = useState<string | null>(null);
   const [galleryCount, setGalleryCount] = useState(0);
-  const [vignetteSize, setVignetteSize] = useState(0);
-  const [gallerySize, setGallerySize] = useState(0);
+  const [vignetteFile, setVignetteFile] = useState<File | null>(null);
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
 
-  const totalSize = vignetteSize + gallerySize;
-  const tooHeavy = totalSize > MAX_TOTAL_BYTES;
+  const totalSize =
+    (vignetteFile?.size ?? 0) + galleryFiles.reduce((s, f) => s + f.size, 0);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setStatus(null);
+
+    const form = e.currentTarget;
+    const baseData = new FormData(form);
+    const titre = String(baseData.get('titre') ?? '').trim();
+    const contenu = String(baseData.get('contenu') ?? '').trim();
+    if (titre.length < 5) {
+      setError('Le titre doit contenir au moins 5 caractères.');
+      return;
+    }
+    if (contenu.length < 20) {
+      setError('Le contenu doit contenir au moins 20 caractères.');
+      return;
+    }
+
+    for (const file of [vignetteFile, ...galleryFiles].filter(Boolean) as File[]) {
+      if (file.size > POST_IMAGE_MAX_BYTES) {
+        setError(
+          `« ${file.name} » est trop lourde (${formatMo(file.size)}). Max 4 Mo par photo.`,
+        );
+        return;
+      }
+    }
+
+    setPending(true);
+    try {
+      const folderBase = `posts/${slugifyFolder(titre) || `actu-${Date.now()}`}`;
+      let imageUrl = '';
+      const galerieUrls: string[] = [];
+
+      if (vignetteFile) {
+        setStatus('Envoi de la vignette…');
+        imageUrl = await uploadOne(vignetteFile, folderBase);
+      }
+
+      for (let i = 0; i < galleryFiles.length; i += 1) {
+        setStatus(`Envoi galerie ${i + 1}/${galleryFiles.length}…`);
+        const url = await uploadOne(galleryFiles[i], `${folderBase}/galerie`);
+        galerieUrls.push(url);
+      }
+
+      setStatus("Enregistrement de l'actualité…");
+      const fd = new FormData(form);
+      fd.delete('image');
+      fd.delete('galerie');
+      if (imageUrl) fd.set('image_url', imageUrl);
+      fd.set('galerie_urls', JSON.stringify(galerieUrls));
+      if (fd.get('publie') === 'on') {
+        fd.set('publie', 'true');
+      }
+
+      const result = await createPostAction({}, fd);
+      if (result?.error) {
+        setError(result.error);
+        setStatus(null);
+        return;
+      }
+
+      const photos = imageUrl || galerieUrls.length > 0 ? '1' : '0';
+      router.push(`/admin/actualites?created=1&photos=${photos}`);
+      router.refresh();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Une erreur est survenue. Réessayez.';
+      setError(message);
+      setStatus(null);
+    } finally {
+      setPending(false);
+    }
+  };
 
   return (
-    <form action={formAction} className="mt-4 grid gap-4" encType="multipart/form-data">
-      {state.error ? (
+    <form onSubmit={handleSubmit} className="mt-4 grid gap-4">
+      {error ? (
         <p className="rounded-xl border border-red-900/50 bg-red-950/40 px-4 py-3 text-sm text-red-300">
-          {state.error}
+          {error}
         </p>
       ) : null}
-      {state.success ? (
-        <p className="rounded-xl border border-green-900/50 bg-green-950/40 px-4 py-3 text-sm text-green-300">
-          {state.success}
+      {status && !error ? (
+        <p className="rounded-xl border border-zinc-700 bg-zinc-900/60 px-4 py-3 text-sm text-zinc-300">
+          {status}
         </p>
       ) : null}
 
@@ -99,8 +203,8 @@ export function AdminCreatePostForm() {
           Photos (optionnel)
         </p>
         <p className="mt-1 text-[0.7rem] text-zinc-500">
-          Tu peux publier sans image, avec une vignette seule, ou avec une galerie
-          (compétition, etc.). JPG / PNG / WebP — poids total des photos limité à 3,8 Mo.
+          JPG / PNG / WebP — max 4 Mo par photo. Les images sont envoyées une par une
+          avant la publication.
         </p>
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -112,13 +216,15 @@ export function AdminCreatePostForm() {
               accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
               className="mt-1 block w-full text-sm text-zinc-300 file:mr-3 file:rounded-full file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-zinc-700"
               onChange={(e) => {
-                const file = e.target.files?.[0];
+                const file = e.target.files?.[0] ?? null;
+                setVignetteFile(file);
                 setVignetteName(file ? file.name : null);
-                setVignetteSize(file ? file.size : 0);
               }}
             />
             <span className="mt-1 block text-[0.65rem] text-zinc-500">
-              {vignetteName ? `Sélectionné : ${vignetteName}` : 'Aucune vignette'}
+              {vignetteName
+                ? `Sélectionné : ${vignetteName}${vignetteFile ? ` (${formatMo(vignetteFile.size)})` : ''}`
+                : 'Aucune vignette'}
             </span>
           </label>
 
@@ -131,18 +237,25 @@ export function AdminCreatePostForm() {
               multiple
               className="mt-1 block w-full text-sm text-zinc-300 file:mr-3 file:rounded-full file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-zinc-700"
               onChange={(e) => {
-                const files = Array.from(e.target.files ?? []);
+                const files = Array.from(e.target.files ?? []).slice(0, 12);
+                setGalleryFiles(files);
                 setGalleryCount(files.length);
-                setGallerySize(files.reduce((sum, f) => sum + f.size, 0));
               }}
             />
             <span className="mt-1 block text-[0.65rem] text-zinc-500">
               {galleryCount > 0
-                ? `${galleryCount} photo${galleryCount > 1 ? 's' : ''} sélectionnée${galleryCount > 1 ? 's' : ''} (max 12)`
+                ? `${galleryCount} photo${galleryCount > 1 ? 's' : ''} · ${formatMo(
+                    galleryFiles.reduce((s, f) => s + f.size, 0),
+                  )}`
                 : 'Aucune photo de galerie'}
             </span>
           </label>
         </div>
+        {totalSize > 0 ? (
+          <p className="mt-3 text-[0.65rem] text-zinc-500">
+            Poids total sélectionné : {formatMo(totalSize)}
+          </p>
+        ) : null}
       </div>
 
       <label className="inline-flex items-center gap-2 text-xs text-zinc-300">
@@ -150,20 +263,13 @@ export function AdminCreatePostForm() {
         Publier immédiatement
       </label>
 
-      {tooHeavy ? (
-        <p className="rounded-xl border border-amber-900/50 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
-          Photos trop lourdes ({formatMo(totalSize)} au total, max 3,8 Mo). Réduis le
-          nombre ou le poids des images avant de publier.
-        </p>
-      ) : null}
-
       <div>
         <button
           type="submit"
-          disabled={isPending || tooHeavy}
+          disabled={pending}
           className="rounded-full bg-red-600 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-red-700 disabled:opacity-60"
         >
-          {isPending ? 'Publication...' : "Créer l'actualité"}
+          {pending ? 'Publication…' : "Créer l'actualité"}
         </button>
       </div>
     </form>
