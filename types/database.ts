@@ -282,6 +282,8 @@ export interface Database {
           autorisation_pratique_mineur: boolean | null;
           autorisation_soins_urgence: boolean | null;
           accepte_rgpd: boolean;
+          /** Jeton secret pour compléter les documents sans compte (/mon-inscription/[token]) */
+          documents_token: string;
           created_at: string | null;
           updated_at: string | null;
           expires_at: string | null;
@@ -336,6 +338,7 @@ export interface Database {
           autorisation_pratique_mineur?: boolean | null;
           autorisation_soins_urgence?: boolean | null;
           accepte_rgpd?: boolean;
+          documents_token?: string;
           created_at?: string | null;
           updated_at?: string | null;
           expires_at?: string | null;
@@ -367,6 +370,32 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['inscription_paiements']['Insert']>;
+        Relationships: [];
+      };
+      club_depenses: {
+        Row: {
+          id: string;
+          libelle: string;
+          montant: number;
+          date_depense: string;
+          categorie: Database['public']['Enums']['depense_categorie_type'];
+          annee_scolaire: string;
+          note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          libelle: string;
+          montant: number;
+          date_depense: string;
+          categorie?: Database['public']['Enums']['depense_categorie_type'];
+          annee_scolaire: string;
+          note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['club_depenses']['Insert']>;
         Relationships: [];
       };
     };
@@ -409,6 +438,14 @@ export interface Database {
       sexe_type: 'homme' | 'femme';
       type_profil_type: 'adulte' | 'mineur';
       dossier_status_type: 'pre_inscrit' | 'incomplet' | 'complet';
+      depense_categorie_type:
+        | 'materiel'
+        | 'location'
+        | 'competition'
+        | 'assurance'
+        | 'deplacement'
+        | 'communication'
+        | 'autre';
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -425,3 +462,4 @@ export type MemberDocument = Database['public']['Tables']['member_documents']['R
 export type Schedule = Database['public']['Tables']['schedules']['Row'];
 export type Inscription = Database['public']['Tables']['inscriptions']['Row'];
 export type InscriptionPaiement = Database['public']['Tables']['inscription_paiements']['Row'];
+export type ClubDepense = Database['public']['Tables']['club_depenses']['Row'];

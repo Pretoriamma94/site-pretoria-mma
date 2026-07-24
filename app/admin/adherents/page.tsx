@@ -35,6 +35,7 @@ const ADHERENT_SELECT = [
   'accepte_rgpd',
   'accepte_reglement',
   'accepte_charte',
+  'informe_assurance_individuelle',
   'type_profil',
   'sexe',
   'dossier_status',
@@ -42,7 +43,7 @@ const ADHERENT_SELECT = [
   'cours_selectionne',
 ].join(', ');
 
-type SearchParams = Promise<{ annee?: string; q?: string }>;
+type SearchParams = Promise<{ annee?: string; q?: string; categorie?: string }>;
 
 export default async function AdminAdherentsPage({
   searchParams,
@@ -58,6 +59,12 @@ export default async function AdminAdherentsPage({
   const currentYear = getCurrentSchoolYear();
   const anneeFilter = params.annee ?? currentYear;
   const query = (params.q ?? '').trim();
+  const categorieRaw = (params.categorie ?? 'all').trim();
+  const categorieFilter = ['baby', 'ados_7_11', 'ados_11_18', 'adultes', 'all'].includes(
+    categorieRaw,
+  )
+    ? categorieRaw
+    : 'all';
 
   const supabase = createServerClient();
 
@@ -111,9 +118,10 @@ export default async function AdminAdherentsPage({
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 md:px-6">
       <AdherentsDirectory
-        key={`${anneeFilter}-${query}`}
+        key={`${anneeFilter}-${query}-${categorieFilter}`}
         initialRows={rows}
         anneeFilter={anneeFilter}
+        categorieFilter={categorieFilter}
         yearOptions={yearOptions}
         query={query}
       />

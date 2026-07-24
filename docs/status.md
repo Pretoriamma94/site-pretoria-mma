@@ -95,6 +95,72 @@ Alignés site + admin papier :
 - **Photos actualités** : upload optionnel vignette + galerie (multi) via bucket `posts-images` ; colonne `galerie_urls`.
 - **Historique paiements** : table `inscription_paiements` (date réception, échéance, preuve chèque/virement) — migration `20260719180000_inscription_paiements.sql` **appliquée**.
 
+## Dépenses & résultat net (2026-07-24)
+
+- Table `club_depenses` (migration `20260724140000_club_depenses.sql`) — **à pusher au déploiement**.
+- Page **Finances** (`/admin/paiements`) : indicateurs **Recettes dues / Encaissées / En attente / Dépenses / Résultat net** (encaissé − dépenses).
+- Formulaire d'ajout de dépense (libellé, montant, date, catégorie, note) + liste / suppression.
+- Catégories : matériel, location, compétition, assurance, déplacement, communication, autre.
+- Année scolaire dérivée automatiquement de la date de dépense.
+
+## Suivi des recettes club (2026-07-24)
+
+- Page `/admin/paiements` : 3 indicateurs — **Recettes totales** (cotisations dues), **Déjà encaissées**, **En attente** (+ % et nb de soldes ouverts).
+- Filtre année scolaire ; liste des soldes à encaisser conservée en dessous.
+- Dashboard admin : tuile « Recettes du club » (montant encaissé + reste en attente).
+- Helper `computeRecettesClub` dans `lib/admin/labels.ts`.
+
+## Filtre adhérents par catégorie (2026-07-24)
+
+- Sur `/admin/adherents` : filtre **Catégorie** (Baby JJB 3-6 ans, Ados 7-11, Ados 11-18, Adultes) + puces avec effectifs.
+- Colonne **Catégorie** dans le tableau ; l'export Excel reprend la sélection affichée.
+- Filtrage basé sur `cours_selectionne` (catégorie d'inscription, alignée sur les tranches d'âge).
+
+## Charte sportive PDF téléchargeable (2026-07-24)
+
+- PDF officiel placé dans `public/documents/charte-sportive-pretoria.pdf`.
+- Bouton **Télécharger la charte (PDF)** sur `/charte` + lien **télécharger le PDF** à l'étape Autorisations de l'inscription (à côté de « consulter »).
+
+## Édition profil adhérent admin (2026-07-24)
+
+- Les admins peuvent **corriger / mettre à jour** un profil depuis **Inscriptions** et **Adhérents**.
+- Modal partagé `EditProfileModal` + action `updateInscriptionProfileAction` (Zod `editProfileSchema`).
+- Champs éditables : identité (nom, prénom, date de naissance, sexe), contact (email, téléphone), adresse, mensurations / taille de tenue, responsable légal (mineur), consentements (RGPD, règlement, charte, assurance), **droit à l'image** (photos site & réseaux), autorisations mineur (pratique, soins, transport, sortie seule).
+- Recalcule `dossier_status` après modification des consentements.
+- Bouton **Modifier** dans la fiche détail (les deux écrans) ; la liste se met à jour immédiatement.
+
+## Transmission différée des documents (2026-07-24)
+
+- **Besoin** : permettre à l'adhérent de revenir **quelques jours/semaines** après l'inscription pour transmettre les **documents manquants** (certificat médical, photo), sans compte. L'engagement « sous 3 semaines » reste inchangé.
+- **Mécanisme** : **lien personnel sécurisé par jeton** (aucun login).
+  - Migration `20260724120000_inscription_documents_token.sql` : colonne `documents_token uuid unique default gen_random_uuid()` (attribuée aussi aux inscriptions existantes). **⚠️ à pusher au déploiement.**
+  - Jeton **généré côté client** à l'inscription et inséré (le RLS anonyme n'autorise pas la relecture après insert).
+- **Page publique** `/mon-inscription/[token]` (Server Component + `DocumentsClient`) : statut de chaque doc (Transmis / À fournir) + upload des manquants. `noindex`. Upload direct vers Storage (bucket `inscriptions`) puis server action `submitInscriptionDocumentAction` (jeton = authentification) qui met à jour l'URL, désactive l'engagement, recalcule Finalisé, revalide l'admin.
+- **Email (Option A retenue)** : `lib/email/inscription.ts` + `notifyInscriptionCreatedAction` envoient à l'adhérent le lien « complétez vos documents » (non bloquant). **Nécessite domaine vérifié Resend + `CONTACT_FROM_EMAIL` (Vercel).**
+- **Confirmation** `/inscription/paiement-en-attente` : section « Documents à compléter » avec le lien (jeton passé en query).
+- **Admin** : fiche inscription → `DocumentsLinkBox` affiche le lien personnel (copiable) pour le renvoyer à l'adhérent. `documents_token` ajouté au select admin + types.
+- **Décision produit** : pas de champ « autre document » pour l'instant (uniquement certificat + photo).
+- **Au déploiement** : (1) `npm run db:push` pour la migration ; (2) vérifier le domaine dans Resend + définir `CONTACT_FROM_EMAIL` et `NEXT_PUBLIC_SITE_URL` sur Vercel.
+
+## FAQ page d'accueil + SEO (2026-07-24)
+
+- Nouvelle section **Questions fréquentes** en bas de la page d'accueil (`components/FaqSection.tsx`, insérée dans `app/page.tsx` avant le CTA final).
+- **7 questions** couvrant 3 profils : novice en MMA, curieux du club, futur adhérent (c'est quoi le MMA, débutants/enfants, âge dès 3 ans, équipement, cours d'essai offert, lieux/horaires La Queue-en-Brie 94, tarifs 200-300 €/an + paiement au club).
+- **SEO** : balisage **JSON-LD `FAQPage`** (rich results Google) + mots-clés locaux ; accordéon natif `<details>` (accessible, sans JS, Server Component).
+- CTA « S'inscrire » / « Poser une question » sous la FAQ.
+
+## Fix publication actualités — écran d'erreur client (2026-07-24)
+
+- **Symptôme** : en prod, la publication d'une actualité (avec photo) provoquait « Application error: a client-side exception » (écran noir).
+- **Cause** : Next.js 16 limite le body des **Server Actions à 1 Mo** par défaut. Une photo > 1 Mo faisait rejeter la requête *avant* l'exécution de l'action (donc non attrapable par le `try/catch`), et l'absence d'error boundary produisait l'écran noir.
+- **Correctifs** :
+  - `next.config.mjs` → `experimental.serverActions.bodySizeLimit: '4mb'` (marge sous la limite plateforme Vercel ~4,5 Mo).
+  - `app/admin/error.tsx` : error boundary admin → message lisible + « Réessayer » au lieu de l'écran noir (bénéficie à toutes les actions admin).
+  - Garde-fou client dans `AdminCreatePostForm` / `AdminEditPostForm` : blocage du bouton + message si poids total des photos > 3,8 Mo.
+  - `lib/admin/upload-post-image.ts` : `MAX_BYTES` aligné à 4 Mo.
+  - `package.json` : `next` / `react` / `react-dom` **épinglés** (16.1.6 / 19.2.4) au lieu de `latest` (évite un upgrade cassant au redéploiement).
+- **À surveiller / suite possible** : mêmes limites pour les **documents d'inscription** (certificats PDF volumineux) et les **galeries multi-photos** de compétition (total > 3,8 Mo impossible via Server Action sur Vercel). Solution robuste = **upload direct client → Supabase Storage** (l'action ne recevrait que les URLs). À planifier si besoin de gros volumes.
+
 ## Pages légales, cookies & SSL (2026-07-21)
 
 - **Mentions légales** (`/mentions-legales`) : éditeur (association loi 1901), directeur de publication, hébergeur (Vercel), propriété intellectuelle, responsabilité. **Infos officielles renseignées** (source avis SIRENE 29/01/2026) : siège 4 avenue du Maréchal Mortier, 94510 La Queue-en-Brie ; RNA W942012446 ; SIREN 994 391 472 ; SIRET siège 994 391 472 00010 ; APE 93.12Z ; directeur de publication Christophe Ferreira (président).

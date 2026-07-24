@@ -18,11 +18,23 @@ export type EditablePost = {
 
 const initialState: UpdatePostActionState = {};
 
+// Limite plateforme des Server Actions (voir next.config.mjs : bodySizeLimit 4mb).
+const MAX_TOTAL_BYTES = 3.8 * 1024 * 1024;
+
+function formatMo(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
 export function AdminEditPostForm({ post }: { post: EditablePost }) {
   const [state, formAction, isPending] = useActionState(updatePostAction, initialState);
   const [vignetteName, setVignetteName] = useState<string | null>(null);
   const [galleryCount, setGalleryCount] = useState(0);
+  const [vignetteSize, setVignetteSize] = useState(0);
+  const [gallerySize, setGallerySize] = useState(0);
   const existingGallery = Array.isArray(post.galerie_urls) ? post.galerie_urls : [];
+
+  const totalSize = vignetteSize + gallerySize;
+  const tooHeavy = totalSize > MAX_TOTAL_BYTES;
 
   return (
     <form action={formAction} className="mt-4 grid gap-4" encType="multipart/form-data">
@@ -109,7 +121,8 @@ export function AdminEditPostForm({ post }: { post: EditablePost }) {
           Photos
         </p>
         <p className="mt-1 text-[0.7rem] text-zinc-500">
-          Laisse vide pour conserver les images actuelles. JPG / PNG / WebP — max 5 Mo.
+          Laisse vide pour conserver les images actuelles. JPG / PNG / WebP — poids
+          total des nouvelles photos limité à 3,8 Mo.
         </p>
 
         {post.image_url ? (
@@ -136,6 +149,7 @@ export function AdminEditPostForm({ post }: { post: EditablePost }) {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 setVignetteName(file ? file.name : null);
+                setVignetteSize(file ? file.size : 0);
               }}
             />
             <span className="mt-1 block text-[0.65rem] text-zinc-500">
@@ -151,7 +165,11 @@ export function AdminEditPostForm({ post }: { post: EditablePost }) {
               accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
               multiple
               className="mt-1 block w-full text-sm text-zinc-300 file:mr-3 file:rounded-full file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-zinc-700"
-              onChange={(e) => setGalleryCount(e.target.files?.length ?? 0)}
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                setGalleryCount(files.length);
+                setGallerySize(files.reduce((sum, f) => sum + f.size, 0));
+              }}
             />
             <span className="mt-1 block text-[0.65rem] text-zinc-500">
               Galerie actuelle : {existingGallery.length} photo
@@ -183,10 +201,17 @@ export function AdminEditPostForm({ post }: { post: EditablePost }) {
         Article publié
       </label>
 
+      {tooHeavy ? (
+        <p className="rounded-xl border border-amber-900/50 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
+          Nouvelles photos trop lourdes ({formatMo(totalSize)} au total, max 3,8 Mo).
+          Réduis le nombre ou le poids des images avant d&apos;enregistrer.
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap gap-3">
         <button
           type="submit"
-          disabled={isPending}
+          disabled={isPending || tooHeavy}
           className="rounded-full bg-red-600 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-red-700 disabled:opacity-60"
         >
           {isPending ? 'Enregistrement...' : 'Enregistrer les modifications'}

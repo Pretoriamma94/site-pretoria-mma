@@ -6,8 +6,11 @@ import { requireAdmin } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { isMinor, formatAdresse } from '@/lib/inscription/schema';
 import { manualInscriptionSchema } from '@/lib/admin/manual-inscription-schema';
+import { editProfileSchema } from '@/lib/admin/edit-profile-schema';
 import { isDossierFinalisable } from '@/lib/admin/dossier';
-import { getCurrentSchoolYear } from '@/lib/admin/school-year';
+import { computeDossierStatus } from '@/lib/admin/dossier-status';
+import { getCurrentSchoolYear, getSchoolYearFromDate } from '@/lib/admin/school-year';
+import { createDepenseSchema } from '@/lib/admin/depense-schema';
 import {
   collectGalleryFiles,
   uploadPostImageFile,
@@ -160,6 +163,7 @@ function galerieUrlsMessage(imageUrl: string | null, galleryCount: number): stri
 function revalidateAdminPaths() {
   revalidatePath('/admin');
   revalidatePath('/admin/inscriptions');
+  revalidatePath('/admin/adherents');
   revalidatePath('/admin/paiements');
   revalidatePath('/admin/contact');
   revalidatePath('/admin/actualites');
@@ -886,6 +890,167 @@ export async function createManualInscriptionAction(
   }
 }
 
+export type ProfileUpdatedFields = {
+  nom: string;
+  prenom: string;
+  date_naissance: string | null;
+  sexe: 'homme' | 'femme' | null;
+  email: string;
+  telephone: string;
+  numero_voie: string | null;
+  rue: string | null;
+  code_postal: string;
+  ville: string;
+  adresse: string;
+  taille_cm: number | null;
+  poids_kg: number | null;
+  taille_tenue: string | null;
+  responsable_legal: unknown | null;
+  type_profil: 'adulte' | 'mineur' | null;
+  accepte_reglement: boolean;
+  accepte_charte: boolean;
+  accepte_rgpd: boolean;
+  informe_droit_acces: boolean;
+  informe_assurance_individuelle: boolean;
+  autorise_photos: boolean | null;
+  autorisation_pratique_mineur: boolean | null;
+  autorisation_soins_urgence: boolean | null;
+  autorise_voiture_privee: boolean | null;
+  autorise_sortie_seul: boolean | null;
+  dossier_status: 'pre_inscrit' | 'incomplet' | 'complet';
+};
+
+export type UpdateProfileResult =
+  | { success: true; fields: ProfileUpdatedFields }
+  | { success: false; error: string };
+
+/**
+ * Édite le profil d'un adhérent (identité, contact, adresse, mensurations,
+ * consentements RGPD / droit à l'image, responsable légal). Utilisé depuis
+ * les vues « Inscriptions » et « Adhérents ».
+ */
+export async function updateInscriptionProfileAction(
+  id: string,
+  input: unknown,
+): Promise<UpdateProfileResult> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { success: false, error: 'Accès administrateur requis.' };
+  }
+
+  if (!id || !z.string().uuid().safeParse(id).success) {
+    return { success: false, error: 'Inscription invalide.' };
+  }
+
+  const parsed = editProfileSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
+  }
+  const data = parsed.data;
+  const minor = isMinor(data.dateNaissance);
+
+  const responsableLegal = minor
+    ? {
+        nom: data.nomResponsable || null,
+        prenom: data.prenomResponsable || null,
+        telephone: data.telephoneResponsable || null,
+        email: data.emailResponsable || null,
+        lienParente: data.lienParente || null,
+      }
+    : null;
+
+  const adresse = formatAdresse(data.numeroVoie, data.rue);
+
+  const patch = {
+    nom: data.nom.trim(),
+    prenom: data.prenom.trim(),
+    date_naissance: data.dateNaissance,
+    sexe: data.sexe ?? null,
+    email: (data.email || '').toLowerCase(),
+    telephone: data.telephone || '',
+    numero_voie: data.numeroVoie || null,
+    rue: data.rue || null,
+    code_postal: data.codePostal || '',
+    ville: data.ville || '',
+    adresse,
+    taille_cm: data.tailleCm,
+    poids_kg: data.poidsKg,
+    taille_tenue: data.tailleTenue,
+    responsable_legal: responsableLegal,
+    type_profil: (minor ? 'mineur' : 'adulte') as 'adulte' | 'mineur',
+    accepte_reglement: data.accepteReglement,
+    accepte_charte: data.accepteCharte,
+    accepte_rgpd: data.accepteRgpd,
+    informe_droit_acces: data.accepteRgpd,
+    informe_assurance_individuelle: data.informeAssurance,
+    autorise_photos: data.autorisePhotos,
+    autorisation_pratique_mineur: minor
+      ? Boolean(data.autorisationPratiqueMineur)
+      : null,
+    autorisation_soins_urgence: minor
+      ? Boolean(data.autorisationSoinsUrgence)
+      : null,
+    autorise_voiture_privee: minor ? (data.autoriseVoiturePrivee ?? null) : null,
+    autorise_sortie_seul: minor ? (data.autoriseSortieSeul ?? null) : null,
+  };
+
+  try {
+    const supabase = createServerClient();
+
+    const { data: current, error: fetchError } = await supabase
+      .from('inscriptions')
+      .select(
+        'certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, attestation_questionnaire_sante, certificat_engagement_3_semaines, autorisation_engagement_3_semaines, photo_engagement_3_semaines, dossier_status',
+      )
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchError || !current) {
+      return { success: false, error: fetchError?.message ?? 'Adhérent introuvable.' };
+    }
+
+    // Recalcule le statut dossier avec les nouvelles valeurs de consentement.
+    const dossierStatus = computeDossierStatus(
+      {
+        ...current,
+        date_naissance: patch.date_naissance,
+        responsable_legal: patch.responsable_legal,
+        type_profil: patch.type_profil,
+        accepte_reglement: patch.accepte_reglement,
+        accepte_charte: patch.accepte_charte,
+        accepte_rgpd: patch.accepte_rgpd,
+        informe_droit_acces: patch.informe_droit_acces,
+        autorisation_pratique_mineur: patch.autorisation_pratique_mineur,
+        autorisation_soins_urgence: patch.autorisation_soins_urgence,
+      },
+      current.dossier_status,
+    );
+
+    const { error: updateError } = await supabase
+      .from('inscriptions')
+      .update({ ...patch, dossier_status: dossierStatus })
+      .eq('id', id);
+
+    if (updateError) {
+      return { success: false, error: `Mise à jour impossible : ${updateError.message}` };
+    }
+
+    revalidateAdminPaths();
+
+    return {
+      success: true,
+      fields: { ...patch, dossier_status: dossierStatus },
+    };
+  } catch {
+    return {
+      success: false,
+      error:
+        'Connexion Supabase impossible. Vérifiez votre connexion internet et les clés dans .env.local.',
+    };
+  }
+}
+
 export type MarkContactResult =
   | { success: true; traite: boolean }
   | { success: false; error: string };
@@ -1138,4 +1303,93 @@ export async function deleteContactMessageAction(
 
   revalidateAdminPaths();
   return { success: true };
+}
+
+export type CreateDepenseResult =
+  | { success: true; id: string }
+  | { success: false; error: string };
+
+export type DeleteDepenseResult =
+  | { success: true }
+  | { success: false; error: string };
+
+/** Enregistre une dépense club (admin). */
+export async function createDepenseAction(
+  input: unknown,
+): Promise<CreateDepenseResult> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { success: false, error: 'Accès administrateur requis.' };
+  }
+
+  const parsed = createDepenseSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
+  }
+
+  const data = parsed.data;
+  const date = new Date(`${data.dateDepense}T12:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return { success: false, error: 'Date de dépense invalide.' };
+  }
+  const anneeScolaire = getSchoolYearFromDate(date);
+
+  try {
+    const supabase = createServerClient();
+    const { data: row, error } = await supabase
+      .from('club_depenses')
+      .insert({
+        libelle: data.libelle,
+        montant: Math.round(data.montant * 100) / 100,
+        date_depense: data.dateDepense,
+        categorie: data.categorie,
+        annee_scolaire: anneeScolaire,
+        note: data.note ?? null,
+      })
+      .select('id')
+      .single();
+
+    if (error || !row) {
+      return { success: false, error: error?.message ?? 'Création impossible.' };
+    }
+
+    revalidateAdminPaths();
+    return { success: true, id: row.id };
+  } catch {
+    return {
+      success: false,
+      error:
+        'Connexion Supabase impossible. Vérifiez votre connexion internet et les clés dans .env.local.',
+    };
+  }
+}
+
+/** Supprime une dépense club (admin). */
+export async function deleteDepenseAction(id: string): Promise<DeleteDepenseResult> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { success: false, error: 'Accès administrateur requis.' };
+  }
+
+  if (!id || !z.string().uuid().safeParse(id).success) {
+    return { success: false, error: 'Identifiant invalide.' };
+  }
+
+  try {
+    const supabase = createServerClient();
+    const { error } = await supabase.from('club_depenses').delete().eq('id', id);
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    revalidateAdminPaths();
+    return { success: true };
+  } catch {
+    return {
+      success: false,
+      error:
+        'Connexion Supabase impossible. Vérifiez votre connexion internet et les clés dans .env.local.',
+    };
+  }
 }

@@ -5,10 +5,23 @@ import { createPostAction, type CreatePostActionState } from './actions';
 
 const initialState: CreatePostActionState = {};
 
+// Limite plateforme des Server Actions (voir next.config.mjs : bodySizeLimit 4mb).
+// On garde une marge pour l'overhead multipart afin d'éviter un rejet transport.
+const MAX_TOTAL_BYTES = 3.8 * 1024 * 1024;
+
+function formatMo(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
 export function AdminCreatePostForm() {
   const [state, formAction, isPending] = useActionState(createPostAction, initialState);
   const [vignetteName, setVignetteName] = useState<string | null>(null);
   const [galleryCount, setGalleryCount] = useState(0);
+  const [vignetteSize, setVignetteSize] = useState(0);
+  const [gallerySize, setGallerySize] = useState(0);
+
+  const totalSize = vignetteSize + gallerySize;
+  const tooHeavy = totalSize > MAX_TOTAL_BYTES;
 
   return (
     <form action={formAction} className="mt-4 grid gap-4" encType="multipart/form-data">
@@ -87,7 +100,7 @@ export function AdminCreatePostForm() {
         </p>
         <p className="mt-1 text-[0.7rem] text-zinc-500">
           Tu peux publier sans image, avec une vignette seule, ou avec une galerie
-          (compétition, etc.). JPG / PNG / WebP — max 5 Mo par photo.
+          (compétition, etc.). JPG / PNG / WebP — poids total des photos limité à 3,8 Mo.
         </p>
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -101,6 +114,7 @@ export function AdminCreatePostForm() {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 setVignetteName(file ? file.name : null);
+                setVignetteSize(file ? file.size : 0);
               }}
             />
             <span className="mt-1 block text-[0.65rem] text-zinc-500">
@@ -116,7 +130,11 @@ export function AdminCreatePostForm() {
               accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
               multiple
               className="mt-1 block w-full text-sm text-zinc-300 file:mr-3 file:rounded-full file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-zinc-700"
-              onChange={(e) => setGalleryCount(e.target.files?.length ?? 0)}
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                setGalleryCount(files.length);
+                setGallerySize(files.reduce((sum, f) => sum + f.size, 0));
+              }}
             />
             <span className="mt-1 block text-[0.65rem] text-zinc-500">
               {galleryCount > 0
@@ -132,10 +150,17 @@ export function AdminCreatePostForm() {
         Publier immédiatement
       </label>
 
+      {tooHeavy ? (
+        <p className="rounded-xl border border-amber-900/50 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
+          Photos trop lourdes ({formatMo(totalSize)} au total, max 3,8 Mo). Réduis le
+          nombre ou le poids des images avant de publier.
+        </p>
+      ) : null}
+
       <div>
         <button
           type="submit"
-          disabled={isPending}
+          disabled={isPending || tooHeavy}
           className="rounded-full bg-red-600 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-red-700 disabled:opacity-60"
         >
           {isPending ? 'Publication...' : "Créer l'actualité"}

@@ -29,6 +29,8 @@ import { deleteInscriptionAction, updateInscriptionStatusAction } from './action
 import type { InscriptionPaiementRow } from './actions';
 import { PaymentFormModal } from './PaymentFormModal';
 import { InscriptionDocumentDownloads } from './InscriptionDocumentDownloads';
+import { DocumentsLinkBox } from './DocumentsLinkBox';
+import { EditProfileModal } from './EditProfileModal';
 import { InscriptionPaiementsHistory } from './InscriptionPaiementsHistory';
 import {
   DocumentsCountdownBadge,
@@ -89,6 +91,7 @@ export type AdminInscription = {
   autorisation_pratique_mineur: boolean | null;
   autorisation_soins_urgence: boolean | null;
   accepte_rgpd: boolean | null;
+  documents_token: string | null;
   created_at: string;
   updated_at: string | null;
   expires_at: string | null;
@@ -128,6 +131,7 @@ export function AdminInscriptionsTable({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
   const [selected, setSelected] = useState<AdminInscription | null>(null);
+  const [editing, setEditing] = useState(false);
   const [paymentFor, setPaymentFor] = useState<AdminInscription | null>(null);
   const [lastPaiement, setLastPaiement] = useState<InscriptionPaiementRow | null>(null);
   const [search, setSearch] = useState(query);
@@ -474,6 +478,13 @@ export function AdminInscriptionsTable({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  className="rounded-full border border-mma-red/70 bg-mma-red/20 px-3 py-1 text-xs uppercase tracking-wide text-red-100 hover:bg-mma-red/30"
+                  onClick={() => setEditing(true)}
+                >
+                  Modifier
+                </button>
+                <button
+                  type="button"
                   className="rounded-full border border-red-700/70 bg-red-950/40 px-3 py-1 text-xs uppercase tracking-wide text-red-200 hover:bg-red-900/50 disabled:opacity-60"
                   onClick={() => handleDelete(selected.id)}
                   disabled={loadingId === selected.id}
@@ -485,6 +496,7 @@ export function AdminInscriptionsTable({
                   className="rounded-full border border-zinc-600 px-3 py-1 text-xs uppercase tracking-wide text-zinc-200 hover:bg-zinc-800"
                   onClick={() => {
                     setSelected(null);
+                    setEditing(false);
                     setLastPaiement(null);
                   }}
                 >
@@ -809,6 +821,7 @@ export function AdminInscriptionsTable({
                       }
                     }}
                   />
+                  <DocumentsLinkBox token={selected.documents_token} />
                 </div>
               );
             })()}
@@ -835,6 +848,22 @@ export function AdminInscriptionsTable({
                   ? 'Paiement enregistré — dossier Finalisé.'
                   : 'Paiement enregistré.',
             });
+          }}
+        />
+      )}
+
+      {editing && selected && (
+        <EditProfileModal
+          profile={selected}
+          onClose={() => setEditing(false)}
+          onSaved={(fields) => {
+            setRows((prev) =>
+              prev.map((r) => (r.id === selected.id ? { ...r, ...fields } : r)),
+            );
+            setSelected((prev) => (prev ? { ...prev, ...fields } : prev));
+            setEditing(false);
+            setToast({ type: 'success', message: 'Profil mis à jour.' });
+            router.refresh();
           }}
         />
       )}

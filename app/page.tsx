@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createServerClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PostCard } from '@/components/PostCard';
+import { FaqSection } from '@/components/FaqSection';
 import {
   Users,
   Trophy,
@@ -361,6 +362,9 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* FAQ — référencement + réponses aux questions courantes */}
+      <FaqSection />
 
       {/* CTA FINAL */}
       <section className="bg-mma-red py-16">

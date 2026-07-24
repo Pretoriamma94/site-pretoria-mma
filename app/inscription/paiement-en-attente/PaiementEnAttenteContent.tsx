@@ -28,6 +28,7 @@ export function PaiementEnAttenteContent() {
       : null;
   const parEcheance =
     montant != null && echeances != null ? montantParEcheance(montant, echeances) : null;
+  const token = searchParams.get('token') ?? '';
 
   const hasParams = Boolean(nom || prenom || cours || montant);
 
@@ -142,6 +143,32 @@ export function PaiementEnAttenteContent() {
                 </CardContent>
               </Card>
             </section>
+
+            {token ? (
+              <section className="mt-8">
+                <Card className="border-mma-red/50 bg-red-950/20">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Documents à compléter</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm text-zinc-200">
+                    <p>
+                      Il vous manque un document (certificat médical et/ou photo) ? Vous pouvez le
+                      transmettre plus tard — dans les 3 semaines — grâce à votre lien personnel.
+                      Un email de rappel avec ce lien vous a également été envoyé.
+                    </p>
+                    <Link
+                      href={`/mon-inscription/${token}`}
+                      className="inline-flex h-11 items-center justify-center rounded-full bg-red-600 px-6 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-red-700"
+                    >
+                      Transmettre mes documents
+                    </Link>
+                    <p className="text-xs text-zinc-400">
+                      Conservez cet email : il contient votre lien pour revenir quand vous voulez.
+                    </p>
+                  </CardContent>
+                </Card>
+              </section>
+            ) : null}
 
             <section className="mt-8">
               <Card className="border-zinc-700 bg-zinc-900/80">

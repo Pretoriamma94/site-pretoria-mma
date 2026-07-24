@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getAuthUser, isAdminUser } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { formatEuros, soldeRestant } from '@/lib/admin/labels';
+import { computeRecettesClub, formatEuros, soldeRestant } from '@/lib/admin/labels';
 import { getDocumentsChecklist } from '@/lib/admin/documents';
 import { ADMIN_INSCRIPTION_SELECT } from '@/lib/admin/inscription-fields';
 import { getCurrentSchoolYear } from '@/lib/admin/school-year';
@@ -20,7 +20,6 @@ export default async function AdminHomePage() {
 
   const [
     { count: adherentsCount },
-    { count: pendingPaymentCount },
     { count: incompletCount },
     { data: allForSoldes },
     { data: docsCandidates },
@@ -32,11 +31,6 @@ export default async function AdminHomePage() {
       .select('id', { count: 'exact', head: true })
       .eq('annee_scolaire', annee)
       .neq('status', 'cancelled'),
-    supabase
-      .from('inscriptions')
-      .select('id', { count: 'exact', head: true })
-      .eq('annee_scolaire', annee)
-      .eq('status', 'pending_payment'),
     supabase
       .from('inscriptions')
       .select('id', { count: 'exact', head: true })
@@ -69,12 +63,9 @@ export default async function AdminHomePage() {
     supabase.from('posts').select('id', { count: 'exact', head: true }),
   ]);
 
+  const recettes = computeRecettesClub(allForSoldes ?? []);
   const dues = (allForSoldes ?? []).filter(
     (r) => soldeRestant(Number(r.montant_total), r.montant_paye) > 0,
-  );
-  const totalReste = dues.reduce(
-    (sum, r) => sum + soldeRestant(Number(r.montant_total), r.montant_paye),
-    0,
   );
 
   const docsMissingCount = ((docsCandidates ?? []) as unknown as AdminInscription[]).filter(
@@ -103,13 +94,13 @@ export default async function AdminHomePage() {
     },
     {
       href: '/admin/paiements',
-      label: 'Paiements en attente',
-      value: String(dues.length),
+      label: 'Recettes du club',
+      value: formatEuros(recettes.totalEncaisse),
       hint:
-        dues.length === 0
-          ? 'Aucun solde'
-          : `${formatEuros(totalReste)} restant · ${pendingPaymentCount ?? 0} sans 1er paiement`,
-      tone: dues.length > 0 ? ('warn' as const) : ('ok' as const),
+        recettes.totalEnAttente > 0
+          ? `${formatEuros(recettes.totalEnAttente)} en attente · ${dues.length} solde${dues.length > 1 ? 's' : ''}`
+          : `Total dû ${formatEuros(recettes.totalDu)} · à jour`,
+      tone: recettes.totalEnAttente > 0 ? ('warn' as const) : ('ok' as const),
     },
   ];
 
@@ -131,8 +122,8 @@ export default async function AdminHomePage() {
     },
     {
       href: '/admin/paiements',
-      title: 'Paiements / soldes',
-      body: 'Enregistrer un règlement, reste dû, preuves de paiement',
+      title: 'Finances',
+      body: 'Recettes, dépenses, résultat net — soldes à encaisser',
     },
     {
       href: '/admin/contact',

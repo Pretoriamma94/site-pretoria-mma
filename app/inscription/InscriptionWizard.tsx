@@ -34,10 +34,12 @@ import {
   TEXTE_DROIT_IMAGE_MINEUR,
   TEXTE_INFO_ASSURANCE,
 } from '@/lib/inscription/legal-texts';
+import { CHARTE_PDF_FILENAME, CHARTE_PDF_HREF } from '@/lib/inscription/charte';
 import { InscriptionSanteStep } from './InscriptionSanteStep';
 import { ConsentCheckbox, RgpdInfoBloc } from '@/components/inscription/ConsentCheckbox';
 import { TailleTenueField } from '@/components/inscription/TailleTenueField';
 import { uploadInscriptionFile } from '@/lib/inscription/upload';
+import { notifyInscriptionCreatedAction } from './actions';
 import { getCurrentSchoolYear } from '@/lib/admin/school-year';
 import type { TailleTenue } from '@/lib/inscription/taille-tenue';
 import { cn } from '@/lib/utils';
@@ -387,7 +389,16 @@ export function InscriptionWizard() {
         photoPath = up.path;
       }
 
-      const { error } = await supabase.from('inscriptions').insert({
+      // Jeton généré côté client : le RLS anonyme n'autorise pas la relecture
+      // de la ligne après insert, on ne peut donc pas compter sur un select().
+      const documentsToken =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : '';
+
+      const { error } = await supabase
+        .from('inscriptions')
+        .insert({
         status: 'pending_payment',
         dossier_status: 'pre_inscrit',
         annee_scolaire: getCurrentSchoolYear(),
@@ -440,6 +451,7 @@ export function InscriptionWizard() {
           values.typeProfil === 'mineur'
             ? values.acceptePhotos ?? false
             : values.acceptePhotos ?? false,
+        ...(documentsToken ? { documents_token: documentsToken } : {}),
       });
 
       if (error) {
@@ -460,6 +472,21 @@ export function InscriptionWizard() {
       }
 
       setToast({ type: 'success', message: 'Pré-inscription enregistrée ! Redirection…' });
+
+      const missingCertificat = !certificatFile;
+      const missingPhoto = !photoFile;
+
+      // Email « complétez vos documents » — best-effort, ne bloque pas la redirection.
+      if (documentsToken && emailPrincipal && (missingCertificat || missingPhoto)) {
+        void notifyInscriptionCreatedAction({
+          email: emailPrincipal,
+          prenom: values.prenom,
+          token: documentsToken,
+          missingCertificat,
+          missingPhoto,
+        }).catch(() => {});
+      }
+
       const query = new URLSearchParams({
         nom: values.nom,
         prenom: values.prenom,
@@ -467,6 +494,7 @@ export function InscriptionWizard() {
         montant: String(total),
         mode: paiementResult.data.modePaiement,
         echeances: String(paiementResult.data.nombreEcheances),
+        ...(documentsToken ? { token: documentsToken } : {}),
       }).toString();
       router.push(`/inscription/paiement-en-attente?${query}`);
     } catch (err) {
@@ -836,7 +864,15 @@ export function InscriptionWizard() {
                 {TEXTE_ACCEPTER_CHARTE}{' '}
                 <Link href="/charte" className="text-red-400 hover:underline" target="_blank">
                   (consulter)
-                </Link>{' '}
+                </Link>
+                {' · '}
+                <a
+                  href={CHARTE_PDF_HREF}
+                  download={CHARTE_PDF_FILENAME}
+                  className="text-red-400 hover:underline"
+                >
+                  télécharger le PDF
+                </a>{' '}
                 *
               </ConsentCheckbox>
               {isMineur && (

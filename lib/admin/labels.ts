@@ -49,6 +49,52 @@ export function soldeRestant(montantTotal: number, montantPaye: number | null | 
   return Math.max(0, Math.round((montantTotal - paye) * 100) / 100);
 }
 
+export type RecettesClub = {
+  /** Somme des cotisations dues (inscriptions actives). */
+  totalDu: number;
+  /** Somme déjà encaissée. */
+  totalEncaisse: number;
+  /** Reste à encaisser. */
+  totalEnAttente: number;
+  /** Nombre d'adhérents avec un reste > 0. */
+  nbSoldesOuverts: number;
+  /** Nombre d'adhérents actifs pris en compte. */
+  nbAdherents: number;
+};
+
+/** Agrège les recettes club à partir des inscriptions actives. */
+export function computeRecettesClub(
+  rows: Array<{
+    montant_total: number;
+    montant_paye: number | null | undefined;
+    status?: string;
+  }>,
+): RecettesClub {
+  let totalDu = 0;
+  let totalEncaisse = 0;
+  let totalEnAttente = 0;
+  let nbSoldesOuverts = 0;
+
+  for (const row of rows) {
+    if (row.status === 'cancelled') continue;
+    const total = Number(row.montant_total) || 0;
+    const paye = Math.min(Math.max(0, Number(row.montant_paye) || 0), total);
+    const reste = soldeRestant(total, paye);
+    totalDu += total;
+    totalEncaisse += paye;
+    totalEnAttente += reste;
+    if (reste > 0) nbSoldesOuverts += 1;
+  }
+
+  return {
+    totalDu: Math.round(totalDu * 100) / 100,
+    totalEncaisse: Math.round(totalEncaisse * 100) / 100,
+    totalEnAttente: Math.round(totalEnAttente * 100) / 100,
+    nbSoldesOuverts,
+    nbAdherents: rows.filter((r) => r.status !== 'cancelled').length,
+  };
+}
+
 export function isPaiementPartiel(
   montantTotal: number,
   montantPaye: number | null | undefined,

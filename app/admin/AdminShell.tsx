@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   },
   {
     href: '/admin/paiements',
-    label: 'Paiements / Soldes',
+    label: 'Finances',
     match: (p: string) => p.startsWith('/admin/paiements'),
   },
   {

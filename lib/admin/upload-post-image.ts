@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = 4 * 1024 * 1024;
 const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/jpg']);
 
 function isAllowedImage(file: File): boolean {

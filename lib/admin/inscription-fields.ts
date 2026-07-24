@@ -49,6 +49,7 @@ export const ADMIN_INSCRIPTION_SELECT = [
   'autorisation_pratique_mineur',
   'autorisation_soins_urgence',
   'accepte_rgpd',
+  'documents_token',
   'created_at',
   'updated_at',
   'expires_at',

@@ -24,6 +24,16 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    serverActions: {
+      // Par défaut Next.js limite le body d'une Server Action à 1 Mo.
+      // Les uploads de photos (actualités, documents d'inscription) dépassent
+      // vite cette limite -> requête rejetée avant l'exécution de l'action,
+      // ce qui provoquait un écran d'erreur client sans message exploitable.
+      // 4 Mo = marge maximale sûre sous la limite plateforme Vercel (~4,5 Mo).
+      bodySizeLimit: '4mb',
+    },
+  },
   async headers() {
     return [
       {

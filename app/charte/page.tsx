@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { CHARTE_PDF_FILENAME, CHARTE_PDF_HREF } from '@/lib/inscription/charte';
 
 export const metadata: Metadata = {
   title: 'Charte du club | Pretoria MMA',
@@ -72,6 +73,15 @@ export default function CharteDuClubPage() {
         Pretoria MMA — La Queue-en-Brie. Document à consulter et approuver pour valider
         votre inscription.
       </p>
+      <p className="mt-3">
+        <a
+          href={CHARTE_PDF_HREF}
+          download={CHARTE_PDF_FILENAME}
+          className="text-sm font-semibold text-mma-red hover:underline"
+        >
+          Télécharger la charte sportive (PDF)
+        </a>
+      </p>
 
       <article className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6 text-sm leading-relaxed text-zinc-200">
         <h2 className="font-display text-lg uppercase tracking-[0.15em] text-white">
@@ -96,15 +106,19 @@ export default function CharteDuClubPage() {
       </article>
 
       <div className="mt-8 flex flex-wrap items-center gap-4">
+        <a
+          href={CHARTE_PDF_HREF}
+          download={CHARTE_PDF_FILENAME}
+          className="inline-flex rounded-full border border-zinc-500 bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-mma-red hover:text-mma-red"
+        >
+          Télécharger la charte (PDF)
+        </a>
         <Link
           href="/inscription"
           className="inline-flex rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
         >
           Retour à l&apos;inscription
         </Link>
-        <p className="text-sm text-zinc-500">
-          Astuce : Ctrl+P pour enregistrer ou imprimer la charte.
-        </p>
       </div>
     </div>
   );

@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { isMinor } from '@/lib/inscription/schema';
+import { COURS_OPTIONS, isMinor } from '@/lib/inscription/schema';
 import { PhotoPublicationBadge } from '@/components/admin/PhotoPublicationBadge';
 import { cn } from '@/lib/utils';
 import { downloadAdherentsCsv } from '@/lib/admin/export-adherents';
 import { getInscriptionDocumentUrlAction } from '../actions';
+import { EditProfileModal } from '../EditProfileModal';
 
 export type AdherentRow = {
   id: string;
@@ -33,6 +34,7 @@ export type AdherentRow = {
   accepte_rgpd: boolean | null;
   accepte_reglement: boolean;
   accepte_charte: boolean;
+  informe_assurance_individuelle: boolean | null;
   type_profil: 'adulte' | 'mineur' | null;
   sexe: 'homme' | 'femme' | null;
   annee_scolaire: string;
@@ -42,9 +44,19 @@ export type AdherentRow = {
 type Props = {
   initialRows: AdherentRow[];
   anneeFilter: string;
+  categorieFilter: string;
   yearOptions: string[];
   query: string;
 };
+
+const CATEGORIE_OPTIONS = [
+  { id: 'all', label: 'Toutes les catégories' },
+  ...COURS_OPTIONS.map((c) => ({ id: c.id, label: `${c.emoji} ${c.label}` })),
+] as const;
+
+function getCoursLabel(coursId: string): string {
+  return COURS_OPTIONS.find((c) => c.id === coursId)?.label ?? (coursId || '—');
+}
 
 type Responsable = {
   nom?: string;
@@ -85,26 +97,50 @@ function getResponsable(row: AdherentRow): Responsable | null {
 export function AdherentsDirectory({
   initialRows,
   anneeFilter,
+  categorieFilter,
   yearOptions,
   query,
 }: Props) {
   const router = useRouter();
+  const [rows, setRows] = useState(initialRows);
   const [search, setSearch] = useState(query);
   const [annee, setAnnee] = useState(anneeFilter);
+  const [categorie, setCategorie] = useState(categorieFilter);
   const [selected, setSelected] = useState<AdherentRow | null>(null);
+  const [editing, setEditing] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
 
+  const countsByCategorie = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const opt of COURS_OPTIONS) counts[opt.id] = 0;
+    for (const row of rows) {
+      const id = row.cours_selectionne;
+      if (id) counts[id] = (counts[id] ?? 0) + 1;
+    }
+    return counts;
+  }, [rows]);
+
+  const visibleRows = useMemo(() => {
+    if (categorie === 'all') return rows;
+    return rows.filter((r) => r.cours_selectionne === categorie);
+  }, [rows, categorie]);
+
   const summary = useMemo(() => {
-    if (initialRows.length === 0) return 'Aucun adhérent.';
-    const yearNote = anneeFilter !== 'all' ? ` · ${anneeFilter}` : '';
-    return `${initialRows.length} adhérent${initialRows.length > 1 ? 's' : ''}${yearNote}`;
-  }, [initialRows.length, anneeFilter]);
+    if (visibleRows.length === 0) return 'Aucun adhérent.';
+    const parts: string[] = [
+      `${visibleRows.length} adhérent${visibleRows.length > 1 ? 's' : ''}`,
+    ];
+    if (anneeFilter !== 'all') parts.push(anneeFilter);
+    if (categorie !== 'all') parts.push(getCoursLabel(categorie));
+    return parts.join(' · ');
+  }, [visibleRows.length, anneeFilter, categorie]);
 
   const applyFilters = () => {
     const params = new URLSearchParams();
     if (annee && annee !== 'all') params.set('annee', annee);
+    if (categorie && categorie !== 'all') params.set('categorie', categorie);
     if (search.trim()) params.set('q', search.trim());
     const qs = params.toString();
     router.push(qs ? `/admin/adherents?${qs}` : '/admin/adherents');
@@ -144,8 +180,8 @@ export function AdherentsDirectory({
           </div>
           <button
             type="button"
-            onClick={() => downloadAdherentsCsv(initialRows, anneeFilter)}
-            disabled={initialRows.length === 0}
+            onClick={() => downloadAdherentsCsv(visibleRows, anneeFilter)}
+            disabled={visibleRows.length === 0}
             className="rounded-full border border-zinc-600 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-100 transition hover:border-zinc-400 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Exporter (Excel)
@@ -159,7 +195,7 @@ export function AdherentsDirectory({
             applyFilters();
           }}
         >
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <label className="text-[0.65rem] uppercase tracking-wide text-zinc-400 lg:col-span-2">
               Recherche
               <input
@@ -184,6 +220,20 @@ export function AdherentsDirectory({
                 ))}
               </select>
             </label>
+            <label className="text-[0.65rem] uppercase tracking-wide text-zinc-400">
+              Catégorie
+              <select
+                value={categorie}
+                onChange={(e) => setCategorie(e.target.value)}
+                className="mt-1 block w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
+              >
+                {CATEGORIE_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="flex items-end">
               <button
                 type="submit"
@@ -193,6 +243,36 @@ export function AdherentsDirectory({
               </button>
             </div>
           </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setCategorie('all')}
+              className={cn(
+                'rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition',
+                categorie === 'all'
+                  ? 'border-mma-red bg-mma-red/20 text-red-100'
+                  : 'border-zinc-700 text-zinc-300 hover:border-zinc-500',
+              )}
+            >
+              Tous ({rows.length})
+            </button>
+            {COURS_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setCategorie(opt.id)}
+                className={cn(
+                  'rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition',
+                  categorie === opt.id
+                    ? 'border-mma-red bg-mma-red/20 text-red-100'
+                    : 'border-zinc-700 text-zinc-300 hover:border-zinc-500',
+                )}
+              >
+                {opt.label} ({countsByCategorie[opt.id] ?? 0})
+              </button>
+            ))}
+          </div>
         </form>
       </div>
 
@@ -201,6 +281,7 @@ export function AdherentsDirectory({
           <thead className="border-b border-zinc-800 bg-zinc-950/80 text-[0.7rem] uppercase tracking-[0.12em] text-zinc-400">
             <tr>
               <th className="px-4 py-3">Adhérent</th>
+              <th className="px-4 py-3">Catégorie</th>
               <th className="px-4 py-3">Photos</th>
               <th className="px-4 py-3">Né(e) le</th>
               <th className="px-4 py-3">Adresse</th>
@@ -209,7 +290,7 @@ export function AdherentsDirectory({
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-900">
-            {initialRows.map((row) => {
+            {visibleRows.map((row) => {
               const mensurations = formatMensurations(row);
               const photosRefusees = row.autorise_photos === false;
               return (
@@ -225,6 +306,9 @@ export function AdherentsDirectory({
                     <span className="font-semibold text-zinc-50">
                       {row.prenom} {row.nom}
                     </span>
+                  </td>
+                  <td className="px-4 py-3.5 text-zinc-300">
+                    {getCoursLabel(row.cours_selectionne)}
                   </td>
                   <td className="px-4 py-3.5">
                     <PhotoPublicationBadge autorise={row.autorise_photos} />
@@ -247,9 +331,9 @@ export function AdherentsDirectory({
                 </tr>
               );
             })}
-            {initialRows.length === 0 && (
+            {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-zinc-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-zinc-400">
                   Aucun adhérent pour ces filtres.
                 </td>
               </tr>
@@ -271,13 +355,25 @@ export function AdherentsDirectory({
               <h3 className="font-display text-lg uppercase tracking-[0.2em]">
                 Fiche adhérent
               </h3>
-              <button
-                type="button"
-                className="rounded-full border border-zinc-600 px-3 py-1 text-xs uppercase tracking-wide text-zinc-200 hover:bg-zinc-800"
-                onClick={() => setSelected(null)}
-              >
-                Fermer
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-full border border-mma-red/70 bg-mma-red/20 px-3 py-1 text-xs uppercase tracking-wide text-red-100 hover:bg-mma-red/30"
+                  onClick={() => setEditing(true)}
+                >
+                  Modifier
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-zinc-600 px-3 py-1 text-xs uppercase tracking-wide text-zinc-200 hover:bg-zinc-800"
+                  onClick={() => {
+                    setSelected(null);
+                    setEditing(false);
+                  }}
+                >
+                  Fermer
+                </button>
+              </div>
             </div>
 
             <div className="mt-4">
@@ -440,6 +536,20 @@ export function AdherentsDirectory({
             </div>
           </div>
         </div>
+      )}
+
+      {editing && selected && (
+        <EditProfileModal
+          profile={selected}
+          onClose={() => setEditing(false)}
+          onSaved={(fields) => {
+            const next = { ...selected, ...fields };
+            setSelected(next);
+            setRows((prev) => prev.map((r) => (r.id === next.id ? { ...r, ...fields } : r)));
+            setEditing(false);
+            router.refresh();
+          }}
+        />
       )}
     </>
   );
