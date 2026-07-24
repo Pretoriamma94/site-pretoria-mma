@@ -6,15 +6,20 @@ import { PostCard } from '@/components/PostCard';
 async function getPosts() {
   try {
     const supabase = createServerClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('posts')
       .select('id, slug, titre, resume, date_publication, categorie, image_url')
       .eq('publie', true)
       .order('date_publication', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false });
 
+    if (error) {
+      console.error('[actualites] lecture posts échouée', error.message);
+      return [];
+    }
     return data ?? [];
-  } catch {
+  } catch (err) {
+    console.error('[actualites] Supabase indisponible', err);
     return [];
   }
 }

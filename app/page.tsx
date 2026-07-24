@@ -17,15 +17,20 @@ import {
 async function getLatestPosts() {
   try {
     const supabase = createServerClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('posts')
       .select('id, titre, slug, resume, date_publication, categorie, image_url')
       .eq('publie', true)
       .order('date_publication', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .limit(3);
+    if (error) {
+      console.error('[home] lecture posts échouée', error.message);
+      return [];
+    }
     return data ?? [];
-  } catch {
+  } catch (err) {
+    console.error('[home] Supabase indisponible', err);
     return [];
   }
 }
