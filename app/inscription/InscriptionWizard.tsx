@@ -604,14 +604,6 @@ export function InscriptionWizard() {
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm text-zinc-300">Nom *</label>
-                <input
-                  {...register('nom')}
-                  className="w-full rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2 text-white"
-                />
-                {errors.nom && <p className="mt-1 text-xs text-red-400">{errors.nom.message}</p>}
-              </div>
-              <div>
                 <label className="mb-1 block text-sm text-zinc-300">Prénom *</label>
                 <input
                   {...register('prenom')}
@@ -620,6 +612,14 @@ export function InscriptionWizard() {
                 {errors.prenom && (
                   <p className="mt-1 text-xs text-red-400">{errors.prenom.message}</p>
                 )}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-zinc-300">Nom *</label>
+                <input
+                  {...register('nom')}
+                  className="w-full rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2 text-white"
+                />
+                {errors.nom && <p className="mt-1 text-xs text-red-400">{errors.nom.message}</p>}
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -760,16 +760,6 @@ export function InscriptionWizard() {
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm text-zinc-300">Nom *</label>
-                <input
-                  {...register('nomResponsable')}
-                  className="w-full rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2 text-white"
-                />
-                {errors.nomResponsable && (
-                  <p className="mt-1 text-xs text-red-400">{errors.nomResponsable.message}</p>
-                )}
-              </div>
-              <div>
                 <label className="mb-1 block text-sm text-zinc-300">Prénom *</label>
                 <input
                   {...register('prenomResponsable')}
@@ -777,6 +767,16 @@ export function InscriptionWizard() {
                 />
                 {errors.prenomResponsable && (
                   <p className="mt-1 text-xs text-red-400">{errors.prenomResponsable.message}</p>
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-zinc-300">Nom *</label>
+                <input
+                  {...register('nomResponsable')}
+                  className="w-full rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2 text-white"
+                />
+                {errors.nomResponsable && (
+                  <p className="mt-1 text-xs text-red-400">{errors.nomResponsable.message}</p>
                 )}
               </div>
             </div>

@@ -40,20 +40,20 @@ export function ManualAdherentSection({
         </h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-xs text-zinc-400">
-            Nom *
-            <input
-              required
-              value={form.nom}
-              onChange={(e) => setField('nom', e.target.value)}
-              className={inputClass}
-            />
-          </label>
-          <label className="text-xs text-zinc-400">
             Prénom *
             <input
               required
               value={form.prenom}
               onChange={(e) => setField('prenom', e.target.value)}
+              className={inputClass}
+            />
+          </label>
+          <label className="text-xs text-zinc-400">
+            Nom *
+            <input
+              required
+              value={form.nom}
+              onChange={(e) => setField('nom', e.target.value)}
               className={inputClass}
             />
           </label>
@@ -165,18 +165,18 @@ export function ManualAdherentSection({
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-xs text-zinc-400">
-              Nom *
-              <input
-                value={form.nomResponsable}
-                onChange={(e) => setField('nomResponsable', e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="text-xs text-zinc-400">
               Prénom *
               <input
                 value={form.prenomResponsable}
                 onChange={(e) => setField('prenomResponsable', e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <label className="text-xs text-zinc-400">
+              Nom *
+              <input
+                value={form.nomResponsable}
+                onChange={(e) => setField('nomResponsable', e.target.value)}
                 className={inputClass}
               />
             </label>

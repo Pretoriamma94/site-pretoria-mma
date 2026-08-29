@@ -30,6 +30,21 @@ function normalizeFromEmail(raw: string | undefined): string {
   return cleaned || `${ASSOCIATION_NOM} <onboarding@resend.dev>`;
 }
 
+/** « jean-pierre » → « Jean-Pierre » — pour le Bonjour du mail. */
+function formatPrenom(value: string): string {
+  return value
+    .trim()
+    .split(/([-\s]+)/)
+    .map((part) => {
+      if (!part || /^[-\s]+$/.test(part)) return part;
+      return (
+        part.charAt(0).toLocaleUpperCase('fr-FR') +
+        part.slice(1).toLocaleLowerCase('fr-FR')
+      );
+    })
+    .join('');
+}
+
 function buildManquants(payload: InscriptionDocumentsMailPayload): string[] {
   const manquants: string[] = [];
   if (payload.missingCertificat) manquants.push('le certificat médical (moins de 3 mois)');
@@ -61,6 +76,7 @@ export async function sendInscriptionDocumentsEmail(
   }
 
   const from = normalizeFromEmail(process.env.CONTACT_FROM_EMAIL);
+  const prenom = formatPrenom(payload.prenom) || payload.prenom;
   const lien = `${getSiteUrl()}/mon-inscription/${payload.token}`;
 
   const manquants = buildManquants(payload);
@@ -78,7 +94,7 @@ export async function sendInscriptionDocumentsEmail(
     : `Merci de nous les transmettre sous ${DOCUMENTS_DELAI_JOURS} jours pour finaliser votre dossier.`;
 
   const textLines: string[] = [
-    `Bonjour ${payload.prenom},`,
+    `Bonjour ${prenom},`,
     ``,
     `Votre inscription au club ${ASSOCIATION_NOM} est bien enregistrée.`,
     ``,
@@ -132,7 +148,7 @@ export async function sendInscriptionDocumentsEmail(
       subject: `${ASSOCIATION_NOM} — Inscription confirmée`,
       text: textLines.join('\n'),
       html: `
-        <p>Bonjour ${escapeHtml(payload.prenom)},</p>
+        <p>Bonjour ${escapeHtml(prenom)},</p>
         <p>Votre <strong>inscription</strong> au club <strong>${escapeHtml(ASSOCIATION_NOM)}</strong> est bien enregistrée.</p>
         ${corpsHtml}
         <p><a href="${lien}" style="display:inline-block;background:#DC2626;color:#ffffff;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:bold;">${escapeHtml(ctaLabel)}</a></p>
