@@ -32,6 +32,7 @@ export function PaiementEnAttenteContent() {
   const emailSentParam = searchParams.get('emailSent');
   const emailSent =
     emailSentParam === '1' ? true : emailSentParam === '0' ? false : null;
+  const docsManquants = searchParams.get('docs') !== 'complets';
 
   const hasParams = Boolean(nom || prenom || cours || montant);
 
@@ -149,16 +150,32 @@ export function PaiementEnAttenteContent() {
 
             {token ? (
               <section className="mt-8">
-                <Card className="border-mma-red/50 bg-red-950/20">
+                <Card
+                  className={
+                    docsManquants
+                      ? 'border-mma-red/50 bg-red-950/20'
+                      : 'border-emerald-800/50 bg-emerald-950/20'
+                  }
+                >
                   <CardHeader>
-                    <CardTitle className="text-lg">Documents à compléter</CardTitle>
+                    <CardTitle className="text-lg">
+                      {docsManquants ? 'Documents à compléter' : 'Vos documents'}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm text-zinc-200">
-                    <p>
-                      Il vous manque un document (certificat médical et/ou photo). Vous pouvez le
-                      transmettre plus tard — dans les 3 semaines — grâce à votre lien personnel
-                      ci-dessous.
-                    </p>
+                    {docsManquants ? (
+                      <p>
+                        Il vous manque un document (certificat médical et/ou photo). Vous pouvez
+                        le transmettre plus tard — dans les 3 semaines — grâce à votre lien
+                        personnel ci-dessous.
+                      </p>
+                    ) : (
+                      <p>
+                        Vos documents ont bien été reçus. En cas d&apos;erreur, vous pouvez
+                        transmettre une pièce corrigée à tout moment grâce à votre lien personnel
+                        ci-dessous.
+                      </p>
+                    )}
                     {emailSent === true ? (
                       <p className="rounded-lg border border-emerald-800/60 bg-emerald-950/40 px-3 py-2 text-emerald-200">
                         Un email de confirmation avec ce lien a été envoyé à votre adresse.
@@ -174,7 +191,9 @@ export function PaiementEnAttenteContent() {
                       href={`/mon-inscription/${token}`}
                       className="inline-flex h-11 items-center justify-center rounded-full bg-red-600 px-6 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-red-700"
                     >
-                      Transmettre mes documents
+                      {docsManquants
+                        ? 'Transmettre mes documents'
+                        : 'Vérifier ou corriger mes documents'}
                     </Link>
                     <p className="text-xs text-zinc-400">
                       Conservez ce lien : il vous permet de revenir sans créer de compte.

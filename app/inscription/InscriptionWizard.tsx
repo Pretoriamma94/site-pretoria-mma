@@ -475,15 +475,14 @@ export function InscriptionWizard() {
 
       const missingCertificat = !certificatFile;
       const missingPhoto = !photoFile;
-      const needsDocumentsEmail =
-        Boolean(documentsToken) &&
-        Boolean(emailPrincipal) &&
-        (missingCertificat || missingPhoto);
+      // Email de confirmation envoyé dans tous les cas dès qu'on a un lien + une
+      // adresse : dossier complet (lien de correction) ou pièces manquantes.
+      const canSendEmail = Boolean(documentsToken) && Boolean(emailPrincipal);
 
       // Await obligatoire : une redirection immédiate annule la Server Action
       // et l'email n'est jamais envoyé.
       let emailSent = false;
-      if (needsDocumentsEmail) {
+      if (canSendEmail) {
         try {
           const mail = await notifyInscriptionCreatedAction({
             email: emailPrincipal,
@@ -491,13 +490,14 @@ export function InscriptionWizard() {
             token: documentsToken,
             missingCertificat,
             missingPhoto,
+            createdAt: new Date().toISOString(),
           });
           emailSent = mail.sent;
           if (!mail.sent) {
-            console.error('Email préinscription non envoyé', mail.error);
+            console.error('Email confirmation inscription non envoyé', mail.error);
           }
         } catch (mailErr) {
-          console.error('Exception envoi email préinscription', mailErr);
+          console.error('Exception envoi email confirmation inscription', mailErr);
         }
       }
 
@@ -508,8 +508,9 @@ export function InscriptionWizard() {
         montant: String(total),
         mode: paiementResult.data.modePaiement,
         echeances: String(paiementResult.data.nombreEcheances),
+        docs: missingCertificat || missingPhoto ? 'manquants' : 'complets',
         ...(documentsToken ? { token: documentsToken } : {}),
-        ...(needsDocumentsEmail ? { emailSent: emailSent ? '1' : '0' } : {}),
+        ...(canSendEmail ? { emailSent: emailSent ? '1' : '0' } : {}),
       }).toString();
       router.push(`/inscription/paiement-en-attente?${query}`);
     } catch (err) {

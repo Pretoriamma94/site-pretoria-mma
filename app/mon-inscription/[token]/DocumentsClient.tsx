@@ -42,6 +42,10 @@ export function DocumentsClient({ token, certificatRecu, photoRecue }: Props) {
   const [busy, setBusy] = useState<DocKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [finalized, setFinalized] = useState(false);
+  const [editing, setEditing] = useState<Record<DocKind, boolean>>({
+    certificat: false,
+    photo: false,
+  });
 
   const allDone = recu.certificat && recu.photo;
 
@@ -67,6 +71,7 @@ export function DocumentsClient({ token, certificatRecu, photoRecue }: Props) {
       }
       setRecu({ certificat: result.certificatRecu, photo: result.photoRecue });
       setFiles((prev) => ({ ...prev, [kind]: null }));
+      setEditing((prev) => ({ ...prev, [kind]: false }));
       setFinalized(result.finalized);
     } catch {
       setError('Une erreur est survenue. Merci de réessayer.');
@@ -85,12 +90,17 @@ export function DocumentsClient({ token, certificatRecu, photoRecue }: Props) {
               ? 'Votre dossier est complet. Merci !'
               : 'Merci ! Le club finalisera votre dossier après réception du paiement.'}
           </p>
+          <p className="mt-2 text-emerald-300/80">
+            Une erreur dans un document ? Vous pouvez le corriger ci-dessous, il
+            remplacera la pièce déjà envoyée.
+          </p>
         </div>
       ) : null}
 
       {(['certificat', 'photo'] as const).map((kind) => {
         const meta = DOC_META[kind];
         const done = recu[kind];
+        const isEditing = editing[kind];
         const file = files[kind];
         return (
           <div
@@ -114,12 +124,27 @@ export function DocumentsClient({ token, certificatRecu, photoRecue }: Props) {
               </span>
             </div>
 
-            {done ? (
-              <p className="mt-4 text-sm text-emerald-300">
-                Document bien reçu. Merci !
-              </p>
+            {done && !isEditing ? (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <p className="text-sm text-emerald-300">Document bien reçu. Merci !</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setEditing((prev) => ({ ...prev, [kind]: true }));
+                  }}
+                  className="inline-flex rounded-full border border-zinc-600 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-200 transition hover:border-zinc-400 hover:bg-zinc-800"
+                >
+                  Corriger / remplacer
+                </button>
+              </div>
             ) : (
               <div className="mt-4 space-y-3">
+                {done ? (
+                  <p className="text-xs text-amber-300">
+                    Le nouveau fichier remplacera le document déjà transmis.
+                  </p>
+                ) : null}
                 <input
                   type="file"
                   accept={meta.accept}
@@ -135,14 +160,34 @@ export function DocumentsClient({ token, certificatRecu, photoRecue }: Props) {
                   }}
                   className="w-full rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2 text-sm text-white file:mr-3 file:rounded file:border-0 file:bg-red-600 file:px-3 file:py-1 file:text-white"
                 />
-                <button
-                  type="button"
-                  disabled={!file || busy === kind}
-                  onClick={() => handleSubmit(kind)}
-                  className="inline-flex rounded-full bg-red-600 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-red-700 disabled:opacity-60"
-                >
-                  {busy === kind ? 'Envoi…' : 'Envoyer ce document'}
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!file || busy === kind}
+                    onClick={() => handleSubmit(kind)}
+                    className="inline-flex rounded-full bg-red-600 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-red-700 disabled:opacity-60"
+                  >
+                    {busy === kind
+                      ? 'Envoi…'
+                      : done
+                        ? 'Remplacer ce document'
+                        : 'Envoyer ce document'}
+                  </button>
+                  {done ? (
+                    <button
+                      type="button"
+                      disabled={busy === kind}
+                      onClick={() => {
+                        setFiles((prev) => ({ ...prev, [kind]: null }));
+                        setEditing((prev) => ({ ...prev, [kind]: false }));
+                        setError(null);
+                      }}
+                      className="inline-flex rounded-full border border-zinc-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-200 transition hover:border-zinc-400 hover:bg-zinc-800 disabled:opacity-60"
+                    >
+                      Annuler
+                    </button>
+                  ) : null}
+                </div>
               </div>
             )}
           </div>

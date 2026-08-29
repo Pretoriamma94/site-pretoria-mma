@@ -815,7 +815,7 @@ export async function listInscriptionPaiementsAction(
 }
 
 export type CreateManualInscriptionResult =
-  | { success: true; id: string }
+  | { success: true; id: string; emailSent: boolean; emailError?: string }
   | { success: false; error: string };
 
 /** Crée une inscription saisie manuellement (adhésion papier au club). */
@@ -905,7 +905,7 @@ export async function createManualInscriptionAction(
         certificat_engagement_3_semaines:
           !data.attesteCertificat && Boolean(data.engagementCertificat),
       })
-      .select('id')
+      .select('id, documents_token, created_at')
       .single();
 
     if (error || !row) {
@@ -913,7 +913,30 @@ export async function createManualInscriptionAction(
     }
 
     revalidateAdminPaths();
-    return { success: true, id: row.id };
+
+    // Email de confirmation à l'adhérent (ou au responsable pour un mineur).
+    // Non bloquant : la création reste valide même si l'envoi échoue.
+    const destinataire = isMinor(data.dateNaissance)
+      ? (data.emailResponsable || data.email || '').trim().toLowerCase()
+      : (data.email || '').trim().toLowerCase();
+
+    let emailSent = false;
+    let emailError: string | undefined;
+    if (destinataire && row.documents_token) {
+      const { sendInscriptionDocumentsEmail } = await import('@/lib/email/inscription');
+      const result = await sendInscriptionDocumentsEmail({
+        email: destinataire,
+        prenom: data.prenom.trim() || 'Adhérent',
+        token: row.documents_token,
+        missingCertificat: !data.attesteCertificat,
+        missingPhoto: !data.photoRecue,
+        createdAt: row.created_at,
+      });
+      emailSent = result.sent;
+      emailError = result.error;
+    }
+
+    return { success: true, id: row.id, emailSent, emailError };
   } catch {
     return {
       success: false,
@@ -1451,7 +1474,7 @@ export async function resendInscriptionDocumentsEmailAction(
     const { data, error } = await supabase
       .from('inscriptions')
       .select(
-        'id, prenom, email, documents_token, certificat_medical_url, photo_url',
+        'id, prenom, email, documents_token, certificat_medical_url, photo_url, responsable_legal, created_at',
       )
       .eq('id', idParsed.data)
       .maybeSingle();
@@ -1462,7 +1485,17 @@ export async function resendInscriptionDocumentsEmailAction(
     if (!data) {
       return { success: false, error: 'Inscription introuvable.' };
     }
-    if (!data.email?.trim()) {
+
+    // Pour un mineur, l'email peut n'être présent que sur le responsable légal.
+    const responsableEmail =
+      data.responsable_legal &&
+      typeof data.responsable_legal === 'object' &&
+      'email' in data.responsable_legal
+        ? String((data.responsable_legal as { email?: unknown }).email ?? '')
+        : '';
+    const destinataire = (data.email?.trim() || responsableEmail.trim()).toLowerCase();
+
+    if (!destinataire) {
       return { success: false, error: 'Aucun email sur cette inscription.' };
     }
     if (!data.documents_token) {
@@ -1472,22 +1505,19 @@ export async function resendInscriptionDocumentsEmailAction(
       };
     }
 
+    // On renvoie l'email dans tous les cas : s'il manque des pièces c'est un
+    // rappel, sinon c'est une confirmation avec le lien de correction.
     const missingCertificat = !data.certificat_medical_url;
     const missingPhoto = !data.photo_url;
-    if (!missingCertificat && !missingPhoto) {
-      return {
-        success: false,
-        error: 'Certificat et photo déjà présents — rien à réclamer par email.',
-      };
-    }
 
     const { sendInscriptionDocumentsEmail } = await import('@/lib/email/inscription');
     const result = await sendInscriptionDocumentsEmail({
-      email: data.email,
+      email: destinataire,
       prenom: data.prenom || 'Adhérent',
       token: data.documents_token,
       missingCertificat,
       missingPhoto,
+      createdAt: data.created_at,
     });
 
     if (!result.sent) {

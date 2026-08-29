@@ -21,6 +21,7 @@ export function ManualInscriptionForm() {
   const [form, setForm] = useState<ManualFormState>(MANUAL_FORM_INITIAL);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const showResponsable = form.dateNaissance ? isMinor(form.dateNaissance) : false;
   const total = Number(form.montantTotal.replace(',', '.')) || 0;
@@ -91,8 +92,23 @@ export function ManualInscriptionForm() {
         return;
       }
 
-      router.push('/admin/inscriptions');
-      router.refresh();
+      const hasEmail = Boolean(
+        (showResponsable ? form.emailResponsable : form.email)?.trim(),
+      );
+      if (result.emailSent) {
+        setNotice('Inscription créée. Email de confirmation envoyé à l’adhérent.');
+      } else if (hasEmail) {
+        setNotice(
+          'Inscription créée, mais l’email n’a pas pu être envoyé. Vous pourrez le renvoyer depuis la fiche.',
+        );
+      } else {
+        setNotice('Inscription créée (aucun email : pas d’adresse renseignée).');
+      }
+
+      setTimeout(() => {
+        router.push('/admin/inscriptions');
+        router.refresh();
+      }, 1500);
     } catch {
       setError('Erreur inattendue. Réessayez.');
     } finally {
@@ -125,6 +141,12 @@ export function ManualInscriptionForm() {
       {error && (
         <p className="rounded-xl border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-200">
           {error}
+        </p>
+      )}
+
+      {notice && (
+        <p className="rounded-xl border border-emerald-800 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200">
+          {notice}
         </p>
       )}
 

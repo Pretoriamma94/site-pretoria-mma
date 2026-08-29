@@ -26,7 +26,7 @@ Checklist à suivre le jour de la mise en ligne. À faire **dans l'ordre**.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clé publique Supabase | Supabase → Settings → API |
 | `SUPABASE_SERVICE_ROLE_KEY` | Clé secrète (actions admin) | Supabase → Settings → API — **secret** |
 | `RESEND_API_KEY` | Envoi des emails (contact, notifications) | Compte Resend |
-| `CONTACT_FROM_EMAIL` *(optionnel)* | Expéditeur des emails | `"Pretoria MMA <contact@pretoriamma94.fr>"` |
+| `CONTACT_FROM_EMAIL` | Expéditeur des emails (domaine vérifié Resend, pas besoin d'une vraie boîte) | `Pretoria MMA <noreply@pretoriamma94.fr>` |
 | `CONTACT_TO_EMAIL` *(optionnel)* | Destinataire des messages de contact | `pretoriamma94@gmail.com` |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` *(optionnel)* | Anti-spam formulaire | Cloudflare Turnstile |
 | `TURNSTILE_SECRET_KEY` *(optionnel)* | Anti-spam (serveur) | Cloudflare Turnstile |

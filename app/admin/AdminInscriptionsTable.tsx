@@ -825,8 +825,13 @@ export function AdminInscriptionsTable({
                     token={selected.documents_token}
                     inscriptionId={selected.id}
                     canResendEmail={
-                      Boolean(selected.email) &&
-                      (!selected.certificat_medical_url || !selected.photo_url)
+                      Boolean(selected.email) ||
+                      Boolean(
+                        selected.responsable_legal &&
+                          typeof selected.responsable_legal === 'object' &&
+                          'email' in selected.responsable_legal &&
+                          (selected.responsable_legal as { email?: unknown }).email,
+                      )
                     }
                   />
                 </div>

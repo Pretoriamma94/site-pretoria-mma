@@ -9,12 +9,17 @@ const notifySchema = z.object({
   token: z.string().uuid(),
   missingCertificat: z.boolean(),
   missingPhoto: z.boolean(),
+  createdAt: z.string().optional(),
 });
 
 /**
- * Envoie l'email « préinscription confirmée + documents » après la création
- * de l'inscription. À appeler en await avant la redirection (sinon le navigateur
- * annule la Server Action).
+ * Envoie l'email de confirmation d'inscription après la création de la ligne.
+ * L'email est envoyé dans tous les cas : s'il manque des documents il liste les
+ * pièces + la date limite, sinon il confirme le dossier complet et fournit le
+ * lien pour corriger une pièce au besoin.
+ *
+ * À appeler en await avant la redirection (sinon le navigateur annule la
+ * Server Action).
  */
 export async function notifyInscriptionCreatedAction(input: {
   email: string;
@@ -22,15 +27,12 @@ export async function notifyInscriptionCreatedAction(input: {
   token: string;
   missingCertificat: boolean;
   missingPhoto: boolean;
+  createdAt?: string;
 }): Promise<{ sent: boolean; error?: string }> {
   const parsed = notifySchema.safeParse(input);
   if (!parsed.success) {
     console.error('[notifyInscriptionCreated] validation failed', parsed.error.flatten());
     return { sent: false, error: 'Données email invalides' };
-  }
-  // Rien à réclamer si les deux documents sont déjà fournis.
-  if (!parsed.data.missingCertificat && !parsed.data.missingPhoto) {
-    return { sent: false };
   }
 
   const result = await sendInscriptionDocumentsEmail(parsed.data);

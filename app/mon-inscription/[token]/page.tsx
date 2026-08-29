@@ -40,7 +40,8 @@ export default async function MonInscriptionPage({
       </h1>
       <p className="mt-4 text-sm text-zinc-300 md:text-base">
         Bonjour {data.prenom}, transmettez ici les documents manquants pour finaliser votre
-        inscription. Vous pouvez y revenir à tout moment depuis ce lien personnel.
+        inscription. Vous pouvez y revenir à tout moment depuis ce lien personnel, y compris
+        pour corriger une pièce déjà envoyée.
       </p>
 
       <DocumentsClient

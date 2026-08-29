@@ -1,6 +1,10 @@
 import { Resend } from 'resend';
-import { ASSOCIATION_NOM } from '@/lib/inscription/legal-texts';
+import { ASSOCIATION_EMAIL, ASSOCIATION_NOM } from '@/lib/inscription/legal-texts';
 import { getSiteUrl } from '@/lib/site-url';
+import {
+  DOCUMENTS_DELAI_JOURS,
+  getDocumentsCountdown,
+} from '@/lib/admin/document-deadline';
 
 export type InscriptionDocumentsMailPayload = {
   email: string;
@@ -8,6 +12,8 @@ export type InscriptionDocumentsMailPayload = {
   token: string;
   missingCertificat: boolean;
   missingPhoto: boolean;
+  /** Date de création de l'inscription — sert à calculer la date limite exacte. */
+  createdAt?: string | null;
 };
 
 function escapeHtml(value: string): string {
@@ -24,10 +30,23 @@ function normalizeFromEmail(raw: string | undefined): string {
   return cleaned || `${ASSOCIATION_NOM} <onboarding@resend.dev>`;
 }
 
+function buildManquants(payload: InscriptionDocumentsMailPayload): string[] {
+  const manquants: string[] = [];
+  if (payload.missingCertificat) manquants.push('le certificat médical (moins de 3 mois)');
+  if (payload.missingPhoto) manquants.push("une photo d'identité");
+  return manquants;
+}
+
 /**
- * Envoie à l'adhérent le lien pour transmettre plus tard ses documents manquants
- * (certificat médical et/ou photo). Non bloquant : renvoie { sent:false } si
- * Resend n'est pas configuré ou en cas d'échec — l'inscription reste valide.
+ * Envoie à l'adhérent l'email de confirmation d'inscription.
+ *
+ * - Si des documents manquent : liste des pièces attendues + date limite +
+ *   lien personnel pour les transmettre.
+ * - Si le dossier est complet : confirmation + lien pour vérifier / corriger
+ *   un document (en cas d'erreur dans une pièce déjà transmise).
+ *
+ * Non bloquant : renvoie { sent:false } si Resend n'est pas configuré ou en
+ * cas d'échec — l'inscription reste valide.
  */
 export async function sendInscriptionDocumentsEmail(
   payload: InscriptionDocumentsMailPayload,
@@ -44,43 +63,81 @@ export async function sendInscriptionDocumentsEmail(
   const from = normalizeFromEmail(process.env.CONTACT_FROM_EMAIL);
   const lien = `${getSiteUrl()}/mon-inscription/${payload.token}`;
 
-  const manquants: string[] = [];
-  if (payload.missingCertificat) manquants.push('le certificat médical (moins de 3 mois)');
-  if (payload.missingPhoto) manquants.push("une photo d'identité");
-  const manquantsTexte =
-    manquants.length === 2
-      ? `${manquants[0]} et ${manquants[1]}`
-      : manquants[0] ?? 'vos documents';
+  const manquants = buildManquants(payload);
+  const hasMissing = manquants.length > 0;
+
+  const countdown = getDocumentsCountdown(payload.createdAt ?? new Date());
+  const deadlineLabel = countdown?.deadlineLabel ?? null;
+
+  const ctaLabel = hasMissing
+    ? 'Transmettre mes documents'
+    : 'Vérifier ou corriger mes documents';
+
+  const delaiPhrase = deadlineLabel
+    ? `Merci de nous les transmettre avant le ${deadlineLabel} (délai de ${DOCUMENTS_DELAI_JOURS} jours) pour finaliser votre dossier.`
+    : `Merci de nous les transmettre sous ${DOCUMENTS_DELAI_JOURS} jours pour finaliser votre dossier.`;
+
+  const textLines: string[] = [
+    `Bonjour ${payload.prenom},`,
+    ``,
+    `Votre inscription au club ${ASSOCIATION_NOM} est bien enregistrée.`,
+    ``,
+  ];
+
+  if (hasMissing) {
+    textLines.push(`Pour compléter votre dossier, il nous reste à recevoir :`);
+    for (const item of manquants) textLines.push(`  • ${item}`);
+    textLines.push(``);
+    textLines.push(delaiPhrase);
+    textLines.push(`Vous pouvez le faire à tout moment, en toute sécurité, via votre lien personnel :`);
+  } else {
+    textLines.push(`Nous avons bien reçu l'ensemble de vos documents. Rien de plus ne vous est demandé pour le moment.`);
+    textLines.push(``);
+    textLines.push(
+      `Si vous constatez une erreur ou devez transmettre une pièce corrigée, vous pouvez le faire à tout moment via votre lien personnel :`,
+    );
+  }
+
+  textLines.push(
+    lien,
+    ``,
+    `Le règlement de la cotisation se fait au club.`,
+    ``,
+    `Sportivement,`,
+    ASSOCIATION_NOM,
+  );
+
+  const manquantsHtml = hasMissing
+    ? `<ul style="margin:0 0 12px;padding-left:20px;color:#111;">${manquants
+        .map((item) => `<li>${escapeHtml(item)}</li>`)
+        .join('')}</ul>`
+    : '';
+
+  const corpsHtml = hasMissing
+    ? `
+        <p>Pour compléter votre dossier, il nous reste à recevoir :</p>
+        ${manquantsHtml}
+        <p>${escapeHtml(delaiPhrase)}</p>
+        <p>Vous pouvez le faire à tout moment, en toute sécurité, via votre lien personnel :</p>`
+    : `
+        <p>Nous avons bien reçu <strong>l'ensemble de vos documents</strong>. Rien de plus ne vous est demandé pour le moment.</p>
+        <p>Si vous constatez une erreur ou devez transmettre une pièce corrigée, vous pouvez le faire à tout moment via votre lien personnel :</p>`;
 
   try {
     const resend = new Resend(apiKey);
     const { data, error } = await resend.emails.send({
       from,
       to: [payload.email.toLowerCase()],
-      subject: `${ASSOCIATION_NOM} — Préinscription confirmée`,
-      text: [
-        `Bonjour ${payload.prenom},`,
-        ``,
-        `Votre préinscription au club ${ASSOCIATION_NOM} est bien enregistrée.`,
-        ``,
-        `Il vous reste à transmettre ${manquantsTexte}.`,
-        `Vous pouvez le faire à tout moment, en toute sécurité, via ce lien personnel :`,
-        lien,
-        ``,
-        `Pensez à nous les transmettre dans les 3 semaines pour finaliser votre dossier.`,
-        `Le règlement de la cotisation se fait au club.`,
-        ``,
-        `Sportivement,`,
-        ASSOCIATION_NOM,
-      ].join('\n'),
+      replyTo: ASSOCIATION_EMAIL,
+      subject: `${ASSOCIATION_NOM} — Inscription confirmée`,
+      text: textLines.join('\n'),
       html: `
         <p>Bonjour ${escapeHtml(payload.prenom)},</p>
-        <p>Votre <strong>préinscription</strong> au club <strong>${escapeHtml(ASSOCIATION_NOM)}</strong> est bien enregistrée.</p>
-        <p>Il vous reste à transmettre <strong>${escapeHtml(manquantsTexte)}</strong>.</p>
-        <p>Vous pouvez le faire à tout moment, en toute sécurité, via ce lien personnel :</p>
-        <p><a href="${lien}" style="display:inline-block;background:#DC2626;color:#ffffff;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:bold;">Transmettre mes documents</a></p>
+        <p>Votre <strong>inscription</strong> au club <strong>${escapeHtml(ASSOCIATION_NOM)}</strong> est bien enregistrée.</p>
+        ${corpsHtml}
+        <p><a href="${lien}" style="display:inline-block;background:#DC2626;color:#ffffff;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:bold;">${escapeHtml(ctaLabel)}</a></p>
         <p style="font-size:12px;color:#666;">Ou copiez ce lien : ${lien}</p>
-        <p>Pensez à nous les transmettre dans les <strong>3 semaines</strong> pour finaliser votre dossier. Le règlement de la cotisation se fait au club.</p>
+        <p>Le règlement de la cotisation se fait au club.</p>
         <p>Sportivement,<br/>${escapeHtml(ASSOCIATION_NOM)}</p>
       `,
     });
@@ -96,6 +153,7 @@ export async function sendInscriptionDocumentsEmail(
     console.info('[inscription-email] sent', {
       id: data?.id,
       to: payload.email.toLowerCase(),
+      hasMissing,
     });
     return { sent: true };
   } catch (err) {
