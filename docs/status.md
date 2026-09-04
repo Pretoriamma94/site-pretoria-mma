@@ -48,7 +48,7 @@
 - **Inscription publique** : encart dès la 1re étape — packs famille / réductions, se rapprocher des membres de l’association (pas de choix du pack en ligne).
 - Badge **Pack family** (listes + fiches). Incompatible avec « membre du bureau ».
 - Recettes club : le tarif pack est sur le payeur (adulte ou enfant) ; les membres reliés à 0 € ne doublent pas le CA.
-- Migration `20260904170000_pack_family.sql` (`pack_family_parent_id`) **à pousser** ; repli `membre_2` + `inscription_familiale` si la colonne n’est pas encore sur le remote.
+- Migration `20260904170000_pack_family.sql` (`pack_family_parent_id`) **appliquée** sur le remote le 2026-09-04. Repli JSON dans `membre_2` conservé en secours.
 
 ## Phase 0 — Fait
 
@@ -232,9 +232,9 @@ Alignés site + admin papier :
 - `supabase link` CLI : nécessite access token ; `db push --db-url` via pooler OK.
 - Ancien projet free inaccessible → pas de migration de données.
 - **Fix login admin (2026-07-17)** : `LoginForm` → `auth-browser.ts` (pas `auth.ts` / `next/headers`).
-- **Fix 2026-09-04** : enregistrement d’un paiement (dont la **date de réception**) échouait avec `column inscriptions.questionnaire_sante does not exist`. Les SELECT admin relancent sans les colonnes absentes. La migration `20260904120000_questionnaire_sante_attestation.sql` reste à pousser sur Supabase pour persister les attestations QS.
-- **Membre du bureau** : persisté via `type_tarif = 'bureau'` (cotisation 0, hors CA). La colonne `membre_bureau` n’est pas encore sur le remote (`20260904140000_membre_bureau.sql` à pousser) ; les écritures n’en dépendent plus.
-- **Pack family** : `inscription_familiale` + `type_tarif = 'familial'` + lien parent/enfants (`pack_family_parent_id`, migration `20260904170000_pack_family.sql` à pousser). Repli JSON dans `membre_2` si la colonne est absente.
+- **Fix 2026-09-04** : enregistrement d’un paiement (dont la **date de réception**) échouait avec `column inscriptions.questionnaire_sante does not exist`. Les SELECT admin relancent sans les colonnes absentes. Migrations QS / bureau / pack family **poussées** sur le remote (`pipxrkqqaqwoilfnahru`) le 2026-09-04.
+- **Membre du bureau** : persisté via `type_tarif = 'bureau'` (cotisation 0, hors CA) **et** colonne `membre_bureau` (migration `20260904140000_membre_bureau.sql` appliquée).
+- **Pack family** : `inscription_familiale` + `type_tarif = 'familial'` + lien parent/enfants (`pack_family_parent_id`, migration `20260904170000_pack_family.sql` **appliquée**). Repli JSON dans `membre_2` conservé en secours.
 
 ## Comment tester
 2. `/inscription` → étape Tarifs : choisir mode + 1/2/3 fois → valider → confirmation affiche le choix
