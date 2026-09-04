@@ -9,7 +9,7 @@ import {
   AdherentsDirectory,
   type AdherentRow,
 } from './AdherentsDirectory';
-import { missingDbColumn, withoutSelectColumn } from '@/lib/admin/inscription-fields';
+import { missingDbColumn, withoutSelectColumn, MISSING_COLUMN_RETRY_LIMIT } from '@/lib/admin/inscription-fields';
 
 const ADHERENT_SELECT = [
   'id',
@@ -57,6 +57,8 @@ const ADHERENT_SELECT = [
   'created_at',
   'type_tarif',
   'membre_bureau',
+  'inscription_familiale',
+  'pack_family_parent_id',
   'voie_inscription',
   'membre_2',
 ].join(', ');
@@ -145,7 +147,7 @@ export default async function AdminAdherentsPage({
   let data: unknown[] | null = null;
   let error: { message: string } | null = null;
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  for (let attempt = 0; attempt < MISSING_COLUMN_RETRY_LIMIT; attempt += 1) {
     let builder = supabase
       .from('inscriptions')
       .select(select)
@@ -168,7 +170,9 @@ export default async function AdminAdherentsPage({
     data = result.data;
     error = result.error;
     if (!error) break;
-    const missing = missingDbColumn(error.message);
+    const missing = missingDbColumn(
+      [error.message, result.error?.details, result.error?.hint].filter(Boolean).join(' '),
+    );
     if (!missing || !select.split(',').map((part) => part.trim()).includes(missing)) {
       break;
     }

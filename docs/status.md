@@ -3,7 +3,7 @@
 ## Décisions produit (validées)
 
 - **HelloAsso / paiement en ligne** : bouton HelloAsso à l’étape Paiement (tous parcours) — nouvel onglet, retour vers l’inscription après paiement (ou 1re échéance).
-- **Paiements** : au club — **espèces**, **chèque** ; **paiement en ligne** via HelloAsso.
+- **Paiements** : au club — **espèces**, **chèque** ; **paiement en ligne** via HelloAsso. Espèces / chèque : consigne enveloppe fermée (nom-prénom, montant, nombre de chèques) à l’étape Paiement et sur la page de confirmation.
 - **Échéances** : possibilité de payer en **1, 2 ou 3 fois** (quel que soit le mode).
 - **Choix à l’inscription** : l’adhérent choisit mode + nombre d’échéances (étape Tarifs) ; l’admin enregistre ensuite les montants reçus.
 - Compte admin : `pretoriamma94@gmail.com` avec `app_metadata.role = 'admin'`.
@@ -27,6 +27,28 @@
 - **Photo d’identité** : étape après Santé / avant RGPD-paiement, tous profils (PNG, JPG, PDF ; photo téléphone fond blanc). Sans fichier, engagement 3 semaines + décompte / alerte admin.
 - **Rappel des obligations** : case **Lu et approuvé** obligatoire à l’étape Autorisations pour tous les profils (MMA adulte, MMA mineur, Baby JJB) avant de poursuivre.
 - **Charte du club** : étape obligatoire avant le paiement (tous profils, y compris Baby JJB) — lecture / téléchargement du PDF + 3 cases (lu, règles, engagement).
+
+## Reçu de cotisation par email (2026-09-04)
+
+- Le reçu part **dès que la cotisation est soldée** (plus seulement au statut Finalisé). Un dossier peut être Payé sans être Finalisé (papiers manquants) : le reçu est quand même envoyé.
+- Bouton **Envoyer le reçu par email** sur chaque fiche (adulte, enfant, baby) dès qu’une part &gt; 0 €, y compris pack family.
+- Document associatif (loi 1901, hors TVA) — ce n’est pas une facture commerciale.
+- Enfant pack family à 0 € : le reçu est sur la fiche du **payeur** du pack (parent ou enfant).
+
+## Fiche inscription — Modifier (2026-09-04)
+
+- **Inscriptions** : **Modifier** et **Détails** ouvrent la **fiche complète éditable** (identité, montant, consentements, pack family, paiement, documents). **Annuler** / **Enregistrer** restent visibles ; après enregistrement ou annulation, la fiche se ferme.
+
+## Pack family admin (2026-09-04)
+
+- Le parcours d’inscription public reste inchangé (1 personne à la fois).
+- **Admin fiche inscription / adhérents** : case **Pack family**.
+  - **Payeur du pack** (adulte **ou** enfant) : montant de **sa part** + sélection des enfants / baby / ado. Chaque enfant peut avoir une part &gt; 0 € (reçu distinct) ou 0 € (inclus).
+  - **Enfant relié avec une part** : paiement et reçu sur **sa propre fiche**.
+- **Inscription publique** : encart dès la 1re étape — packs famille / réductions, se rapprocher des membres de l’association (pas de choix du pack en ligne).
+- Badge **Pack family** (listes + fiches). Incompatible avec « membre du bureau ».
+- Recettes club : le tarif pack est sur le payeur (adulte ou enfant) ; les membres reliés à 0 € ne doublent pas le CA.
+- Migration `20260904170000_pack_family.sql` (`pack_family_parent_id`) **à pousser** ; repli `membre_2` + `inscription_familiale` si la colonne n’est pas encore sur le remote.
 
 ## Phase 0 — Fait
 
@@ -212,6 +234,7 @@ Alignés site + admin papier :
 - **Fix login admin (2026-07-17)** : `LoginForm` → `auth-browser.ts` (pas `auth.ts` / `next/headers`).
 - **Fix 2026-09-04** : enregistrement d’un paiement (dont la **date de réception**) échouait avec `column inscriptions.questionnaire_sante does not exist`. Les SELECT admin relancent sans les colonnes absentes. La migration `20260904120000_questionnaire_sante_attestation.sql` reste à pousser sur Supabase pour persister les attestations QS.
 - **Membre du bureau** : persisté via `type_tarif = 'bureau'` (cotisation 0, hors CA). La colonne `membre_bureau` n’est pas encore sur le remote (`20260904140000_membre_bureau.sql` à pousser) ; les écritures n’en dépendent plus.
+- **Pack family** : `inscription_familiale` + `type_tarif = 'familial'` + lien parent/enfants (`pack_family_parent_id`, migration `20260904170000_pack_family.sql` à pousser). Repli JSON dans `membre_2` si la colonne est absente.
 
 ## Comment tester
 2. `/inscription` → étape Tarifs : choisir mode + 1/2/3 fois → valider → confirmation affiche le choix

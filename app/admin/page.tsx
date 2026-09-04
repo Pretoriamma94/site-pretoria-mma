@@ -4,7 +4,7 @@ import { getAuthUser, isAdminUser } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { computeRecettesClub, formatEuros, resteAPayer } from '@/lib/admin/labels';
 import { getDocumentsChecklist } from '@/lib/admin/documents';
-import { ADMIN_INSCRIPTION_SELECT, missingDbColumn, withoutSelectColumn } from '@/lib/admin/inscription-fields';
+import { ADMIN_INSCRIPTION_SELECT, missingDbColumn, withoutSelectColumn, MISSING_COLUMN_RETRY_LIMIT } from '@/lib/admin/inscription-fields';
 import { getCurrentSchoolYear } from '@/lib/admin/school-year';
 import type { AdminInscription } from './AdminInscriptionsTable';
 import { cn } from '@/lib/utils';
@@ -44,7 +44,7 @@ export default async function AdminHomePage() {
       .neq('status', 'cancelled'),
     (async () => {
       let select = ADMIN_INSCRIPTION_SELECT;
-      for (let attempt = 0; attempt < 5; attempt += 1) {
+      for (let attempt = 0; attempt < MISSING_COLUMN_RETRY_LIMIT; attempt += 1) {
         const result = await supabase
           .from('inscriptions')
           .select(select)

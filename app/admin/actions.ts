@@ -26,6 +26,8 @@ import {
   applyMembreBureauTarif,
   isMembreBureau,
 } from '@/lib/admin/membre-bureau';
+import { isPackFamily } from '@/lib/admin/pack-family';
+import { maybeSendRecuCotisation } from '@/lib/admin/send-recu-finalise';
 import {
   VOIE_INSCRIPTION_EN_LIGNE,
   VOIE_INSCRIPTION_PAPIER,
@@ -495,6 +497,8 @@ export type RecordPaymentResult =
       montant_paye: number;
       date_paiement: string | null;
       paiement: InscriptionPaiementRow;
+      recuEmailSent?: boolean;
+      recuEmailError?: string;
     }
   | { success: false; error: string };
 
@@ -515,6 +519,13 @@ export async function updateInscriptionStatusAction(
 
   try {
     const supabase = createServerClient();
+    const { data: current } = await supabase
+      .from('inscriptions')
+      .select('status')
+      .eq('id', id)
+      .maybeSingle();
+    const previousStatus = current?.status ?? '';
+
     const { error } = await supabase
       .from('inscriptions')
       .update({ status: parsed.data })
@@ -523,6 +534,12 @@ export async function updateInscriptionStatusAction(
     if (error) {
       return { success: false, error: error.message };
     }
+
+    await maybeSendRecuCotisation({
+      inscriptionId: id,
+      previousStatus,
+      nextStatus: parsed.data,
+    });
   } catch {
     return {
       success: false,
@@ -664,7 +681,7 @@ export async function recordPaymentAction(
   try {
     const supabase = createServerClient();
     const paymentInscriptionSelect =
-      'id, status, montant_total, montant_paye, date_paiement, date_naissance, responsable_legal, certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, certificat_engagement_3_semaines, photo_engagement_3_semaines, autorisation_engagement_3_semaines, membre_bureau, type_tarif';
+      'id, status, montant_total, montant_paye, date_paiement, date_naissance, responsable_legal, certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, certificat_engagement_3_semaines, photo_engagement_3_semaines, autorisation_engagement_3_semaines, membre_bureau, type_tarif, inscription_familiale, pack_family_parent_id, membre_2';
     const { data: row, error: fetchError } = await retrySelectOnMissingColumn(
       (select) =>
         supabase
@@ -691,6 +708,9 @@ export async function recordPaymentAction(
             autorisation_engagement_3_semaines: boolean | null;
             membre_bureau?: boolean | null;
             type_tarif?: string | null;
+            inscription_familiale?: boolean | null;
+            pack_family_parent_id?: string | null;
+            membre_2?: unknown;
           } | null;
           error: { message: string } | null;
         }>,
@@ -712,6 +732,14 @@ export async function recordPaymentAction(
       return {
         success: false,
         error: 'Membre du bureau : cotisation offerte, aucun paiement à enregistrer.',
+      };
+    }
+
+    if (isPackFamily(row) && Number(row.montant_total) <= 0) {
+      return {
+        success: false,
+        error:
+          'Pack family : montant dû 0 € sur cette fiche. Enregistrez le paiement sur une fiche avec une part supérieure à 0 €.',
       };
     }
 
@@ -789,6 +817,13 @@ export async function recordPaymentAction(
       return { success: false, error: error.message };
     }
 
+    const recu = await maybeSendRecuCotisation({
+      inscriptionId: parsed.data.id,
+      becameSolde: solde && dejaPaye < total,
+      previousStatus: row.status,
+      nextStatus,
+    });
+
     revalidateAdminPaths();
     return {
       success: true,
@@ -797,6 +832,8 @@ export async function recordPaymentAction(
       nombre_echeances: parsed.data.nombre_echeances,
       montant_paye: nouveauPaye,
       date_paiement: solde ? receptionIso : row.date_paiement,
+      recuEmailSent: recu?.sent === true,
+      recuEmailError: recu && !recu.sent ? recu.error : undefined,
       paiement: {
         id: paiementRow.id,
         inscription_id: paiementRow.inscription_id,
@@ -1223,19 +1260,30 @@ export async function updateInscriptionProfileAction(
             status: string;
             membre_bureau?: boolean | null;
             type_tarif?: string | null;
+            inscription_familiale?: boolean | null;
+            pack_family_parent_id?: string | null;
+            membre_2?: unknown;
           } | null;
           error: { message: string } | null;
         }>,
-      'certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, certificat_engagement_3_semaines, autorisation_engagement_3_semaines, photo_engagement_3_semaines, dossier_status, cours_selectionne, montant_total, montant_paye, status, membre_bureau, type_tarif',
+      'certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, certificat_engagement_3_semaines, autorisation_engagement_3_semaines, photo_engagement_3_semaines, dossier_status, cours_selectionne, montant_total, montant_paye, status, membre_bureau, type_tarif, inscription_familiale, pack_family_parent_id, membre_2',
     );
 
     if (fetchError || !current) {
       return { success: false, error: fetchError?.message ?? 'Adhérent introuvable.' };
     }
 
+    if (isPackFamily(current) && data.membreBureau) {
+      return {
+        success: false,
+        error: 'Retirez d’abord le pack family avant de marquer un membre du bureau.',
+      };
+    }
+
     let coursSelectionne = current.cours_selectionne;
     let montantTotal = Number(current.montant_total);
     let nextStatus: InscriptionStatus = current.status as InscriptionStatus;
+    const keepPackTarif = isPackFamily(current);
 
     if (
       data.coursSelectionne &&
@@ -1255,8 +1303,10 @@ export async function updateInscriptionProfileAction(
         };
       }
       coursSelectionne = data.coursSelectionne;
-      const newPrix = getCoursPrixById(data.coursSelectionne);
-      if (newPrix != null) montantTotal = newPrix;
+      if (!keepPackTarif) {
+        const newPrix = getCoursPrixById(data.coursSelectionne);
+        if (newPrix != null) montantTotal = newPrix;
+      }
 
       if (current.status !== 'cancelled') {
         const paye = Number(current.montant_paye ?? 0);
@@ -1284,24 +1334,55 @@ export async function updateInscriptionProfileAction(
     }
 
     let montantPaye = Number(current.montant_paye ?? 0);
-    if (isMembreBureau(current) && !data.membreBureau) {
-      const { data: paiements } = await supabase
-        .from('inscription_paiements')
-        .select('montant')
-        .eq('inscription_id', id);
-      montantPaye = (paiements ?? []).reduce((sum, p) => sum + Number(p.montant), 0);
+    let typeTarif = current.type_tarif ?? 'individuel';
+    if (!keepPackTarif) {
+      if (isMembreBureau(current) && !data.membreBureau) {
+        const { data: paiements } = await supabase
+          .from('inscription_paiements')
+          .select('montant')
+          .eq('inscription_id', id);
+        montantPaye = (paiements ?? []).reduce((sum, p) => sum + Number(p.montant), 0);
+      }
+      const bureauTarif = applyMembreBureauTarif({
+        membreBureau: Boolean(data.membreBureau),
+        wasMembreBureau: isMembreBureau(current),
+        coursId: coursSelectionne,
+        montantTotal,
+        montantPaye,
+        status: nextStatus,
+      });
+      montantTotal = bureauTarif.montantTotal;
+      montantPaye = bureauTarif.montantPaye;
+      nextStatus = bureauTarif.status as InscriptionStatus;
+      typeTarif = bureauTarif.typeTarif;
     }
-    const bureauTarif = applyMembreBureauTarif({
-      membreBureau: Boolean(data.membreBureau),
-      wasMembreBureau: isMembreBureau(current),
-      coursId: coursSelectionne,
-      montantTotal,
-      montantPaye,
-      status: nextStatus,
-    });
-    montantTotal = bureauTarif.montantTotal;
-    montantPaye = bureauTarif.montantPaye;
-    nextStatus = bureauTarif.status as InscriptionStatus;
+
+    if (!data.membreBureau && data.montantTotal != null) {
+      montantTotal = Math.round(data.montantTotal * 100) / 100;
+    }
+
+    if (nextStatus !== 'cancelled') {
+      const solde = montantPaye >= montantTotal;
+      if (solde) {
+        nextStatus =
+          nextStatus === 'validated' || nextStatus === 'finalized'
+            ? nextStatus
+            : 'paid';
+      } else if (nextStatus === 'paid' || nextStatus === 'finalized') {
+        nextStatus = 'pending_payment';
+      }
+      if (
+        isDossierFinalisable({
+          ...current,
+          ...patch,
+          status: nextStatus,
+          montant_total: montantTotal,
+          montant_paye: montantPaye,
+        })
+      ) {
+        nextStatus = 'finalized';
+      }
+    }
 
     // Recalcule le statut dossier avec les nouvelles valeurs de consentement.
     const dossierStatus = computeDossierStatus(
@@ -1325,7 +1406,7 @@ export async function updateInscriptionProfileAction(
       cours_selectionne: coursSelectionne,
       montant_total: montantTotal,
       montant_paye: montantPaye,
-      type_tarif: bureauTarif.typeTarif,
+      type_tarif: typeTarif,
       membre_bureau: Boolean(data.membreBureau),
       status: nextStatus,
       dossier_status: dossierStatus,
@@ -1399,16 +1480,25 @@ export async function setMembreBureauAction(
             status: string;
             membre_bureau?: boolean | null;
             type_tarif?: string | null;
+            inscription_familiale?: boolean | null;
+            pack_family_parent_id?: string | null;
+            membre_2?: unknown;
           } | null;
           error: { message: string } | null;
         }>,
-      'cours_selectionne, montant_total, montant_paye, status, membre_bureau, type_tarif',
+      'cours_selectionne, montant_total, montant_paye, status, membre_bureau, type_tarif, inscription_familiale, pack_family_parent_id, membre_2',
     );
     if (fetchError || !row) {
       return { success: false, error: fetchError?.message ?? 'Inscription introuvable.' };
     }
     if (row.status === 'cancelled') {
       return { success: false, error: 'Inscription annulée.' };
+    }
+    if (isPackFamily(row)) {
+      return {
+        success: false,
+        error: 'Retirez d’abord le pack family avant de marquer un membre du bureau.',
+      };
     }
 
     let montantPaye = Number(row.montant_paye ?? 0);
@@ -1745,6 +1835,11 @@ export async function uploadAdminInscriptionDocumentAction(
       if (statusError) {
         return { success: false, error: statusError.message };
       }
+      await maybeSendRecuCotisation({
+        inscriptionId: id,
+        previousStatus: row.status,
+        nextStatus,
+      });
     }
 
     revalidateAdminPaths();

@@ -44,6 +44,9 @@ export const editProfileSchema = z.object({
   /** Cotisation offerte, hors chiffre d’affaires. */
   membreBureau: z.boolean().optional().default(false),
 
+  /** Montant dû (pack family, remise, correction admin). */
+  montantTotal: z.number().min(0, 'Montant invalide').max(5000).optional(),
+
   // Consentements (adulte & mineur)
   accepteReglement: z.boolean(),
   accepteCharte: z.boolean(),

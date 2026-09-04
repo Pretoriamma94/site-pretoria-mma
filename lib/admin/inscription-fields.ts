@@ -16,6 +16,7 @@ export const ADMIN_INSCRIPTION_COLUMNS = [
   'responsable_legal',
   'cours_selectionne',
   'inscription_familiale',
+  'pack_family_parent_id',
   'membre_2',
   'type_tarif',
   'montant_total',
@@ -61,6 +62,9 @@ export const ADMIN_INSCRIPTION_COLUMNS = [
 export const ADMIN_INSCRIPTION_SELECT = ADMIN_INSCRIPTION_COLUMNS.join(', ');
 
 export const PAGE_SIZE_INSCRIPTIONS = 25;
+
+/** Colonnes optionnelles absentes du remote (migrations non poussées). */
+export const MISSING_COLUMN_RETRY_LIMIT = 12;
 
 export function withoutSelectColumn(select: string, column: string): string {
   return select
@@ -108,7 +112,7 @@ export async function retrySelectOnMissingColumn<T>(
 ): Promise<{ data: T; error: SelectError | null }> {
   let select = initialSelect;
   let result = await run(select);
-  for (let i = 0; i < 6 && result.error; i += 1) {
+  for (let i = 0; i < MISSING_COLUMN_RETRY_LIMIT && result.error; i += 1) {
     const missing = missingDbColumn(errorText(result.error));
     if (!missing) break;
     const next = withoutSelectColumn(select, missing);
@@ -125,7 +129,7 @@ export async function retryUpdateOnMissingColumn(
 ): Promise<{ error: SelectError | null }> {
   let current = omitUndefined(patch);
   let result = (await run(current)) as { error: SelectError | null };
-  for (let i = 0; i < 6 && result.error; i += 1) {
+  for (let i = 0; i < MISSING_COLUMN_RETRY_LIMIT && result.error; i += 1) {
     const missing = missingDbColumn(errorText(result.error));
     if (!missing || !(missing in current)) break;
     const { [missing]: _removed, ...rest } = current;

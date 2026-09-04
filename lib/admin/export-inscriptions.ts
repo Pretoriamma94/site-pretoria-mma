@@ -9,6 +9,7 @@ import {
   resteAPayer,
 } from '@/lib/admin/labels';
 import { isMembreBureau } from '@/lib/admin/membre-bureau';
+import { isPackFamily, isPackFamilyChild } from '@/lib/admin/pack-family';
 import { isInscriptionManuelle } from '@/lib/admin/voie-inscription';
 import { getCoursLabel } from '@/lib/inscription/schema';
 
@@ -86,6 +87,7 @@ const COLUMNS: { header: string; value: (row: InscriptionExportRow) => string | 
   { header: 'Statut', value: (r) => getStatusLabel(r.status) },
   { header: 'Dossier', value: (r) => getDossierStatusLabel(r.dossier_status) },
   { header: 'Membre du bureau', value: (r) => formatBool(isMembreBureau(r)) },
+  { header: 'Pack family', value: (r) => formatBool(isPackFamily(r)) },
   { header: 'Montant total', value: (r) => formatAmount(Number(r.montant_total) || 0) },
   { header: 'Payé', value: (r) => formatAmount(Number(r.montant_paye) || 0) },
   { header: 'Reste', value: (r) => formatAmount(resteAPayer(r)) },
@@ -97,6 +99,7 @@ const COLUMNS: { header: string; value: (row: InscriptionExportRow) => string | 
         r.montant_paye,
         r.status,
         isMembreBureau(r) ? true : r.membre_bureau,
+        isPackFamilyChild(r),
       ),
   },
   {

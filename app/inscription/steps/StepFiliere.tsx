@@ -1,5 +1,6 @@
 import type { UseFormReturn } from 'react-hook-form';
 import { FILIERE_OPTIONS } from '@/lib/inscription/schema';
+import { ASSOCIATION_EMAIL, TEXTE_PACK_FAMILLE_INSCRIPTION } from '@/lib/inscription/legal-texts';
 import type { InscriptionFormValues } from '@/app/inscription/form-values';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +28,20 @@ export function StepFiliere({ form }: Props) {
 
   return (
     <>
+      <div className="rounded-xl border border-red-800/60 bg-red-950/25 p-4 text-sm text-zinc-200">
+        <p className="font-semibold uppercase tracking-wide text-white">Pack famille</p>
+        <p className="mt-1.5 text-zinc-300">{TEXTE_PACK_FAMILLE_INSCRIPTION}</p>
+        <p className="mt-2 text-zinc-400">
+          Au club, ou par e-mail :{' '}
+          <a
+            href={`mailto:${ASSOCIATION_EMAIL}`}
+            className="text-red-300 underline decoration-red-300/50 underline-offset-2 hover:text-red-200"
+          >
+            {ASSOCIATION_EMAIL}
+          </a>
+          .
+        </p>
+      </div>
       <h2 className="font-display text-xl uppercase tracking-[0.2em] text-white">
         Choix de l’activité
       </h2>

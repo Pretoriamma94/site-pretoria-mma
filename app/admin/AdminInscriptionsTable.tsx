@@ -27,7 +27,7 @@ import {
   getDocumentsChecklist,
 } from '@/lib/admin/documents';
 import { getDocumentsCountdown } from '@/lib/admin/document-deadline';
-import { deleteInscriptionAction, setMembreBureauAction, setVoieInscriptionAction, updateInscriptionStatusAction } from './actions';
+import { deleteInscriptionAction, setVoieInscriptionAction, updateInscriptionStatusAction } from './actions';
 import type { InscriptionPaiementRow } from './actions';
 import { PaymentFormModal } from './PaymentFormModal';
 import { InscriptionDocumentDownloads } from './InscriptionDocumentDownloads';
@@ -45,8 +45,12 @@ import { PhotoPublicationBadge } from '@/components/admin/PhotoPublicationBadge'
 import { MembreBureauBadge } from '@/components/admin/MembreBureauBadge';
 import { VoieInscriptionBadge } from '@/components/admin/InscriptionManuelleBadge';
 import { isMembreBureau } from '@/lib/admin/membre-bureau';
+import { isPackFamily, isPackFamilyChild } from '@/lib/admin/pack-family';
+import { PackFamilyBadge } from '@/components/admin/PackFamilyBadge';
+import { PackFamilyPanel } from './PackFamilyPanel';
+import { RecuEmailButton } from './RecuEmailButton';
 import { isInscriptionManuelle } from '@/lib/admin/voie-inscription';
-import { AutorisationsFiche, OuiNonIndicateur } from '@/components/admin/AutorisationsFiche';
+import { OuiNonIndicateur } from '@/components/admin/AutorisationsFiche';
 import { AttestationSanteFiche } from '@/components/admin/AttestationSanteFiche';
 import {
   CertificatDelaiBanner,
@@ -72,6 +76,7 @@ export type AdminInscription = {
   responsable_legal: unknown | null;
   cours_selectionne: string;
   inscription_familiale: boolean | null;
+  pack_family_parent_id?: string | null;
   membre_2: unknown | null;
   type_tarif: string;
   montant_total: number;
@@ -148,7 +153,6 @@ export function AdminInscriptionsTable({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
   const [selected, setSelected] = useState<AdminInscription | null>(null);
-  const [editing, setEditing] = useState(false);
   const [paymentFor, setPaymentFor] = useState<AdminInscription | null>(null);
   const [lastPaiement, setLastPaiement] = useState<InscriptionPaiementRow | null>(null);
   const [search, setSearch] = useState(query);
@@ -157,6 +161,11 @@ export function AdminInscriptionsTable({
   const [annee, setAnnee] = useState(anneeFilter);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  const closeFiche = () => {
+    setSelected(null);
+    setLastPaiement(null);
+  };
 
   const applyFilters = (nextPage = 1) => {
     const params = new URLSearchParams();
@@ -179,6 +188,9 @@ export function AdminInscriptionsTable({
         return;
       }
       setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: result.status } : r)));
+      setSelected((prev) =>
+        prev && prev.id === id ? { ...prev, status: result.status } : prev,
+      );
       setToast({ type: 'success', message: 'Statut mis à jour.' });
     } catch {
       setToast({ type: 'error', message: 'Erreur lors de la mise à jour.' });
@@ -219,38 +231,6 @@ export function AdminInscriptionsTable({
       router.refresh();
     } catch {
       setToast({ type: 'error', message: 'Erreur lors de la suppression.' });
-    } finally {
-      setLoadingId(null);
-    }
-  };
-
-  const toggleBureau = async (row: AdminInscription, next: boolean) => {
-    setLoadingId(row.id);
-    setToast(null);
-    try {
-      const result = await setMembreBureauAction(row.id, next);
-      if (!result.success) {
-        setToast({ type: 'error', message: result.error });
-        return;
-      }
-      const patch = {
-        membre_bureau: result.membre_bureau,
-        type_tarif: result.type_tarif,
-        montant_total: result.montant_total,
-        montant_paye: result.montant_paye,
-        status: result.status,
-      };
-      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, ...patch } : r)));
-      setSelected((prev) => (prev && prev.id === row.id ? { ...prev, ...patch } : prev));
-      setToast({
-        type: 'success',
-        message: next
-          ? 'Membre du bureau : cotisation offerte, hors chiffre d’affaires.'
-          : 'Cotisation réactivée.',
-      });
-      router.refresh();
-    } catch {
-      setToast({ type: 'error', message: 'Impossible de modifier le statut bureau.' });
     } finally {
       setLoadingId(null);
     }
@@ -369,6 +349,8 @@ export function AdminInscriptionsTable({
           <tbody className="divide-y divide-zinc-900">
             {rows.map((row) => {
               const bureau = isMembreBureau(row);
+              const packFamily = isPackFamily(row);
+              const packChild = isPackFamilyChild(row);
               const paye = row.montant_paye ?? 0;
               const reste = resteAPayer(row);
               const partiel = isPaiementPartiel(row.montant_total, paye, row.status, bureau);
@@ -389,6 +371,11 @@ export function AdminInscriptionsTable({
                     {bureau ? (
                       <div className="mt-1">
                         <MembreBureauBadge compact />
+                      </div>
+                    ) : null}
+                    {packFamily ? (
+                      <div className="mt-1">
+                        <PackFamilyBadge compact />
                       </div>
                     ) : null}
                     <div className="mt-0.5 text-[0.7rem] text-zinc-300">
@@ -445,6 +432,7 @@ export function AdminInscriptionsTable({
                           row.montant_paye,
                           row.status,
                           bureau,
+                          packChild,
                         ),
                       )}
                     >
@@ -453,6 +441,7 @@ export function AdminInscriptionsTable({
                         row.montant_paye,
                         row.status,
                         bureau,
+                        packChild,
                       )}
                     </span>
                     <InscriptionPaymentCell
@@ -462,6 +451,7 @@ export function AdminInscriptionsTable({
                       nombreEcheances={row.nombre_echeances}
                       modesEnregistres={paiementModesById[row.id]}
                       membreBureau={bureau}
+                      packFamily={packChild}
                     />
                     {row.status !== 'cancelled' && !bureau && reste > 0 ? (
                       <button
@@ -479,10 +469,7 @@ export function AdminInscriptionsTable({
                       <button
                         type="button"
                         className="rounded-full border border-mma-red/70 bg-mma-red/20 px-3 py-1.5 font-semibold text-red-100 hover:bg-mma-red/30"
-                        onClick={() => {
-                          setSelected(row);
-                          setEditing(true);
-                        }}
+                        onClick={() => setSelected(row)}
                       >
                         Modifier
                       </button>
@@ -573,144 +560,110 @@ export function AdminInscriptionsTable({
 
       {selected && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-5 text-sm text-zinc-100">
-            <div className="flex items-center justify-between gap-4">
-              <h3 className="font-display text-lg uppercase tracking-[0.2em]">
-                Détails de l&apos;inscription
-              </h3>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="rounded-full border border-mma-red/70 bg-mma-red/20 px-3 py-1 text-xs uppercase tracking-wide text-red-100 hover:bg-mma-red/30"
-                  onClick={() => setEditing(true)}
-                >
-                  Modifier
-                </button>
-                <button
-                  type="button"
-                  className="rounded-full border border-red-700/70 bg-red-950/40 px-3 py-1 text-xs uppercase tracking-wide text-red-200 hover:bg-red-900/50 disabled:opacity-60"
-                  onClick={() => handleDelete(selected.id)}
-                  disabled={loadingId === selected.id}
-                >
-                  Supprimer
-                </button>
-                <button
-                  type="button"
-                  className="rounded-full border border-zinc-600 px-3 py-1 text-xs uppercase tracking-wide text-zinc-200 hover:bg-zinc-800"
-                  onClick={() => {
-                    setSelected(null);
-                    setEditing(false);
-                    setLastPaiement(null);
-                  }}
-                >
-                  Fermer
-                </button>
-              </div>
-            </div>
-            <div className="mt-4">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-5 text-sm text-zinc-100">
+            <EditProfileModal
+              layout="embedded"
+              profile={selected}
+              onClose={closeFiche}
+              onSaved={(fields) => {
+                setRows((prev) =>
+                  prev.map((r) => (r.id === selected.id ? { ...r, ...fields } : r)),
+                );
+                closeFiche();
+                setToast({ type: 'success', message: 'Fiche enregistrée.' });
+                router.refresh();
+              }}
+            >
+            <div className="mt-2">
               <PhotoPublicationBadge
                 autorise={selected.autorise_photos}
                 variant="banner"
               />
             </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <VoieInscriptionBadge manuelle={isInscriptionManuelle(selected)} />
+              <button
+                type="button"
+                className="rounded-full border border-sky-500/60 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-sky-100 hover:bg-sky-950/80"
+                onClick={() => {
+                  const next = isInscriptionManuelle(selected) ? 'en_ligne' : 'papier';
+                  void (async () => {
+                    const result = await setVoieInscriptionAction(selected.id, next);
+                    if (!result.success) {
+                      setToast({ type: 'error', message: result.error });
+                      return;
+                    }
+                    const fields = {
+                      voie_inscription: result.voie_inscription,
+                      membre_2: result.membre_2,
+                    };
+                    setSelected((prev) => (prev ? { ...prev, ...fields } : prev));
+                    setRows((prev) =>
+                      prev.map((r) => (r.id === selected.id ? { ...r, ...fields } : r)),
+                    );
+                  })();
+                }}
+              >
+                {isInscriptionManuelle(selected) ? 'Marquer en ligne' : 'Marquer papier'}
+              </button>
+              <span className="text-[0.7rem] text-zinc-400">
+                Année scolaire : {selected.annee_scolaire || '—'}
+              </span>
+            </div>
+            <div className="mt-3 space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3">
+              <PhotoDelaiBanner row={selected} />
+              <CertificatDelaiBanner row={selected} />
+              <AttestationSanteFiche row={selected} />
+            </div>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div className="space-y-1 text-xs">
                 <p className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-zinc-400">
-                  Adhérent
-                </p>
-                <p className="text-sm">
-                  {selected.prenom} {selected.nom}
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <VoieInscriptionBadge manuelle={isInscriptionManuelle(selected)} />
-                  <button
-                    type="button"
-                    className="rounded-full border border-sky-500/60 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-sky-100 hover:bg-sky-950/80"
-                    onClick={() => {
-                      const next = isInscriptionManuelle(selected) ? 'en_ligne' : 'papier';
-                      void (async () => {
-                        const result = await setVoieInscriptionAction(selected.id, next);
-                        if (!result.success) {
-                          setToast({ type: 'error', message: result.error });
-                          return;
-                        }
-                        const fields = {
-                          voie_inscription: result.voie_inscription,
-                          membre_2: result.membre_2,
-                        };
-                        setSelected((prev) => (prev ? { ...prev, ...fields } : prev));
-                        setRows((prev) =>
-                          prev.map((r) => (r.id === selected.id ? { ...r, ...fields } : r)),
-                        );
-                      })();
-                    }}
-                  >
-                    {isInscriptionManuelle(selected) ? 'Marquer en ligne' : 'Marquer papier'}
-                  </button>
-                </div>
-                <p>Année scolaire : {selected.annee_scolaire || '—'}</p>
-                <p>{selected.date_naissance}</p>
-                <p>
-                  {[selected.numero_voie, selected.rue].filter(Boolean).join(' ') ||
-                    selected.adresse}
-                  <br />
-                  {selected.code_postal} {selected.ville}
-                </p>
-                <div className="mt-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3">
-                  <AutorisationsFiche row={selected} />
-                </div>
-                <div className="mt-3 space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3">
-                  <PhotoDelaiBanner row={selected} />
-                  <CertificatDelaiBanner row={selected} />
-                  <AttestationSanteFiche row={selected} />
-                </div>
-              </div>
-              <div className="space-y-1 text-xs">
-                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-zinc-400">
-                  Contact
-                </p>
-                <p>{selected.email || '—'}</p>
-                <p>{selected.telephone || '—'}</p>
-                {(() => {
-                  const r = selected.responsable_legal as {
-                    nom?: string;
-                    prenom?: string;
-                    telephone?: string;
-                    lienParente?: string;
-                  } | null;
-                  if (!r) return null;
-                  return (
-                    <p className="mt-2 text-zinc-300">
-                      Responsable : {r.prenom} {r.nom}
-                      {r.telephone ? ` — ${r.telephone}` : ''}
-                    </p>
-                  );
-                })()}
-              </div>
-              <div className="space-y-1 text-xs">
-                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-zinc-400">
-                  Cours & tarif
+                  Cours, tarif & pack family
                 </p>
                 {isMembreBureau(selected) ? (
                   <div className="mb-1">
                     <MembreBureauBadge />
                   </div>
                 ) : null}
-                <p>Cours : {getCoursLabel(selected.cours_selectionne)}</p>
-                <p>Type tarif : {isMembreBureau(selected) ? 'Bureau (offert)' : selected.type_tarif}</p>
-                <p>Montant total : {formatEuros(selected.montant_total)}</p>
-                {selected.status !== 'cancelled' ? (
-                  <label className="mt-2 flex items-start gap-2 text-sm text-zinc-200">
-                    <input
-                      type="checkbox"
-                      checked={isMembreBureau(selected)}
-                      disabled={loadingId === selected.id}
-                      onChange={(e) => void toggleBureau(selected, e.target.checked)}
-                      className="mt-0.5 h-4 w-4 accent-violet-600"
-                    />
-                    <span>Membre du bureau — cotisation offerte, hors CA</span>
-                  </label>
+                {isPackFamily(selected) ? (
+                  <div className="mb-1">
+                    <PackFamilyBadge />
+                  </div>
                 ) : null}
+                <p>Cours : {getCoursLabel(selected.cours_selectionne)}</p>
+                <p>
+                  Type tarif :{' '}
+                  {isMembreBureau(selected)
+                    ? 'Bureau (offert)'
+                    : isPackFamily(selected)
+                      ? 'Pack family'
+                      : selected.type_tarif}
+                </p>
+                <p>Montant dû : {formatEuros(selected.montant_total)}</p>
+                <PackFamilyPanel
+                  key={selected.id}
+                  row={selected}
+                  knownRows={rows}
+                  disabled={loadingId === selected.id || isMembreBureau(selected)}
+                  onSaved={(members) => {
+                    const byId = new Map(members.map((m) => [m.id, m]));
+                    setRows((prev) =>
+                      prev.map((r) => (byId.has(r.id) ? { ...r, ...byId.get(r.id) } : r)),
+                    );
+                    setSelected((prev) =>
+                      prev && byId.has(prev.id) ? { ...prev, ...byId.get(prev.id) } : prev,
+                    );
+                    const self = members.find((m) => m.id === selected.id);
+                    setToast({
+                      type: 'success',
+                      message: self?.inscription_familiale
+                        ? 'Pack family enregistré.'
+                        : 'Pack family retiré, tarifs individuels restaurés.',
+                    });
+                    router.refresh();
+                  }}
+                  onError={(message) => setToast({ type: 'error', message })}
+                />
               </div>
               <div className="space-y-1 text-xs">
                 <p className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-zinc-400">
@@ -719,6 +672,10 @@ export function AdminInscriptionsTable({
                 <p>Statut : {getStatusLabel(selected.status)}</p>
                 {isMembreBureau(selected) ? (
                   <p className="font-semibold text-violet-200">Cotisation offerte — hors chiffre d’affaires</p>
+                ) : isPackFamilyChild(selected) && Number(selected.montant_total) <= 0 ? (
+                  <p className="font-semibold text-sky-200">
+                    Inclus pack family — 0 € (montant reporté sur le payeur du pack)
+                  </p>
                 ) : (
                   <>
                     <p>
@@ -760,6 +717,42 @@ export function AdminInscriptionsTable({
                     )}
                   </>
                 )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selected.status === 'paid' && (
+                    <button
+                      type="button"
+                      className="rounded-full bg-sky-700 px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-wide text-white hover:bg-sky-600 disabled:opacity-60"
+                      onClick={() => updateStatus(selected.id, 'validated')}
+                      disabled={loadingId === selected.id}
+                    >
+                      Valider
+                    </button>
+                  )}
+                  {(selected.status === 'validated' || selected.status === 'paid') && (
+                    <button
+                      type="button"
+                      className="rounded-full bg-emerald-800 px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-wide text-white hover:bg-emerald-700 disabled:opacity-60"
+                      onClick={() => updateStatus(selected.id, 'finalized')}
+                      disabled={loadingId === selected.id}
+                    >
+                      Finaliser
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="rounded-full border border-red-700/70 bg-red-950/40 px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-wide text-red-200 hover:bg-red-900/50 disabled:opacity-60"
+                    onClick={() => handleDelete(selected.id)}
+                    disabled={loadingId === selected.id}
+                  >
+                    Supprimer
+                  </button>
+                </div>
+                {selected.status !== 'cancelled' &&
+                !isMembreBureau(selected) &&
+                Number(selected.montant_total) > 0 &&
+                (resteAPayer(selected) <= 0 || isPackFamilyChild(selected)) ? (
+                  <RecuEmailButton inscriptionId={selected.id} />
+                ) : null}
               </div>
             </div>
             <InscriptionPaiementsHistory
@@ -945,6 +938,7 @@ export function AdminInscriptionsTable({
                 </div>
               );
             })()}
+            </EditProfileModal>
           </div>
         </div>
       )}
@@ -953,7 +947,7 @@ export function AdminInscriptionsTable({
         <PaymentFormModal
           inscription={paymentFor}
           onClose={() => setPaymentFor(null)}
-          onSaved={(updated, paiement) => {
+          onSaved={(updated, paiement, recu) => {
             setRows((prev) =>
               prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)),
             );
@@ -968,29 +962,18 @@ export function AdminInscriptionsTable({
               return { ...prev, [updated.id]: next };
             });
             setLastPaiement(paiement);
+            const recuNote = recu?.sent
+              ? ' Reçu envoyé par email.'
+              : recu?.error
+                ? ` Reçu non envoyé : ${recu.error}`
+                : '';
             setToast({
               type: 'success',
               message:
-                updated.status === 'finalized'
+                (updated.status === 'finalized'
                   ? 'Paiement enregistré — dossier Finalisé.'
-                  : 'Paiement enregistré.',
+                  : 'Paiement enregistré.') + recuNote,
             });
-          }}
-        />
-      )}
-
-      {editing && selected && (
-        <EditProfileModal
-          profile={selected}
-          onClose={() => setEditing(false)}
-          onSaved={(fields) => {
-            setRows((prev) =>
-              prev.map((r) => (r.id === selected.id ? { ...r, ...fields } : r)),
-            );
-            setSelected((prev) => (prev ? { ...prev, ...fields } : prev));
-            setEditing(false);
-            setToast({ type: 'success', message: 'Profil mis à jour.' });
-            router.refresh();
           }}
         />
       )}

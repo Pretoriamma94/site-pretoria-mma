@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getAuthUser, isAdminUser } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { ADMIN_INSCRIPTION_SELECT, missingDbColumn, withoutSelectColumn } from '@/lib/admin/inscription-fields';
+import { ADMIN_INSCRIPTION_SELECT, missingDbColumn, withoutSelectColumn, MISSING_COLUMN_RETRY_LIMIT } from '@/lib/admin/inscription-fields';
 import {
   computeRecettesClub,
   formatEuros,
@@ -64,7 +64,7 @@ export default async function AdminPaiementsPage({
   let data: unknown[] | null = null;
   let error: { message: string } | null = null;
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  for (let attempt = 0; attempt < MISSING_COLUMN_RETRY_LIMIT; attempt += 1) {
     let inscriptionsQuery = supabase
       .from('inscriptions')
       .select(select)
@@ -79,7 +79,9 @@ export default async function AdminPaiementsPage({
     data = result.data;
     error = result.error;
     if (!error) break;
-    const missing = missingDbColumn(error.message);
+    const missing = missingDbColumn(
+      [error.message, result.error?.details, result.error?.hint].filter(Boolean).join(' '),
+    );
     if (!missing || !select.split(',').map((part) => part.trim()).includes(missing)) {
       break;
     }

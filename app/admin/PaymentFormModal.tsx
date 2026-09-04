@@ -29,6 +29,7 @@ type Props = {
   onSaved: (
     updated: Partial<PaymentTarget> & { id: string },
     paiement: InscriptionPaiementRow,
+    recu?: { sent: boolean; error?: string },
   ) => void;
 };
 
@@ -99,6 +100,10 @@ export function PaymentFormModal({ inscription, onClose, onSaved }: Props) {
           date_paiement: result.date_paiement,
         },
         result.paiement,
+        {
+          sent: result.recuEmailSent === true,
+          error: result.recuEmailError,
+        },
       );
       onClose();
     } catch {

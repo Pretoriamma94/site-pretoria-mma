@@ -11,8 +11,12 @@ import {
 } from '@/lib/inscription/schema';
 import { PhotoPublicationBadge } from '@/components/admin/PhotoPublicationBadge';
 import { MembreBureauBadge } from '@/components/admin/MembreBureauBadge';
+import { PackFamilyBadge } from '@/components/admin/PackFamilyBadge';
 import { VoieInscriptionBadge } from '@/components/admin/InscriptionManuelleBadge';
 import { isMembreBureau } from '@/lib/admin/membre-bureau';
+import { isPackFamily, isPackFamilyChild } from '@/lib/admin/pack-family';
+import { PackFamilyPanel } from '../PackFamilyPanel';
+import { RecuEmailButton } from '../RecuEmailButton';
 import { isInscriptionManuelle } from '@/lib/admin/voie-inscription';
 import { AutorisationsFiche } from '@/components/admin/AutorisationsFiche';
 import { AttestationSanteFiche } from '@/components/admin/AttestationSanteFiche';
@@ -82,6 +86,8 @@ export type AdherentRow = {
   created_at: string | null;
   type_tarif?: string | null;
   membre_bureau?: boolean | null;
+  inscription_familiale?: boolean | null;
+  pack_family_parent_id?: string | null;
   voie_inscription?: string | null;
   membre_2?: unknown;
 };
@@ -155,6 +161,14 @@ function AdherentPaymentCell({ row }: { row: AdherentRow }) {
       </div>
     );
   }
+  if (isPackFamily(row) && (row.montant_total ?? 0) <= 0) {
+    return (
+      <div className="space-y-0.5">
+        <p className="font-semibold text-sky-200">Pack family</p>
+        <p className="text-[0.65rem] text-zinc-500">0 € — inclus</p>
+      </div>
+    );
+  }
   const paye = row.montant_paye ?? 0;
   const reste = resteAPayer(row);
   const date = paymentDateLabel(row);
@@ -193,6 +207,7 @@ export function AdherentsDirectory({
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [packError, setPackError] = useState<string | null>(null);
 
   const countsByCategorie = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -421,6 +436,11 @@ export function AdherentsDirectory({
                         <MembreBureauBadge compact />
                       </span>
                     ) : null}
+                    {isPackFamily(row) ? (
+                      <span className="mt-1 block">
+                        <PackFamilyBadge compact />
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3.5 text-zinc-300">
                     {getCoursLabel(row.cours_selectionne)}
@@ -539,6 +559,11 @@ export function AdherentsDirectory({
                       <MembreBureauBadge />
                     </div>
                   ) : null}
+                  {isPackFamily(selected) ? (
+                    <div className="mt-2">
+                      <PackFamilyBadge />
+                    </div>
+                  ) : null}
                   <p className="mt-1 text-zinc-300">
                     Né(e) le {formatDateNaissance(selected.date_naissance)}
                   </p>
@@ -644,6 +669,10 @@ export function AdherentsDirectory({
                       <li className="font-semibold text-violet-200">
                         Cotisation offerte — hors chiffre d’affaires
                       </li>
+                    ) : isPackFamilyChild(selected) && Number(selected.montant_total) <= 0 ? (
+                      <li className="font-semibold text-sky-200">
+                        Inclus pack family — 0 € (reporté sur le payeur du pack)
+                      </li>
                     ) : (
                       <li
                         className={
@@ -656,6 +685,33 @@ export function AdherentsDirectory({
                       </li>
                     )}
                   </ul>
+                  {selected.status !== 'cancelled' &&
+                  !isMembreBureau(selected) &&
+                  Number(selected.montant_total) > 0 &&
+                  (resteAPayer(selected) <= 0 || isPackFamilyChild(selected)) ? (
+                    <RecuEmailButton inscriptionId={selected.id} />
+                  ) : null}
+                  <PackFamilyPanel
+                    key={selected.id}
+                    row={selected}
+                    knownRows={rows}
+                    disabled={isMembreBureau(selected)}
+                    onSaved={(members) => {
+                      setPackError(null);
+                      const byId = new Map(members.map((m) => [m.id, m]));
+                      setRows((prev) =>
+                        prev.map((r) => (byId.has(r.id) ? { ...r, ...byId.get(r.id) } : r)),
+                      );
+                      setSelected((prev) =>
+                        prev && byId.has(prev.id) ? { ...prev, ...byId.get(prev.id) } : prev,
+                      );
+                      router.refresh();
+                    }}
+                    onError={(message) => setPackError(message)}
+                  />
+                  {packError ? (
+                    <p className="mt-2 text-[0.75rem] text-red-300">{packError}</p>
+                  ) : null}
                   <div className="mt-3">
                     <InscriptionPaiementsHistory
                       inscriptionId={selected.id}

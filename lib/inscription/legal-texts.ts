@@ -2,6 +2,9 @@
 
 export const ASSOCIATION_NOM = 'Pretoria MMA La Queue-en-Brie';
 export const ASSOCIATION_EMAIL = 'pretoriamma94@gmail.com';
+export const ASSOCIATION_ADRESSE = '4 avenue du Maréchal Mortier, 94510 La Queue-en-Brie';
+export const ASSOCIATION_SIRET = '994 391 472 00010';
+export const ASSOCIATION_RNA = 'W942012446';
 
 export const TEXTE_RISQUES_SPORTS_COMBAT =
   'Les disciplines pratiquées étant des sports de combat, l’adhérent reconnaît les risques inhérents à ces activités et s’engage à respecter les consignes de sécurité.';
@@ -81,3 +84,7 @@ export const TEXTE_BABY_DEUX_PARENTS =
 
 export const TEXTE_BABY_PLUS_DE_7_ANS =
   'Si l’enfant a plus de 7 ans, passez sur la partie MMA.';
+
+/** Affiché au début de l’inscription publique — le pack n’est pas choisi en ligne. */
+export const TEXTE_PACK_FAMILLE_INSCRIPTION =
+  'Des packs famille existent et donnent droit à une réduction. Pour en bénéficier, rapprochez-vous des membres de l’association.';

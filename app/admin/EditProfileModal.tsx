@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { coursFilterBucket, getCoursLabel, isMinor } from '@/lib/inscription/schema';
 import {
   ADMIN_COURS_IDS,
@@ -9,6 +9,7 @@ import {
   type AdminCoursId,
 } from '@/lib/admin/cours-override';
 import { formatEuros } from '@/lib/admin/labels';
+import { isPackFamily, isPackFamilyChild } from '@/lib/admin/pack-family';
 import {
   updateInscriptionProfileAction,
   type ProfileUpdatedFields,
@@ -34,6 +35,9 @@ export type EditableProfile = {
   status?: string;
   type_tarif?: string | null;
   membre_bureau?: boolean | null;
+  inscription_familiale?: boolean | null;
+  pack_family_parent_id?: string | null;
+  membre_2?: unknown;
   responsable_legal: unknown | null;
   type_profil: 'adulte' | 'mineur' | null;
   accepte_reglement: boolean;
@@ -72,12 +76,18 @@ function TextField({
   onChange,
   type = 'text',
   placeholder,
+  disabled,
+  step,
+  min,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
   placeholder?: string;
+  disabled?: boolean;
+  step?: string;
+  min?: string;
 }) {
   return (
     <label className={labelClass}>
@@ -86,8 +96,11 @@ function TextField({
         type={type}
         value={value}
         placeholder={placeholder}
+        disabled={disabled}
+        step={step}
+        min={min}
         onChange={(e) => onChange(e.target.value)}
-        className={inputClass}
+        className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-60`}
       />
     </label>
   );
@@ -97,18 +110,21 @@ function CheckField({
   label,
   checked,
   onChange,
+  disabled,
 }: {
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <label className="flex items-start gap-2 text-sm text-zinc-200">
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-4 w-4 accent-red-600"
+        className="mt-0.5 h-4 w-4 accent-red-600 disabled:opacity-60"
       />
       <span>{label}</span>
     </label>
@@ -119,9 +135,23 @@ type Props = {
   profile: EditableProfile;
   onClose: () => void;
   onSaved: (fields: ProfileUpdatedFields) => void;
+  /** `embedded` : dans la fiche inscription (pas de 2e overlay). */
+  layout?: 'modal' | 'embedded';
+  children?: ReactNode;
 };
 
-export function EditProfileModal({ profile, onClose, onSaved }: Props) {
+function parseMontantInput(value: string): number | undefined {
+  const parsed = Number(String(value).replace(',', '.').trim());
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export function EditProfileModal({
+  profile,
+  onClose,
+  onSaved,
+  layout = 'modal',
+  children,
+}: Props) {
   const resp = getResponsable(profile.responsable_legal);
 
   const [form, setForm] = useState({
@@ -151,10 +181,19 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
     emailResponsable: resp.email ?? '',
     lienParente: (resp.lienParente as string) ?? '',
     membreBureau: profile.membre_bureau === true || profile.type_tarif === 'bureau',
+    montantTotal: String(profile.montant_total ?? ''),
   });
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      montantTotal: String(profile.montant_total ?? ''),
+      membreBureau: profile.membre_bureau === true || profile.type_tarif === 'bureau',
+    }));
+  }, [profile.montant_total, profile.membre_bureau, profile.type_tarif]);
 
   const minor = form.dateNaissance ? isMinor(form.dateNaissance) : false;
   const sexeForm = form.sexe === 'homme' || form.sexe === 'femme' ? form.sexe : profile.sexe;
@@ -172,9 +211,20 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
   )
     ? form.coursSelectionne
     : (coursChoices[0] ?? coursFilterBucket(profile.cours_selectionne));
-  const newPrix = form.membreBureau ? 0 : getCoursPrixById(selectedCours);
+  const packChild = isPackFamilyChild(profile);
+  const packHolder = isPackFamily(profile) && !packChild;
+  const montantLocked = form.membreBureau;
+  const newPrix = form.membreBureau
+    ? 0
+    : packHolder || packChild
+      ? profile.montant_total
+      : getCoursPrixById(selectedCours);
   const tarifChange =
-    newPrix != null && newPrix !== profile.montant_total
+    !packHolder &&
+    !packChild &&
+    !form.membreBureau &&
+    newPrix != null &&
+    newPrix !== profile.montant_total
       ? { from: profile.montant_total, to: newPrix }
       : null;
 
@@ -215,14 +265,14 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
         telephoneResponsable: form.telephoneResponsable,
         emailResponsable: form.emailResponsable,
         lienParente: form.lienParente || null,
-        membreBureau: form.membreBureau,
+        membreBureau: isPackFamily(profile) ? false : form.membreBureau,
+        montantTotal: montantLocked ? 0 : parseMontantInput(form.montantTotal),
       });
       if (!result.success) {
         setError(result.error);
         return;
       }
       onSaved(result.fields);
-      onClose();
     } catch {
       setError('Une erreur est survenue. Réessayez.');
     } finally {
@@ -230,29 +280,39 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
     }
   };
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-5 text-zinc-100"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <h3 className="font-display text-lg uppercase tracking-[0.2em]">
-            Modifier le profil
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-zinc-600 px-3 py-1 text-xs uppercase tracking-wide text-zinc-200 hover:bg-zinc-800"
-          >
-            Fermer
-          </button>
-        </div>
+  const title =
+    layout === 'embedded'
+      ? `Fiche — ${form.prenom || profile.prenom} ${form.nom || profile.nom}`
+      : 'Modifier le profil';
 
-        <div className="mt-5 space-y-6">
+  const renderActionButtons = () => (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded-full border border-zinc-600 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-200 hover:bg-zinc-800"
+      >
+        Annuler
+      </button>
+      <button
+        type="button"
+        onClick={() => void handleSave()}
+        disabled={saving}
+        className="rounded-full bg-red-600 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-red-700 disabled:opacity-60"
+      >
+        {saving ? 'Enregistrement…' : 'Enregistrer'}
+      </button>
+    </div>
+  );
+
+  const formBody = (
+    <>
+      <div className="sticky top-0 z-10 -mx-5 mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-zinc-800 bg-zinc-950 px-5 py-3">
+        <h3 className="font-display text-lg uppercase tracking-[0.2em]">{title}</h3>
+        {renderActionButtons()}
+      </div>
+
+      <div className="space-y-6">
           <section className="grid gap-3 sm:grid-cols-2">
             <TextField label="Nom *" value={form.nom} onChange={setText('nom')} />
             <TextField label="Prénom *" value={form.prenom} onChange={setText('prenom')} />
@@ -297,12 +357,28 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
             <CheckField
               label="Membre du bureau (cotisation offerte, hors chiffre d’affaires)"
               checked={form.membreBureau}
-              onChange={setBool('membreBureau')}
+              disabled={isPackFamily(profile)}
+              onChange={(v) =>
+                setForm((prev) => ({
+                  ...prev,
+                  membreBureau: v,
+                  montantTotal: v
+                    ? '0'
+                    : String(getCoursPrixById(selectedCours) ?? profile.montant_total ?? 0),
+                }))
+              }
             />
-            <p className="mt-2 text-[0.7rem] font-normal normal-case tracking-normal text-violet-200/80">
-              Cochez pour un dirigeant, coach ou membre du bureau. Aucun paiement n’est dû, la
-              ligne n’entre pas dans les recettes du club.
-            </p>
+            {isPackFamily(profile) ? (
+              <p className="mt-2 text-[0.7rem] font-normal normal-case tracking-normal text-amber-200/90">
+                Pack family actif : retirez-le sur la fiche avant de marquer un membre du bureau.
+                Le tarif pack n’est pas recalculé ici.
+              </p>
+            ) : (
+              <p className="mt-2 text-[0.7rem] font-normal normal-case tracking-normal text-violet-200/80">
+                Cochez pour un dirigeant, coach ou membre du bureau. Aucun paiement n’est dû, la
+                ligne n’entre pas dans les recettes du club.
+              </p>
+            )}
           </section>
 
           <section>
@@ -311,7 +387,18 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
               {coursChoices.length > 1 ? (
                 <select
                   value={selectedCours}
-                  onChange={(e) => setText('coursSelectionne')(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    const prix = getCoursPrixById(next);
+                    setForm((prev) => ({
+                      ...prev,
+                      coursSelectionne: next,
+                      montantTotal:
+                        prev.membreBureau || packChild || packHolder || prix == null
+                          ? prev.montantTotal
+                          : String(prix),
+                    }));
+                  }}
                   className={inputClass}
                 >
                   {coursChoices.map((id) => {
@@ -345,6 +432,37 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
                   : ''}
               </p>
             ) : null}
+            <div className="mt-3 max-w-xs">
+              <TextField
+                label="Montant dû (€)"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.montantTotal}
+                disabled={montantLocked}
+                onChange={setText('montantTotal')}
+              />
+              {packChild ? (
+                <p className="mt-1.5 text-[0.7rem] font-normal normal-case tracking-normal text-sky-200/90">
+                  Part pack family de cet adhérent — un reçu distinct est émis si le montant est
+                  supérieur à 0 €.
+                </p>
+              ) : form.membreBureau ? (
+                <p className="mt-1.5 text-[0.7rem] font-normal normal-case tracking-normal text-violet-200/80">
+                  Membre du bureau — cotisation offerte (0 €).
+                </p>
+              ) : packHolder ? (
+                <p className="mt-1.5 text-[0.7rem] font-normal normal-case tracking-normal text-sky-200/90">
+                  Part pack family de cet adhérent (reçu distinct). La part des enfants se saisit
+                  dans le bloc Pack family.
+                </p>
+              ) : (
+                <p className="mt-1.5 text-[0.7rem] font-normal normal-case tracking-normal text-zinc-500">
+                  Vous pouvez corriger le montant (remise, pack, ajustement). Le déjà payé est
+                  conservé.
+                </p>
+              )}
+            </div>
           </section>
 
           {minor && (
@@ -444,30 +562,35 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
             </div>
           </section>
 
+          {children}
+
           {error && (
             <p className="rounded-xl border border-red-900/50 bg-red-950/40 px-4 py-3 text-sm text-red-300">
               {error}
             </p>
           )}
 
-          <div className="flex flex-wrap justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-full border border-zinc-600 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-200 hover:bg-zinc-800"
-            >
-              Annuler
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="rounded-full bg-red-600 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-red-700 disabled:opacity-60"
-            >
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
+          <div className="flex flex-wrap justify-end gap-3 border-t border-zinc-800 pt-4">
+            {renderActionButtons()}
           </div>
         </div>
+    </>
+  );
+
+  if (layout === 'embedded') {
+    return <div className="text-zinc-100">{formBody}</div>;
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-5 text-zinc-100"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {formBody}
       </div>
     </div>
   );

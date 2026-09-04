@@ -184,6 +184,7 @@ type PaymentProps = {
   nombreEcheances: number | null;
   modesEnregistres?: string[];
   membreBureau?: boolean;
+  packFamily?: boolean;
 };
 
 export function InscriptionPaymentCell({
@@ -193,12 +194,21 @@ export function InscriptionPaymentCell({
   nombreEcheances,
   modesEnregistres,
   membreBureau,
+  packFamily,
 }: PaymentProps) {
   if (membreBureau) {
     return (
       <div className="min-w-[8.5rem] space-y-1">
         <p className="text-[0.8rem] font-bold text-violet-200">Offert</p>
         <p className="text-[0.65rem] text-zinc-500">Hors chiffre d’affaires</p>
+      </div>
+    );
+  }
+  if (packFamily && montantTotal <= 0) {
+    return (
+      <div className="min-w-[8.5rem] space-y-1">
+        <p className="text-[0.8rem] font-bold text-sky-200">Pack family</p>
+        <p className="text-[0.65rem] text-zinc-500">0 € — inclus, reporté sur le payeur du pack</p>
       </div>
     );
   }
@@ -278,6 +288,9 @@ export function InscriptionsLegend() {
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2 w-2 rounded-full bg-violet-400" /> Membre du bureau (hors CA)
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2 w-2 rounded-full bg-sky-300" /> Pack family (parts réparties)
       </span>
     </div>
   );

@@ -245,6 +245,8 @@ export interface Database {
           responsable_legal: Json | null;
           cours_selectionne: string;
           inscription_familiale: boolean;
+          /** Payeur du pack family (parent). Null si payeur ou hors pack. */
+          pack_family_parent_id: string | null;
           membre_2: Json | null;
           type_tarif: string;
           montant_total: number;
@@ -313,6 +315,7 @@ export interface Database {
           responsable_legal?: Json | null;
           cours_selectionne: string;
           inscription_familiale?: boolean;
+          pack_family_parent_id?: string | null;
           membre_2?: Json | null;
           type_tarif?: string;
           montant_total: number;

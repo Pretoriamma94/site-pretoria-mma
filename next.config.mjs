@@ -24,6 +24,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  outputFileTracingIncludes: {
+    '/**': ['./public/images/logo-recu.jpg'],
+  },
   experimental: {
     serverActions: {
       // Par défaut Next.js limite le body d'une Server Action à 1 Mo.

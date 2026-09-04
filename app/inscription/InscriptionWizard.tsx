@@ -230,6 +230,12 @@ export function InscriptionWizard() {
         Formulaire en {INSCRIPTION_STEPS.length} étapes. Les documents pourront être complétés
         après validation.
       </p>
+      {step === 0 ? (
+        <p className="mt-3 text-sm text-zinc-400">
+          Packs famille : des réductions existent. Pour en bénéficier, rapprochez-vous des
+          membres de l’association.
+        </p>
+      ) : null}
 
       <div className="mt-8 flex items-center justify-between gap-1 text-xs uppercase tracking-wider text-zinc-400">
         {INSCRIPTION_STEPS.map((label, index) => (

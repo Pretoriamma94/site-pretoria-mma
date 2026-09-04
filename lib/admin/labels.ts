@@ -68,6 +68,9 @@ export function soldeRestant(montantTotal: number, montantPaye: number | null | 
 export function resteAPayer(row: {
   membre_bureau?: boolean | null;
   type_tarif?: string | null;
+  inscription_familiale?: boolean | null;
+  pack_family_parent_id?: string | null;
+  membre_2?: unknown;
   montant_total: number;
   montant_paye?: number | null;
   status?: string;
@@ -98,6 +101,9 @@ export function computeRecettesClub(
     status?: string;
     membre_bureau?: boolean | null;
     type_tarif?: string | null;
+    inscription_familiale?: boolean | null;
+    pack_family_parent_id?: string | null;
+    membre_2?: unknown;
   }>,
 ): RecettesClub {
   let totalDu = 0;
@@ -110,7 +116,8 @@ export function computeRecettesClub(
 
   for (const row of cotisants) {
     const total = Number(row.montant_total) || 0;
-    const paye = Math.min(Math.max(0, Number(row.montant_paye) || 0), total);
+    const payeRaw = Math.max(0, Number(row.montant_paye) || 0);
+    const paye = total > 0 ? Math.min(payeRaw, total) : payeRaw;
     const reste = soldeRestant(total, paye);
     totalDu += total;
     totalEncaisse += paye;
@@ -133,7 +140,7 @@ export function isPaiementPartiel(
   status: string,
   membreBureau?: boolean | null,
 ): boolean {
-  if (membreBureau) return false;
+  if (membreBureau || montantTotal <= 0) return false;
   const paye = montantPaye ?? 0;
   return paye > 0 && paye < montantTotal && status !== 'cancelled' && status !== 'finalized';
 }
@@ -167,8 +174,10 @@ export function getPaiementStatutLabel(
   montantPaye: number | null | undefined,
   status: string,
   membreBureau?: boolean | null,
+  packFamily?: boolean | null,
 ): string {
   if (isMembreBureau({ membre_bureau: membreBureau })) return 'Offert';
+  if (packFamily && montantTotal <= 0) return 'Pack family';
   if (status === 'cancelled') return 'Non payé';
   const paye = montantPaye ?? 0;
   if (montantTotal <= 0 && (status === 'paid' || status === 'validated' || status === 'finalized')) {
@@ -184,12 +193,21 @@ export function getPaiementStatutClasses(
   montantPaye: number | null | undefined,
   status: string,
   membreBureau?: boolean | null,
+  packFamily?: boolean | null,
 ): string {
-  const label = getPaiementStatutLabel(montantTotal, montantPaye, status, membreBureau);
+  const label = getPaiementStatutLabel(
+    montantTotal,
+    montantPaye,
+    status,
+    membreBureau,
+    packFamily,
+  );
   switch (label) {
     case 'Payé':
     case 'Offert':
       return 'bg-emerald-900/40 text-emerald-200 border-emerald-700/70';
+    case 'Pack family':
+      return 'bg-sky-900/40 text-sky-200 border-sky-700/70';
     case 'Partiel':
       return 'bg-amber-900/40 text-amber-200 border-amber-700/70';
     default:

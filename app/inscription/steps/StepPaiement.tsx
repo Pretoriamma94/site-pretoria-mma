@@ -1,4 +1,5 @@
 import type { UseFormReturn } from 'react-hook-form';
+import { EnveloppePaiementNotice } from '@/components/inscription/EnveloppePaiementNotice';
 import { HelloAssoPaiementBlock } from '@/components/inscription/HelloAssoPaiementBlock';
 import {
   ECHEANCES_OPTIONS,
@@ -174,6 +175,9 @@ export function StepPaiement({ form }: Props) {
               <p className="text-sm text-zinc-300">
                 Environ {parEcheance}€ × {echeancesValides}
               </p>
+            )}
+            {(modePaiement === 'cash' || modePaiement === 'cheque') && (
+              <EnveloppePaiementNotice />
             )}
           </>
         )}

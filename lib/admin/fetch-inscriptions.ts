@@ -2,6 +2,7 @@ import type { AdminInscription } from '@/app/admin/AdminInscriptionsTable';
 import { getDocumentsChecklist } from '@/lib/admin/documents';
 import {
   ADMIN_INSCRIPTION_SELECT,
+  MISSING_COLUMN_RETRY_LIMIT,
   missingDbColumn,
   withoutSelectColumn,
 } from '@/lib/admin/inscription-fields';
@@ -72,7 +73,7 @@ async function queryRange(
   let count: number | null = null;
   let error: { message: string } | null = null;
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  for (let attempt = 0; attempt < MISSING_COLUMN_RETRY_LIMIT; attempt += 1) {
     const builder = applyListFilters(
       supabase
         .from('inscriptions')
@@ -86,7 +87,9 @@ async function queryRange(
     count = result.count;
     error = result.error;
     if (!error) break;
-    const missing = missingDbColumn(error.message);
+    const missing = missingDbColumn(
+      [error.message, result.error?.details, result.error?.hint].filter(Boolean).join(' '),
+    );
     if (!missing || !select.split(',').map((part) => part.trim()).includes(missing)) {
       break;
     }

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EnveloppePaiementNotice } from '@/components/inscription/EnveloppePaiementNotice';
 import { HelloAssoPaiementBlock } from '@/components/inscription/HelloAssoPaiementBlock';
 import {
   MODE_PAIEMENT_OPTIONS,
@@ -101,6 +102,7 @@ export function PaiementEnAttenteContent() {
                       </>
                     )}
                   </p>
+                  {!isPaiementEnLigne ? <EnveloppePaiementNotice /> : null}
                   <p>
                     2. Une fois le paiement validé
                     {isPaiementEnLigne ? ' (au moins la 1re échéance HelloAsso)' : ' par le club'}
