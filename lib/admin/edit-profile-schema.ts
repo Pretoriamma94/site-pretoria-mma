@@ -1,20 +1,13 @@
 import { z } from 'zod';
 import {
   codePostalRegex,
-  parseOptionalMeasure,
   phoneRegex,
 } from '@/lib/inscription/schema';
-import { optionalTailleTenueField } from '@/lib/inscription/taille-tenue';
 
 const optionalTrimmed = z
   .string()
   .optional()
   .transform((v) => (v ?? '').trim());
-
-const optionalMeasureField = z
-  .union([z.string(), z.number(), z.null(), z.undefined()])
-  .optional()
-  .transform((v) => parseOptionalMeasure(v));
 
 /**
  * Édition admin d'un profil adhérent (correction de saisie, changement d'adresse,
@@ -43,9 +36,13 @@ export const editProfileSchema = z.object({
   }),
   ville: optionalTrimmed,
 
-  tailleCm: optionalMeasureField,
-  poidsKg: optionalMeasureField,
-  tailleTenue: optionalTailleTenueField,
+  /** Dérogation admin : ado → adulte, section femmes ↔ mixte. */
+  coursSelectionne: z
+    .enum(['baby', 'mma_enfants', 'mma_ados', 'mma_mixte', 'mma_femmes'])
+    .optional(),
+
+  /** Cotisation offerte, hors chiffre d’affaires. */
+  membreBureau: z.boolean().optional().default(false),
 
   // Consentements (adulte & mineur)
   accepteReglement: z.boolean(),

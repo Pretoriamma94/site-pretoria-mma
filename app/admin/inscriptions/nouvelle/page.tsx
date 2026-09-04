@@ -23,8 +23,9 @@ export default async function NouvelleInscriptionAdminPage() {
         Inscription manuelle
       </h1>
       <p className="mt-3 text-sm text-zinc-400">
-        Pour les adhérents inscrits au club sur formulaire papier. Saisissez les infos, le mode
-        de paiement et l’éventuel montant déjà encaissé.
+        Mêmes informations que l’inscription en ligne. À la validation, le même email de
+        confirmation est envoyé à l’adresse saisie (lien documents + HelloAsso). Indiquez aussi
+        le mode de paiement et l’éventuel montant déjà encaissé.
       </p>
 
       <div className="mt-8">

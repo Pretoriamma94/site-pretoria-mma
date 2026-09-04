@@ -6,7 +6,7 @@ import {
   uploadAdminInscriptionDocumentAction,
 } from './actions';
 
-type DocKind = 'certificat' | 'photo';
+type DocKind = 'certificat' | 'photo' | 'questionnaire';
 
 type DocSlot = {
   kind: DocKind;
@@ -18,6 +18,8 @@ type UploadResultFields = {
   status?: string;
   certificat_medical_url: string | null;
   photo_url: string | null;
+  questionnaire_sante_url?: string | null;
+  questionnaire_sante?: unknown;
   certificat_engagement_3_semaines: boolean;
   photo_engagement_3_semaines: boolean;
   atteste_certificat: boolean;
@@ -41,6 +43,7 @@ export function InscriptionDocumentDownloads({
   const inputRefs = useRef<Record<DocKind, HTMLInputElement | null>>({
     certificat: null,
     photo: null,
+    questionnaire: null,
   });
 
   const openDocument = async (label: string, path: string) => {
@@ -79,6 +82,8 @@ export function InscriptionDocumentDownloads({
         status: result.status,
         certificat_medical_url: result.certificat_medical_url,
         photo_url: result.photo_url,
+        questionnaire_sante_url: result.questionnaire_sante_url,
+        questionnaire_sante: result.questionnaire_sante,
         certificat_engagement_3_semaines: result.certificat_engagement_3_semaines,
         photo_engagement_3_semaines: result.photo_engagement_3_semaines,
         atteste_certificat: result.atteste_certificat,
@@ -100,8 +105,18 @@ export function InscriptionDocumentDownloads({
         {documents.map((doc) => (
           <div
             key={doc.kind}
-            className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2"
+            className={
+              doc.kind === 'questionnaire' && !doc.path
+                ? 'space-y-2 rounded-xl border-2 border-red-500 bg-red-950/50 px-3 py-3'
+                : 'flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2'
+            }
           >
+            {doc.kind === 'questionnaire' && !doc.path ? (
+              <p className="text-[0.7rem] font-bold uppercase tracking-wide text-red-100">
+                Déposer ici le scan du questionnaire de santé (PDF, JPG ou PNG)
+              </p>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
             <span className="min-w-[9rem] text-[0.7rem] font-semibold text-zinc-200">
               {doc.label}
             </span>
@@ -115,7 +130,9 @@ export function InscriptionDocumentDownloads({
                 {loadingLabel === doc.label ? 'Ouverture…' : 'Voir / Télécharger'}
               </button>
             ) : (
-              <span className="text-[0.7rem] text-zinc-500">Pas encore de fichier</span>
+              <span className={doc.kind === 'questionnaire' ? 'text-[0.7rem] font-semibold text-red-300' : 'text-[0.7rem] text-zinc-500'}>
+                {doc.kind === 'questionnaire' ? 'Scan manquant' : 'Pas encore de fichier'}
+              </span>
             )}
             <input
               ref={(el) => {
@@ -140,8 +157,11 @@ export function InscriptionDocumentDownloads({
                 ? 'Envoi…'
                 : doc.path
                   ? 'Remplacer (scan papier)'
-                  : 'Joindre scan papier'}
+                  : doc.kind === 'questionnaire'
+                    ? 'Joindre le questionnaire ici'
+                    : 'Joindre scan papier'}
             </button>
+            </div>
           </div>
         ))}
       </div>

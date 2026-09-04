@@ -1,4 +1,14 @@
 import type { AdherentRow } from '@/app/admin/adherents/AdherentsDirectory';
+import { downloadCsv, toCsv } from '@/lib/admin/csv';
+import {
+  getModePaiementLabel,
+  getPaiementStatutLabel,
+  getStatusLabel,
+  resteAPayer,
+} from '@/lib/admin/labels';
+import { isMembreBureau } from '@/lib/admin/membre-bureau';
+import { isInscriptionManuelle } from '@/lib/admin/voie-inscription';
+import { getCoursLabel } from '@/lib/inscription/schema';
 
 type Responsable = {
   nom?: string;
@@ -23,6 +33,10 @@ function formatDate(value: string | null): string {
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+function formatAmount(value: number): string {
+  return value.toFixed(2).replace('.', ',');
 }
 
 function formatType(value: AdherentRow['type_profil']): string {
@@ -60,11 +74,36 @@ const COLUMNS: { header: string; value: (row: AdherentRow) => string | number }[
   { header: 'Adresse', value: (r) => formatAdresse(r) },
   { header: 'Code postal', value: (r) => r.code_postal },
   { header: 'Ville', value: (r) => r.ville },
-  { header: 'Cours', value: (r) => r.cours_selectionne },
+  { header: 'Cours', value: (r) => getCoursLabel(r.cours_selectionne) },
   { header: 'Année scolaire', value: (r) => r.annee_scolaire },
-  { header: 'Taille (cm)', value: (r) => (r.taille_cm != null ? r.taille_cm : '') },
-  { header: 'Poids (kg)', value: (r) => (r.poids_kg != null ? r.poids_kg : '') },
-  { header: 'Taille tenue', value: (r) => r.taille_tenue ?? '' },
+  {
+    header: 'Voie',
+    value: (r) => (isInscriptionManuelle(r) ? 'Papier' : 'En ligne'),
+  },
+  { header: 'Statut', value: (r) => getStatusLabel(r.status) },
+  { header: 'Membre du bureau', value: (r) => formatBool(isMembreBureau(r)) },
+  { header: 'Montant total', value: (r) => formatAmount(Number(r.montant_total) || 0) },
+  { header: 'Payé', value: (r) => formatAmount(Number(r.montant_paye) || 0) },
+  { header: 'Reste dû', value: (r) => formatAmount(resteAPayer(r)) },
+  {
+    header: 'Date dernier paiement',
+    value: (r) => formatDate(r.date_dernier_paiement ?? r.date_paiement ?? null),
+  },
+  {
+    header: 'Paiement',
+    value: (r) =>
+      getPaiementStatutLabel(
+        r.montant_total,
+        r.montant_paye,
+        r.status,
+        isMembreBureau(r) ? true : r.membre_bureau,
+      ),
+  },
+  {
+    header: 'Mode de paiement',
+    value: (r) => (r.mode_paiement ? getModePaiementLabel(r.mode_paiement) : ''),
+  },
+  { header: 'Échéances', value: (r) => r.nombre_echeances ?? '' },
   { header: 'Droit à l’image', value: (r) => formatBool(r.autorise_photos) },
   { header: 'Responsable - Nom', value: (r) => getResponsable(r)?.nom ?? '' },
   { header: 'Responsable - Prénom', value: (r) => getResponsable(r)?.prenom ?? '' },
@@ -83,23 +122,9 @@ const COLUMNS: { header: string; value: (row: AdherentRow) => string | number }[
   { header: 'Transport voiture privée', value: (r) => formatBool(r.autorise_voiture_privee) },
 ];
 
-const SEPARATOR = ';';
-
-function escapeCsvField(value: string | number): string {
-  const str = String(value ?? '');
-  if (/["\n\r;]/.test(str)) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
 /** Construit le contenu CSV (séparateur `;`) des adhérents fournis. */
 export function buildAdherentsCsv(rows: AdherentRow[]): string {
-  const header = COLUMNS.map((c) => escapeCsvField(c.header)).join(SEPARATOR);
-  const lines = rows.map((row) =>
-    COLUMNS.map((c) => escapeCsvField(c.value(row))).join(SEPARATOR),
-  );
-  return [header, ...lines].join('\r\n');
+  return toCsv(COLUMNS, rows);
 }
 
 /** Nom de fichier horodaté, ex. `adherents-2025-2026-2026-07-21.csv`. */
@@ -111,14 +136,5 @@ export function buildAdherentsFilename(anneeFilter: string): string {
 
 /** Déclenche le téléchargement d'un CSV (BOM UTF-8 pour Excel FR). */
 export function downloadAdherentsCsv(rows: AdherentRow[], anneeFilter: string): void {
-  const csv = buildAdherentsCsv(rows);
-  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = buildAdherentsFilename(anneeFilter);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  downloadCsv(buildAdherentsFilename(anneeFilter), buildAdherentsCsv(rows));
 }

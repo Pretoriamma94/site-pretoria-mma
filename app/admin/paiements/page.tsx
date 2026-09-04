@@ -2,12 +2,13 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getAuthUser, isAdminUser } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { ADMIN_INSCRIPTION_SELECT } from '@/lib/admin/inscription-fields';
+import { ADMIN_INSCRIPTION_SELECT, missingDbColumn, withoutSelectColumn } from '@/lib/admin/inscription-fields';
 import {
   computeRecettesClub,
   formatEuros,
   getModePaiementLabel,
   getStatusLabel,
+  resteAPayer,
   soldeRestant,
 } from '@/lib/admin/labels';
 import {
@@ -59,11 +60,31 @@ export default async function AdminPaiementsPage({
     .filter((y) => y >= currentYear || y === annee)
     .sort((a, b) => b.localeCompare(a));
 
-  let inscriptionsQuery = supabase
-    .from('inscriptions')
-    .select(ADMIN_INSCRIPTION_SELECT)
-    .neq('status', 'cancelled')
-    .order('created_at', { ascending: false });
+  let select = ADMIN_INSCRIPTION_SELECT;
+  let data: unknown[] | null = null;
+  let error: { message: string } | null = null;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    let inscriptionsQuery = supabase
+      .from('inscriptions')
+      .select(select)
+      .neq('status', 'cancelled')
+      .order('created_at', { ascending: false });
+
+    if (annee !== 'all') {
+      inscriptionsQuery = inscriptionsQuery.eq('annee_scolaire', annee);
+    }
+
+    const result = await inscriptionsQuery;
+    data = result.data;
+    error = result.error;
+    if (!error) break;
+    const missing = missingDbColumn(error.message);
+    if (!missing || !select.split(',').map((part) => part.trim()).includes(missing)) {
+      break;
+    }
+    select = withoutSelectColumn(select, missing);
+  }
 
   let depensesQuery = supabase
     .from('club_depenses')
@@ -71,12 +92,10 @@ export default async function AdminPaiementsPage({
     .order('date_depense', { ascending: false });
 
   if (annee !== 'all') {
-    inscriptionsQuery = inscriptionsQuery.eq('annee_scolaire', annee);
     depensesQuery = depensesQuery.eq('annee_scolaire', annee);
   }
 
-  const [{ data, error }, { data: depensesData, error: depensesError }] =
-    await Promise.all([inscriptionsQuery, depensesQuery]);
+  const { data: depensesData, error: depensesError } = await depensesQuery;
 
   if (error) {
     return (
@@ -97,9 +116,7 @@ export default async function AdminPaiementsPage({
   const allRows = (data ?? []) as unknown as AdminInscription[];
   const recettes = computeRecettesClub(allRows);
   const resultatNet = Math.round((recettes.totalEncaisse - totalDepenses) * 100) / 100;
-  const soldes = allRows.filter(
-    (r) => soldeRestant(r.montant_total, r.montant_paye) > 0,
-  );
+  const soldes = allRows.filter((r) => resteAPayer(r) > 0);
 
   const cards = [
     {

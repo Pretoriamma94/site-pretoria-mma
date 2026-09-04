@@ -1,5 +1,6 @@
 import { getDocumentsChecklist, type DocsSource } from '@/lib/admin/documents';
 import { DOCUMENTS_DELAI_JOURS } from '@/lib/admin/document-deadline';
+import { isAttestationAllNon } from '@/lib/inscription/questionnaire-sante';
 
 export type DossierStatus = 'pre_inscrit' | 'incomplet' | 'complet';
 
@@ -11,6 +12,7 @@ export type DossierStatusSource = DocsSource & {
   accepte_rgpd?: boolean | null;
   informe_droit_acces?: boolean | null;
   attestation_questionnaire_sante?: boolean | null;
+  questionnaire_sante?: unknown;
   type_profil?: 'adulte' | 'mineur' | null;
   responsable_legal?: unknown | null;
   autorisation_pratique_mineur?: boolean | null;
@@ -22,8 +24,8 @@ export function isRgpdAccepte(row: DossierStatusSource): boolean {
 }
 
 export function isSanteValidee(row: DossierStatusSource): boolean {
-  /** Uniquement le fichier certificat médical (moins de 3 mois, aptitude JJB/MMA). */
-  return Boolean(row.certificat_medical_url);
+  if (row.certificat_medical_url) return true;
+  return isAttestationAllNon(row.questionnaire_sante, row.attestation_questionnaire_sante);
 }
 
 export function isMineurProfil(row: DossierStatusSource): boolean {
@@ -48,6 +50,7 @@ export function isDossierComplet(row: DossierStatusSource): boolean {
   if (!isSanteValidee(row)) return false;
   const docs = getDocumentsChecklist(row);
   if (docs.photo !== 'ok') return false;
+  if (docs.questionnaire === 'missing') return false;
   return true;
 }
 

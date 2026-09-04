@@ -7,10 +7,8 @@ import {
 } from '@/lib/inscription/schema';
 import { formatEuros } from '@/lib/admin/labels';
 import { cn } from '@/lib/utils';
-import { TailleTenueField } from '@/components/inscription/TailleTenueField';
-import { AutorisationParentaleFields } from '@/components/inscription/AutorisationParentaleFields';
+import { TEXTE_BABY_DEUX_PARENTS } from '@/lib/inscription/legal-texts';
 import {
-  LIEN_PARENTE_OPTIONS,
   MANUAL_FORM_INPUT_CLASS as inputClass,
   type ManualFormState,
   type SetManualField,
@@ -20,24 +18,81 @@ type Props = {
   form: ManualFormState;
   setField: SetManualField;
   onCoursChange: (coursId: ManualFormState['cours']) => void;
-  showResponsable: boolean;
+  isBaby: boolean;
+  isMmaMineur: boolean;
   parEcheance: number | null;
   previewStatus: string;
   total: number;
   paye: number;
 };
 
+export function ManualCoursSection({
+  form,
+  onCoursChange,
+}: Pick<Props, 'form' | 'onCoursChange'>) {
+  return (
+    <section className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
+        Activité
+      </h2>
+      <label className="block text-xs text-zinc-400">
+        Cours *
+        <select
+          required
+          value={form.cours}
+          onChange={(e) => onCoursChange(e.target.value as ManualFormState['cours'])}
+          className={inputClass}
+        >
+          <option value="">— Choisir —</option>
+          {COURS_OPTIONS.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label} ({c.prix}€)
+            </option>
+          ))}
+        </select>
+      </label>
+    </section>
+  );
+}
+
 export function ManualAdherentSection({
   form,
   setField,
-  showResponsable,
-}: Pick<Props, 'form' | 'setField' | 'showResponsable'>) {
+  isBaby,
+  isMmaMineur,
+}: Pick<Props, 'form' | 'setField' | 'isBaby' | 'isMmaMineur'>) {
   return (
     <>
       <section className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">
         <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
-          Adhérent
+          {isBaby ? 'Informations enfant — Baby JJB' : 'Informations adhérent — MMA'}
         </h2>
+        {!isBaby && (
+          <fieldset>
+            <legend className="mb-2 text-xs text-zinc-400">Sexe *</legend>
+            <div className="flex gap-3">
+              {(['homme', 'femme'] as const).map((s) => (
+                <label
+                  key={s}
+                  className={cn(
+                    'flex flex-1 cursor-pointer items-center justify-center rounded-lg border px-3 py-2 text-sm',
+                    form.sexe === s
+                      ? 'border-red-600 bg-red-950/20 text-white'
+                      : 'border-zinc-600 text-zinc-300',
+                  )}
+                >
+                  <input
+                    type="radio"
+                    className="sr-only"
+                    checked={form.sexe === s}
+                    onChange={() => setField('sexe', s)}
+                  />
+                  {s === 'homme' ? 'Homme' : 'Femme'}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-xs text-zinc-400">
             Prénom *
@@ -67,22 +122,13 @@ export function ManualAdherentSection({
               className={inputClass}
             />
           </label>
-          <label className="text-xs text-zinc-400">
-            N° de voie *
+          <label className="text-xs text-zinc-400 sm:col-span-2">
+            Adresse *
             <input
               required
-              value={form.numeroVoie}
-              onChange={(e) => setField('numeroVoie', e.target.value)}
-              placeholder="12"
-              className={inputClass}
-            />
-          </label>
-          <label className="text-xs text-zinc-400">
-            Rue / voie *
-            <input
-              required
-              value={form.rue}
-              onChange={(e) => setField('rue', e.target.value)}
+              value={form.adresse}
+              onChange={(e) => setField('adresse', e.target.value)}
+              placeholder="N° et rue"
               className={inputClass}
             />
           </label>
@@ -108,57 +154,36 @@ export function ManualAdherentSection({
           <p className="text-[0.65rem] text-zinc-500 sm:col-span-2">
             Prérempli pour La Queue-en-Brie — modifiable si besoin.
           </p>
-          <label className="text-xs text-zinc-400">
-            {showResponsable ? 'Email (optionnel)' : 'Email *'}
+          <label className="text-xs text-zinc-400 sm:col-span-2">
+            Email *
             <input
               type="email"
-              required={!showResponsable}
+              required
               value={form.email}
               onChange={(e) => setField('email', e.target.value)}
               className={inputClass}
             />
+            <span className="mt-1 block text-[0.65rem] font-normal text-zinc-500">
+              À la validation, le même email de confirmation qu’en ligne est envoyé à cette
+              adresse (lien documents + HelloAsso).
+            </span>
           </label>
-          <label className="text-xs text-zinc-400">
-            {showResponsable ? 'Tél. adhérent (optionnel)' : 'Téléphone *'}
-            <input
-              required={!showResponsable}
-              value={form.telephone}
-              onChange={(e) => setField('telephone', e.target.value)}
-              placeholder="06 12 34 56 78"
-              className={inputClass}
-            />
-          </label>
-          <label className="text-xs text-zinc-400">
-            Taille cm (optionnel)
-            <input
-              type="number"
-              step="0.1"
-              value={form.tailleCm}
-              onChange={(e) => setField('tailleCm', e.target.value)}
-              className={inputClass}
-            />
-          </label>
-          <label className="text-xs text-zinc-400">
-            Poids kg (optionnel)
-            <input
-              type="number"
-              step="0.1"
-              value={form.poidsKg}
-              onChange={(e) => setField('poidsKg', e.target.value)}
-              className={inputClass}
-            />
-          </label>
-        </div>
-        <div className="mt-4">
-          <TailleTenueField
-            name="manualTailleTenue"
-            value={form.tailleTenue}
-            onChange={(v) => setField('tailleTenue', v)}
-          />
+          {!isBaby && (
+            <label className="text-xs text-zinc-400">
+              Téléphone *
+              <input
+                required
+                value={form.telephone}
+                onChange={(e) => setField('telephone', e.target.value)}
+                placeholder="06 12 34 56 78"
+                className={inputClass}
+              />
+            </label>
+          )}
         </div>
       </section>
 
-      {showResponsable && (
+      {isMmaMineur && (
         <section className="mt-8 space-y-4 rounded-2xl border border-amber-900/50 bg-amber-950/20 p-5">
           <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
             Représentant légal (mineur)
@@ -180,50 +205,80 @@ export function ManualAdherentSection({
                 className={inputClass}
               />
             </label>
-            <label className="text-xs text-zinc-400 sm:col-span-2">
-              Téléphone du responsable *
-              <input
-                value={form.telephoneResponsable}
-                onChange={(e) => setField('telephoneResponsable', e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="text-xs text-zinc-400 sm:col-span-2">
-              Lien de parenté (optionnel)
-              <select
-                value={form.lienParente}
-                onChange={(e) =>
-                  setField('lienParente', e.target.value as ManualFormState['lienParente'])
-                }
-                className={inputClass}
-              >
-                <option value="">— Choisir —</option>
-                {LIEN_PARENTE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
           </div>
         </section>
       )}
 
-      {showResponsable && (
-        <div className="mt-6">
-          <AutorisationParentaleFields
-            namePrefix="manualAuthParent"
-            autoriseSortieSeul={form.autoriseSortieSeul}
-            autoriseVoiturePrivee={form.autoriseVoiturePrivee}
-            autorisePhotos={form.autorisePhotosMineur}
-            onSortieSeul={(v) => setField('autoriseSortieSeul', v)}
-            onVoiturePrivee={(v) => setField('autoriseVoiturePrivee', v)}
-            onPhotos={(v) => {
-              setField('autorisePhotosMineur', v);
-              setField('autorisePhotos', v);
-            }}
-          />
-        </div>
+      {isBaby && (
+        <section className="mt-8 space-y-4">
+          <p className="rounded-xl border border-amber-800/60 bg-amber-950/30 p-3 text-sm text-amber-100">
+            {TEXTE_BABY_DEUX_PARENTS}
+          </p>
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
+              Parent 1
+            </h3>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <label className="text-xs text-zinc-400">
+                Nom *
+                <input
+                  value={form.nomPere}
+                  onChange={(e) => setField('nomPere', e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-xs text-zinc-400">
+                Prénom *
+                <input
+                  value={form.prenomPere}
+                  onChange={(e) => setField('prenomPere', e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-xs text-zinc-400 sm:col-span-2">
+                Téléphone
+                <input
+                  value={form.telephonePere}
+                  onChange={(e) => setField('telephonePere', e.target.value)}
+                  placeholder="06 12 34 56 78"
+                  className={inputClass}
+                />
+              </label>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
+              Parent 2
+            </h3>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <label className="text-xs text-zinc-400">
+                Nom *
+                <input
+                  value={form.nomMere}
+                  onChange={(e) => setField('nomMere', e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-xs text-zinc-400">
+                Prénom *
+                <input
+                  value={form.prenomMere}
+                  onChange={(e) => setField('prenomMere', e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-xs text-zinc-400 sm:col-span-2">
+                Téléphone
+                <input
+                  value={form.telephoneMere}
+                  onChange={(e) => setField('telephoneMere', e.target.value)}
+                  placeholder="06 12 34 56 78"
+                  className={inputClass}
+                />
+              </label>
+            </div>
+          </div>
+        </section>
       )}
     </>
   );
@@ -232,33 +287,20 @@ export function ManualAdherentSection({
 export function ManualPaymentSection({
   form,
   setField,
-  onCoursChange,
   parEcheance,
   previewStatus,
   total,
   paye,
-}: Omit<Props, 'showResponsable'>) {
+}: Pick<Props, 'form' | 'setField' | 'parEcheance' | 'previewStatus' | 'total' | 'paye'>) {
   return (
     <section className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">
       <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
-        Cours & paiement
+        Paiement
       </h2>
-      <label className="block text-xs text-zinc-400">
-        Cours *
-        <select
-          required
-          value={form.cours}
-          onChange={(e) => onCoursChange(e.target.value as ManualFormState['cours'])}
-          className={inputClass}
-        >
-          <option value="">— Choisir —</option>
-          {COURS_OPTIONS.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.label} ({c.prix}€)
-            </option>
-          ))}
-        </select>
-      </label>
+      <p className="text-xs text-zinc-500">
+        Mêmes choix qu’en ligne : espèces, chèque ou HelloAsso, en 1, 2 ou 3 fois. Indiquez
+        aussi l’éventuel montant déjà encaissé au club.
+      </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-xs text-zinc-400">
           Montant total (€) *
@@ -323,114 +365,6 @@ export function ManualPaymentSection({
         Statut prévu : <span className="text-zinc-200">{previewStatus}</span>
         {total > 0 && paye < total ? ` · reste ${formatEuros(Math.max(0, total - paye))}` : null}
       </p>
-    </section>
-  );
-}
-
-export function ManualDocsSection({
-  form,
-  setField,
-  showResponsable = false,
-}: Pick<Props, 'form' | 'setField'> & { showResponsable?: boolean }) {
-  return (
-    <section className="space-y-3 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
-        Documents papier reçus
-      </h2>
-      <label className="flex items-start gap-2 text-sm text-zinc-300">
-        <input
-          type="checkbox"
-          checked={form.accepteReglement}
-          onChange={(e) => setField('accepteReglement', e.target.checked)}
-          className="mt-1"
-        />
-        Règlement intérieur accepté / signé
-      </label>
-      <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-          Certificat médical (moins de 3 mois — aptitude JJB / MMA)
-        </p>
-        <label className="flex items-start gap-2 text-sm text-zinc-300">
-          <input
-            type="checkbox"
-            checked={form.attesteCertificat}
-            onChange={(e) => {
-              setField('attesteCertificat', e.target.checked);
-              if (e.target.checked) setField('engagementCertificat', false);
-            }}
-            className="mt-1"
-          />
-          Certificat reçu aujourd&apos;hui (à uploader ensuite dans la fiche)
-        </label>
-        {!form.attesteCertificat && (
-          <label className="flex items-start gap-2 text-sm text-zinc-300">
-            <input
-              type="checkbox"
-              checked={form.engagementCertificat}
-              onChange={(e) => setField('engagementCertificat', e.target.checked)}
-              className="mt-1"
-            />
-            L&apos;adhérent s&apos;engage à fournir le certificat sous 3 semaines *
-          </label>
-        )}
-      </div>
-      <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-          Photo d&apos;identité
-        </p>
-        <label className="flex items-start gap-2 text-sm text-zinc-300">
-          <input
-            type="checkbox"
-            checked={form.photoRecue}
-            onChange={(e) => {
-              setField('photoRecue', e.target.checked);
-              if (e.target.checked) setField('engagementPhoto', false);
-            }}
-            className="mt-1"
-          />
-          Photo reçue aujourd&apos;hui (à uploader ensuite dans la fiche)
-        </label>
-        {!form.photoRecue && (
-          <label className="flex items-start gap-2 text-sm text-zinc-300">
-            <input
-              type="checkbox"
-              checked={form.engagementPhoto}
-              onChange={(e) => setField('engagementPhoto', e.target.checked)}
-              className="mt-1"
-            />
-            L&apos;adhérent s&apos;engage à fournir la photo sous 3 semaines *
-          </label>
-        )}
-      </div>
-      {!showResponsable && (
-        <label className="flex items-start gap-2 text-sm text-zinc-300">
-          <input
-            type="checkbox"
-            checked={form.autorisePhotos}
-            onChange={(e) => setField('autorisePhotos', e.target.checked)}
-            className="mt-1"
-          />
-          Autorisation photos / vidéos
-        </label>
-      )}
-      <label className="flex items-start gap-2 text-sm text-zinc-300">
-        <input
-          type="checkbox"
-          checked={form.informeAssurance}
-          onChange={(e) => setField('informeAssurance', e.target.checked)}
-          className="mt-1"
-        />
-        Informé de l&apos;intérêt de souscrire une assurance « individuelle accident »
-      </label>
-      <label className="flex items-start gap-2 text-sm text-zinc-300">
-        <input
-          type="checkbox"
-          checked={form.informeDroitAcces}
-          onChange={(e) => setField('informeDroitAcces', e.target.checked)}
-          className="mt-1"
-        />
-        Informé du droit d&apos;accès et de rectification des données (loi 78-17)
-      </label>
     </section>
   );
 }

@@ -12,9 +12,16 @@ import {
 } from './manual-form-state';
 import {
   ManualAdherentSection,
-  ManualDocsSection,
+  ManualCoursSection,
   ManualPaymentSection,
 } from './ManualInscriptionSections';
+import {
+  ManualAutorisationsSection,
+  ManualCharteSection,
+  ManualInfosSection,
+  ManualRgpdSection,
+} from './ManualConsentSections';
+import { ManualSantePhotoSection } from './ManualSantePhotoSection';
 
 export function ManualInscriptionForm() {
   const router = useRouter();
@@ -23,10 +30,20 @@ export function ManualInscriptionForm() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const showResponsable = form.dateNaissance ? isMinor(form.dateNaissance) : false;
+  const isBaby = form.cours === 'baby';
+  const isMineur = isBaby || (form.dateNaissance ? isMinor(form.dateNaissance) : false);
+  const isMmaMineur = !isBaby && isMineur;
   const total = Number(form.montantTotal.replace(',', '.')) || 0;
   const paye = Number(form.montantPaye.replace(',', '.')) || 0;
   const parEcheance = total > 0 ? montantParEcheance(total, form.nombreEcheances) : null;
+  const representantLegal = isBaby
+    ? [
+        [form.prenomPere, form.nomPere].filter(Boolean).join(' '),
+        [form.prenomMere, form.nomMere].filter(Boolean).join(' '),
+      ]
+        .filter(Boolean)
+        .join(' / ')
+    : [form.prenomResponsable, form.nomResponsable].filter(Boolean).join(' ');
 
   const previewStatus = useMemo(() => {
     if (total <= 0) return '—';
@@ -42,6 +59,7 @@ export function ManualInscriptionForm() {
       ...prev,
       cours: coursId,
       montantTotal: coursId ? String(defaultMontantForCours(coursId)) : prev.montantTotal,
+      certificatMoinsDe3Ans: coursId === 'baby' ? null : prev.certificatMoinsDe3Ans,
     }));
   };
 
@@ -54,16 +72,13 @@ export function ManualInscriptionForm() {
       const result = await createManualInscriptionAction({
         nom: form.nom,
         prenom: form.prenom,
+        sexe: form.sexe || null,
         email: form.email,
         telephone: form.telephone,
         dateNaissance: form.dateNaissance,
-        numeroVoie: form.numeroVoie,
-        rue: form.rue,
+        adresse: form.adresse,
         codePostal: form.codePostal,
         ville: form.ville,
-        tailleCm: form.tailleCm,
-        poidsKg: form.poidsKg,
-        tailleTenue: form.tailleTenue || undefined,
         cours: form.cours || undefined,
         montantTotal: Number(form.montantTotal.replace(',', '.')),
         modePaiement: form.modePaiement,
@@ -74,17 +89,26 @@ export function ManualInscriptionForm() {
         photoRecue: form.photoRecue,
         engagementPhoto: form.engagementPhoto,
         engagementCertificat: form.engagementCertificat,
-        autorisePhotos: form.autorisePhotos,
+        acceptePhotos: form.acceptePhotos,
         informeAssurance: form.informeAssurance,
         informeDroitAcces: form.informeDroitAcces,
+        accepteRgpd: form.accepteRgpd,
+        charteLue: form.charteLue,
+        charteReglesConnues: form.charteReglesConnues,
+        charteEngagementRespect: form.charteEngagementRespect,
+        parcoursSante: form.parcoursSante || null,
+        certificatMoinsDe3Ans: form.certificatMoinsDe3Ans,
+        attestationResultat: form.attestationResultat || null,
         autoriseSortieSeul: form.autoriseSortieSeul ?? undefined,
         autoriseVoiturePrivee: form.autoriseVoiturePrivee ?? undefined,
-        autorisePhotosMineur: form.autorisePhotosMineur ?? undefined,
         nomResponsable: form.nomResponsable || undefined,
         prenomResponsable: form.prenomResponsable || undefined,
-        telephoneResponsable: form.telephoneResponsable || undefined,
-        emailResponsable: form.emailResponsable || undefined,
-        lienParente: form.lienParente || undefined,
+        nomPere: form.nomPere || undefined,
+        prenomPere: form.prenomPere || undefined,
+        telephonePere: form.telephonePere || undefined,
+        nomMere: form.nomMere || undefined,
+        prenomMere: form.prenomMere || undefined,
+        telephoneMere: form.telephoneMere || undefined,
       });
 
       if (!result.success) {
@@ -92,23 +116,22 @@ export function ManualInscriptionForm() {
         return;
       }
 
-      const hasEmail = Boolean(
-        (showResponsable ? form.emailResponsable : form.email)?.trim(),
-      );
+      const emailCible = form.email.trim().toLowerCase();
       if (result.emailSent) {
-        setNotice('Inscription créée. Email de confirmation envoyé à l’adhérent.');
-      } else if (hasEmail) {
         setNotice(
-          'Inscription créée, mais l’email n’a pas pu être envoyé. Vous pourrez le renvoyer depuis la fiche.',
+          `Inscription créée. Email de confirmation envoyé à ${emailCible} (identique à l’inscription en ligne).`,
         );
+        setTimeout(() => {
+          router.push('/admin/inscriptions');
+          router.refresh();
+        }, 1800);
       } else {
-        setNotice('Inscription créée (aucun email : pas d’adresse renseignée).');
+        setNotice(
+          `Inscription créée, mais l’email n’a pas pu être envoyé${
+            result.emailError ? ` (${result.emailError})` : ''
+          }. Vous pourrez le renvoyer depuis la fiche adhérent.`,
+        );
       }
-
-      setTimeout(() => {
-        router.push('/admin/inscriptions');
-        router.refresh();
-      }, 1500);
     } catch {
       setError('Erreur inattendue. Réessayez.');
     } finally {
@@ -118,24 +141,31 @@ export function ManualInscriptionForm() {
 
   return (
     <form onSubmit={submit} className="space-y-8">
+      <ManualCoursSection form={form} onCoursChange={onCoursChange} />
       <ManualAdherentSection
         form={form}
         setField={setField}
-        showResponsable={showResponsable}
+        isBaby={isBaby}
+        isMmaMineur={isMmaMineur}
       />
+      <ManualInfosSection form={form} setField={setField} />
+      <ManualAutorisationsSection
+        form={form}
+        setField={setField}
+        isBaby={isBaby}
+        isMineur={isMineur}
+        representantLegal={representantLegal}
+      />
+      <ManualSantePhotoSection form={form} setField={setField} isBaby={isBaby} />
+      <ManualRgpdSection form={form} setField={setField} />
+      <ManualCharteSection form={form} setField={setField} />
       <ManualPaymentSection
         form={form}
         setField={setField}
-        onCoursChange={onCoursChange}
         parEcheance={parEcheance}
         previewStatus={previewStatus}
         total={total}
         paye={paye}
-      />
-      <ManualDocsSection
-        form={form}
-        setField={setField}
-        showResponsable={showResponsable}
       />
 
       {error && (

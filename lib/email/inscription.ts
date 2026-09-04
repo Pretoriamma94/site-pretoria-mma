@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { ASSOCIATION_EMAIL, ASSOCIATION_NOM } from '@/lib/inscription/legal-texts';
+import { HELLOASSO_ADHESION_URL } from '@/lib/inscription/helloasso';
 import { getSiteUrl } from '@/lib/site-url';
 import {
   DOCUMENTS_DELAI_JOURS,
@@ -117,7 +118,9 @@ export async function sendInscriptionDocumentsEmail(
   textLines.push(
     lien,
     ``,
-    `Le règlement de la cotisation se fait au club.`,
+    `Règlement de la cotisation : au club (espèces ou chèque) ou en ligne via HelloAsso.`,
+    `Vous pouvez payer en plusieurs fois, ou changer de mode si vous changez d'avis :`,
+    HELLOASSO_ADHESION_URL,
     ``,
     `Sportivement,`,
     ASSOCIATION_NOM,
@@ -153,7 +156,9 @@ export async function sendInscriptionDocumentsEmail(
         ${corpsHtml}
         <p><a href="${lien}" style="display:inline-block;background:#DC2626;color:#ffffff;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:bold;">${escapeHtml(ctaLabel)}</a></p>
         <p style="font-size:12px;color:#666;">Ou copiez ce lien : ${lien}</p>
-        <p>Le règlement de la cotisation se fait au club.</p>
+        <p>Règlement de la cotisation : au club (espèces ou chèque) ou <strong>en ligne via HelloAsso</strong>. Vous pouvez payer en plusieurs fois, ou changer de mode si vous changez d'avis.</p>
+        <p><a href="${HELLOASSO_ADHESION_URL}" style="display:inline-block;background:#0A0A0A;color:#ffffff;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:bold;border:1px solid #DC2626;">Payer en ligne (HelloAsso)</a></p>
+        <p style="font-size:12px;color:#666;">Ou copiez ce lien : ${HELLOASSO_ADHESION_URL}</p>
         <p>Sportivement,<br/>${escapeHtml(ASSOCIATION_NOM)}</p>
       `,
     });

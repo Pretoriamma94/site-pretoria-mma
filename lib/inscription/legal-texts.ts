@@ -49,5 +49,35 @@ export const TEXTE_ACCEPTER_RGPD =
 export const TEXTE_INFO_ASSURANCE =
   'L’association vous informe qu’il est recommandé de souscrire une assurance individuelle accident couvrant la pratique des activités sportives du club.';
 
+export const TEXTE_INFORME_ASSURANCE =
+  'Je reconnais avoir été informé de l’intérêt de souscrire un contrat d’assurance « individuelle accident ».';
+
+export const TEXTE_INFORME_DROIT_ACCES =
+  'Je reconnais avoir été informé de mon droit d’accès et de rectification des informations ainsi collectées qui feront l’objet d’un traitement informatique (art. 32, 6°, loi n° 78-17 du 6/01/1978 - cf. fiche FFCO n°69). Ce droit d’accès s’exerce auprès du secrétariat du club.';
+
+export const TEXTE_PUBLICATION_IMAGE_ADULTE =
+  'J’autorise le club à me prendre en photos et à me filmer à l’occasion des activités sportives ou associatives auxquels je participe et j’autorise leur publication sur les différents supports de communication du club (livrets, lettre infos, site internet…).';
+
+export const TEXTE_LU_APPROUVE_OBLIGATIONS =
+  'Lu et approuvé : j’ai pris connaissance des statuts, du règlement intérieur et de la charte du club, et je les accepte.';
+
 export const TEXTE_ENGAGEMENT_PHOTO =
   'Je m’engage à fournir une photo d’identité dans les 3 semaines suivant mon inscription.';
+
+export const TEXTE_PHOTO_CONSIGNE =
+  'Une simple photo prise avec le téléphone, sur fond blanc, suffit. Formats acceptés : PNG, JPG ou PDF — max 5 Mo.';
+
+export const TEXTE_CHARTE_INTRO = 'Je reconnais :';
+
+export const TEXTE_CHARTE_LUE = 'Avoir lu la charte.';
+
+export const TEXTE_CHARTE_REGLES = 'Avoir pris connaissance des règles du club.';
+
+export const TEXTE_CHARTE_ENGAGEMENT =
+  'M’engager à les respecter pour garantir un environnement sain, sécurisé et sportif.';
+
+export const TEXTE_BABY_DEUX_PARENTS =
+  'Pour les inscriptions en Baby JJB, les nom et prénom des deux parents sont obligatoires pour l’établissement de la licence auprès de la fédération.';
+
+export const TEXTE_BABY_PLUS_DE_7_ANS =
+  'Si l’enfant a plus de 7 ans, passez sur la partie MMA.';

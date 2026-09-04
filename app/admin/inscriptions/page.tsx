@@ -1,16 +1,16 @@
 import { redirect } from 'next/navigation';
 import { getAuthUser, isAdminUser } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { PAGE_SIZE_INSCRIPTIONS } from '@/lib/admin/inscription-fields';
 import {
-  ADMIN_INSCRIPTION_SELECT,
-  PAGE_SIZE_INSCRIPTIONS,
-} from '@/lib/admin/inscription-fields';
-import { getDocumentsChecklist } from '@/lib/admin/documents';
+  fetchInscriptionsForAdmin,
+  fetchPaiementModesById,
+} from '@/lib/admin/fetch-inscriptions';
 import {
   getCurrentSchoolYear,
   listSchoolYearOptions,
 } from '@/lib/admin/school-year';
-import { AdminInscriptionsTable, type AdminInscription } from '../AdminInscriptionsTable';
+import { AdminInscriptionsTable } from '../AdminInscriptionsTable';
 
 type SearchParams = Promise<{
   status?: string;
@@ -37,8 +37,6 @@ export default async function AdminInscriptionsPage({
   const docsFilter = params.docs ?? 'all';
   const query = (params.q ?? '').trim();
   const page = Math.max(1, Number(params.page) || 1);
-  const from = (page - 1) * PAGE_SIZE_INSCRIPTIONS;
-  const to = from + PAGE_SIZE_INSCRIPTIONS - 1;
 
   const supabase = createServerClient();
 
@@ -53,60 +51,13 @@ export default async function AdminInscriptionsPage({
   const yearOptions = Array.from(
     new Set([...listSchoolYearOptions(currentYear), ...yearsFromDb]),
   )
-    // Ne pas proposer d’années antérieures à la saison courante
     .filter((y) => y >= currentYear)
     .sort((a, b) => b.localeCompare(a));
 
-  let builder = supabase
-    .from('inscriptions')
-    .select(ADMIN_INSCRIPTION_SELECT, { count: 'exact' })
-    .order('created_at', { ascending: false });
-
-  if (anneeFilter !== 'all') {
-    builder = builder.eq('annee_scolaire', anneeFilter);
-  }
-
-  const allowedStatus = [
-    'pending_payment',
-    'paid',
-    'validated',
-    'finalized',
-    'cancelled',
-  ] as const;
-  if ((allowedStatus as readonly string[]).includes(statusFilter)) {
-    builder = builder.eq(
-      'status',
-      statusFilter as (typeof allowedStatus)[number],
-    );
-  }
-
-  if (query) {
-    const safe = query.replace(/[%_,]/g, ' ').trim();
-    if (safe) {
-      builder = builder.or(`nom.ilike.%${safe}%,prenom.ilike.%${safe}%,email.ilike.%${safe}%`);
-    }
-  }
-
-  if (docsFilter === 'missing') {
-    builder = builder
-      .neq('status', 'cancelled')
-      .or(
-        [
-          'certificat_engagement_3_semaines.eq.true',
-          'photo_engagement_3_semaines.eq.true',
-          'certificat_medical_url.is.null',
-          'photo_url.is.null',
-        ].join(','),
-      );
-  }
-
-  if (docsFilter === 'missing') {
-    builder = builder.range(0, 499);
-  } else {
-    builder = builder.range(from, to);
-  }
-
-  const { data, count, error } = await builder;
+  const { rows, totalCount, error } = await fetchInscriptionsForAdmin(
+    { anneeFilter, statusFilter, docsFilter, query },
+    { page, pageSize: PAGE_SIZE_INSCRIPTIONS },
+  );
 
   if (error) {
     return (
@@ -118,14 +69,7 @@ export default async function AdminInscriptionsPage({
     );
   }
 
-  let rows = (data ?? []) as unknown as AdminInscription[];
-  let totalCount = count ?? 0;
-
-  if (docsFilter === 'missing') {
-    const filtered = rows.filter((r) => getDocumentsChecklist(r).hasMissing);
-    totalCount = filtered.length;
-    rows = filtered.slice(from, to + 1);
-  }
+  const paiementModesById = await fetchPaiementModesById(rows.map((r) => r.id));
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 md:px-6">
@@ -140,6 +84,7 @@ export default async function AdminInscriptionsPage({
         anneeFilter={anneeFilter}
         yearOptions={yearOptions}
         query={query}
+        paiementModesById={paiementModesById}
       />
     </div>
   );

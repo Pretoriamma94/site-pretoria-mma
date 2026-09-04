@@ -279,9 +279,17 @@ export interface Database {
           type_profil: Database['public']['Enums']['type_profil_type'] | null;
           dossier_status: Database['public']['Enums']['dossier_status_type'];
           attestation_questionnaire_sante: boolean;
+          /** Attestation QS : texte, date, identité. Jamais les réponses individuelles. */
+          questionnaire_sante: Json | null;
+          /** Scan du questionnaire papier (PDF/JPG/PNG). */
+          questionnaire_sante_url: string | null;
           autorisation_pratique_mineur: boolean | null;
           autorisation_soins_urgence: boolean | null;
           accepte_rgpd: boolean;
+          /** Membre du bureau / staff : cotisation offerte, hors CA. */
+          membre_bureau: boolean;
+          /** papier = saisie admin ; en_ligne = wizard site. */
+          voie_inscription: string | null;
           /** Jeton secret pour compléter les documents sans compte (/mon-inscription/[token]) */
           documents_token: string;
           created_at: string | null;
@@ -335,9 +343,13 @@ export interface Database {
           type_profil?: Database['public']['Enums']['type_profil_type'] | null;
           dossier_status?: Database['public']['Enums']['dossier_status_type'];
           attestation_questionnaire_sante?: boolean;
+          questionnaire_sante?: Json | null;
+          questionnaire_sante_url?: string | null;
           autorisation_pratique_mineur?: boolean | null;
           autorisation_soins_urgence?: boolean | null;
           accepte_rgpd?: boolean;
+          membre_bureau?: boolean;
+          voie_inscription?: string | null;
           documents_token?: string;
           created_at?: string | null;
           updated_at?: string | null;

@@ -5,17 +5,42 @@ import { z } from 'zod';
 import { requireAdmin } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { isMinor, formatAdresse } from '@/lib/inscription/schema';
-import { manualInscriptionSchema } from '@/lib/admin/manual-inscription-schema';
+import { buildAttestationSante, parseAttestationSante } from '@/lib/inscription/questionnaire-sante';
+import {
+  manualInscriptionSchema,
+  usesQuestionnaireSante,
+} from '@/lib/admin/manual-inscription-schema';
 import { editProfileSchema } from '@/lib/admin/edit-profile-schema';
+import {
+  getCoursPrixById,
+  isAdminCoursChangeAllowed,
+} from '@/lib/admin/cours-override';
 import { isDossierFinalisable } from '@/lib/admin/dossier';
-import { computeDossierStatus } from '@/lib/admin/dossier-status';
+import { computeDossierStatus, type DossierStatus } from '@/lib/admin/dossier-status';
+import {
+  retrySelectOnMissingColumn,
+  retryUpdateOnMissingColumn,
+  missingDbColumn,
+} from '@/lib/admin/inscription-fields';
+import {
+  applyMembreBureauTarif,
+  isMembreBureau,
+} from '@/lib/admin/membre-bureau';
+import {
+  VOIE_INSCRIPTION_EN_LIGNE,
+  VOIE_INSCRIPTION_PAPIER,
+  membre2WithVoie,
+  type VoieInscription,
+} from '@/lib/admin/voie-inscription';
 import { getCurrentSchoolYear, getSchoolYearFromDate } from '@/lib/admin/school-year';
 import { createDepenseSchema } from '@/lib/admin/depense-schema';
 import {
   collectGalleryFiles,
   uploadPostImageFile,
 } from '@/lib/admin/upload-post-image';
-import type { Database } from '@/types/database';
+import type { Database, Json } from '@/types/database';
+
+type InscriptionStatus = Database['public']['Enums']['inscription_status_type'];
 
 const categorieSchema = z.enum(['evenement', 'competition', 'vie_du_club', 'conseils']);
 
@@ -606,7 +631,7 @@ async function uploadPaymentProof(
   return { success: true, path };
 }
 
-/** Enregistre un paiement manuel (espèces / chèque / virement) + historique + preuve optionnelle. */
+/** Enregistre un versement (espèces / chèque / HelloAsso). Chaque versement peut avoir un mode différent (mix possible). */
 export async function recordPaymentAction(
   formData: FormData,
 ): Promise<RecordPaymentResult> {
@@ -638,13 +663,39 @@ export async function recordPaymentAction(
 
   try {
     const supabase = createServerClient();
-    const { data: row, error: fetchError } = await supabase
-      .from('inscriptions')
-      .select(
-        'id, status, montant_total, montant_paye, date_paiement, date_naissance, responsable_legal, certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, certificat_engagement_3_semaines, photo_engagement_3_semaines, autorisation_engagement_3_semaines',
-      )
-      .eq('id', parsed.data.id)
-      .maybeSingle();
+    const paymentInscriptionSelect =
+      'id, status, montant_total, montant_paye, date_paiement, date_naissance, responsable_legal, certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, certificat_engagement_3_semaines, photo_engagement_3_semaines, autorisation_engagement_3_semaines, membre_bureau, type_tarif';
+    const { data: row, error: fetchError } = await retrySelectOnMissingColumn(
+      (select) =>
+        supabase
+          .from('inscriptions')
+          .select(select)
+          .eq('id', parsed.data.id)
+          .maybeSingle() as unknown as Promise<{
+          data: {
+            id: string;
+            status: string;
+            montant_total: number;
+            montant_paye: number | null;
+            date_paiement: string | null;
+            date_naissance: string | null;
+            responsable_legal: unknown;
+            certificat_medical_url: string | null;
+            photo_url: string | null;
+            autorisation_parentale_url: string | null;
+            atteste_certificat: boolean | null;
+            attestation_questionnaire_sante?: boolean | null;
+            questionnaire_sante?: unknown;
+            certificat_engagement_3_semaines: boolean | null;
+            photo_engagement_3_semaines: boolean | null;
+            autorisation_engagement_3_semaines: boolean | null;
+            membre_bureau?: boolean | null;
+            type_tarif?: string | null;
+          } | null;
+          error: { message: string } | null;
+        }>,
+      paymentInscriptionSelect,
+    );
 
     if (fetchError || !row) {
       return { success: false, error: fetchError?.message ?? 'Inscription introuvable.' };
@@ -654,6 +705,13 @@ export async function recordPaymentAction(
       return {
         success: false,
         error: "Impossible d'enregistrer un paiement sur une inscription annulée.",
+      };
+    }
+
+    if (isMembreBureau(row)) {
+      return {
+        success: false,
+        error: 'Membre du bureau : cotisation offerte, aucun paiement à enregistrer.',
       };
     }
 
@@ -674,7 +732,7 @@ export async function recordPaymentAction(
     const solde = nouveauPaye >= total;
     const receptionIso = `${parsed.data.date_reception}T12:00:00.000Z`;
 
-    let nextStatus = row.status;
+    let nextStatus: InscriptionStatus = row.status as InscriptionStatus;
     if (solde) {
       nextStatus = row.status === 'validated' || row.status === 'finalized' ? row.status : 'paid';
     } else if (row.status === 'paid' || row.status === 'finalized') {
@@ -834,51 +892,107 @@ export async function createManualInscriptionAction(
   }
 
   const data = parsed.data;
-  const montantPaye = Math.round(data.montantPaye * 100) / 100;
-  const montantTotal = Math.round(data.montantTotal * 100) / 100;
+  const isBaby = data.cours === 'baby';
+  const mineur = isBaby || isMinor(data.dateNaissance);
+  const bureauTarif = applyMembreBureauTarif({
+    membreBureau: Boolean(data.membreBureau),
+    wasMembreBureau: false,
+    coursId: data.cours,
+    montantTotal: Math.round(data.montantTotal * 100) / 100,
+    montantPaye: Math.round(data.montantPaye * 100) / 100,
+    status: 'pending_payment',
+  });
+  const montantPaye = bureauTarif.montantPaye;
+  const montantTotal = bureauTarif.montantTotal;
   const solde = montantPaye >= montantTotal;
   const now = new Date().toISOString();
+  const charteOk =
+    data.charteLue === true &&
+    data.charteReglesConnues === true &&
+    data.charteEngagementRespect === true;
+  const usesQuestionnaire = usesQuestionnaireSante(data);
+  const attestationSante =
+    usesQuestionnaire &&
+    (data.attestationResultat === 'non_toutes' || data.attestationResultat === 'oui_au_moins_une')
+      ? buildAttestationSante({
+          hasOui: data.attestationResultat === 'oui_au_moins_une',
+          isMineur: mineur,
+          adherentNom: data.nom,
+          adherentPrenom: data.prenom,
+          declarantNom: isBaby
+            ? data.nomPere || data.nomMere || ''
+            : data.nomResponsable || data.nom,
+          declarantPrenom: isBaby
+            ? data.prenomPere || data.prenomMere || ''
+            : data.prenomResponsable || data.prenom,
+          origine: 'papier',
+        })
+      : null;
+  const certificatDispense = attestationSante?.resultat === 'non_toutes';
+  const attesteCertificat = Boolean(data.attesteCertificat);
+  const engagementCertificat =
+    !certificatDispense && !attesteCertificat && Boolean(data.engagementCertificat);
 
-  const responsableLegal =
-    isMinor(data.dateNaissance)
+  const responsableLegal = isBaby
+    ? {
+        nom: (data.nomPere || data.nomMere || '').trim(),
+        prenom: (data.prenomPere || data.prenomMere || '').trim(),
+        telephone: (data.telephonePere || data.telephoneMere || '').trim(),
+        email: data.email.trim(),
+        pere: {
+          nom: (data.nomPere || '').trim(),
+          prenom: (data.prenomPere || '').trim(),
+          telephone: (data.telephonePere || '').trim(),
+        },
+        mere: {
+          nom: (data.nomMere || '').trim(),
+          prenom: (data.prenomMere || '').trim(),
+          telephone: (data.telephoneMere || '').trim(),
+        },
+      }
+    : mineur
       ? {
           nom: data.nomResponsable,
           prenom: data.prenomResponsable,
-          telephone: data.telephoneResponsable,
-          email: data.emailResponsable || null,
-          lienParente: data.lienParente || null,
+          telephone: (data.telephone || '').trim(),
+          email: data.email.trim(),
         }
       : null;
 
-  const adresse = formatAdresse(data.numeroVoie, data.rue);
+  const adresse = data.adresse.trim();
+  const telephone = isBaby
+    ? (data.telephonePere || data.telephoneMere || '').trim()
+    : (data.telephone || '').trim();
 
   try {
     const supabase = createServerClient();
-    const { data: row, error } = await supabase
-      .from('inscriptions')
-      .insert({
-        status: solde ? 'paid' : 'pending_payment',
-        dossier_status: 'pre_inscrit',
-        type_profil: isMinor(data.dateNaissance) ? 'mineur' : 'adulte',
+    const payload = {
+        status: (bureauTarif.status === 'paid' || solde
+          ? 'paid'
+          : 'pending_payment') as InscriptionStatus,
+        dossier_status: 'pre_inscrit' as const,
+        type_profil: (mineur ? 'mineur' : 'adulte') as 'adulte' | 'mineur',
+        sexe: isBaby ? null : data.sexe ?? null,
         annee_scolaire: getCurrentSchoolYear(),
         nom: data.nom.trim(),
         prenom: data.prenom.trim(),
-        email: (data.email || '').trim().toLowerCase(),
-        telephone: (data.telephone || '').trim(),
+        email: data.email.trim().toLowerCase(),
+        telephone,
         date_naissance: data.dateNaissance,
         adresse,
-        numero_voie: data.numeroVoie.trim(),
-        rue: data.rue.trim(),
+        numero_voie: '',
+        rue: adresse,
         code_postal: data.codePostal.trim(),
         ville: data.ville.trim(),
-        taille_cm: data.tailleCm,
-        poids_kg: data.poidsKg,
-        taille_tenue: data.tailleTenue,
+        taille_cm: null,
+        poids_kg: null,
+        taille_tenue: null,
         responsable_legal: responsableLegal,
         cours_selectionne: data.cours,
         inscription_familiale: false,
-        membre_2: null,
-        type_tarif: 'individuel',
+        membre_2: { voie_inscription: 'papier' },
+        type_tarif: bureauTarif.typeTarif,
+        voie_inscription: 'papier',
         montant_total: montantTotal,
         mode_paiement: data.modePaiement,
         nombre_echeances: data.nombreEcheances,
@@ -887,26 +1001,44 @@ export async function createManualInscriptionAction(
         certificat_medical_url: null,
         autorisation_parentale_url: null,
         accepte_reglement: data.accepteReglement,
-        atteste_certificat: Boolean(data.attesteCertificat),
-        autorise_photos: isMinor(data.dateNaissance)
-          ? Boolean(data.autorisePhotosMineur)
-          : data.autorisePhotos,
-        autorise_sortie_seul: isMinor(data.dateNaissance)
-          ? (data.autoriseSortieSeul ?? null)
-          : null,
-        autorise_voiture_privee: isMinor(data.dateNaissance)
-          ? (data.autoriseVoiturePrivee ?? null)
-          : null,
+        atteste_certificat: attesteCertificat,
+        autorise_photos: data.acceptePhotos,
+        autorise_sortie_seul: mineur && !isBaby ? (data.autoriseSortieSeul ?? null) : null,
+        autorise_voiture_privee: mineur ? (data.autoriseVoiturePrivee ?? null) : null,
         informe_assurance_individuelle: data.informeAssurance,
         informe_droit_acces: data.informeDroitAcces,
-        accepte_rgpd: data.informeDroitAcces,
-        accepte_charte: data.accepteReglement,
+        accepte_rgpd: data.accepteRgpd,
+        accepte_charte: charteOk,
         photo_engagement_3_semaines: !data.photoRecue && Boolean(data.engagementPhoto),
-        certificat_engagement_3_semaines:
-          !data.attesteCertificat && Boolean(data.engagementCertificat),
-      })
+        certificat_engagement_3_semaines: engagementCertificat,
+        attestation_questionnaire_sante: certificatDispense,
+        questionnaire_sante: (attestationSante ?? { voie: 'papier' }) as Json | null,
+        autorisation_pratique_mineur: mineur ? charteOk : null,
+        autorisation_soins_urgence: mineur ? charteOk : null,
+        documents_token:
+          typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? crypto.randomUUID()
+            : undefined,
+    };
+
+    let { data: row, error } = await supabase
+      .from('inscriptions')
+      .insert(payload)
       .select('id, documents_token, created_at')
       .single();
+
+    let insertPayload: Record<string, unknown> = { ...payload };
+    for (let attempt = 0; attempt < 6 && error; attempt += 1) {
+      const missing = missingDbColumn(`${error.message} ${error.details ?? ''}`);
+      if (!missing || !(missing in insertPayload)) break;
+      const { [missing]: _removed, ...rest } = insertPayload;
+      insertPayload = rest;
+      ({ data: row, error } = await supabase
+        .from('inscriptions')
+        .insert(insertPayload as unknown as Database['public']['Tables']['inscriptions']['Insert'])
+        .select('id, documents_token, created_at')
+        .single());
+    }
 
     if (error || !row) {
       return { success: false, error: error?.message ?? 'Création impossible.' };
@@ -914,26 +1046,39 @@ export async function createManualInscriptionAction(
 
     revalidateAdminPaths();
 
-    // Email de confirmation à l'adhérent (ou au responsable pour un mineur).
-    // Non bloquant : la création reste valide même si l'envoi échoue.
-    const destinataire = isMinor(data.dateNaissance)
-      ? (data.emailResponsable || data.email || '').trim().toLowerCase()
-      : (data.email || '').trim().toLowerCase();
-
+    // Même email de confirmation que l’inscription en ligne (lien documents + HelloAsso).
+    let documentsToken = row.documents_token;
+    if (!documentsToken) {
+      documentsToken = crypto.randomUUID();
+      await supabase
+        .from('inscriptions')
+        .update({ documents_token: documentsToken })
+        .eq('id', row.id);
+    }
+    const destinataire = data.email.trim().toLowerCase();
     let emailSent = false;
     let emailError: string | undefined;
-    if (destinataire && row.documents_token) {
-      const { sendInscriptionDocumentsEmail } = await import('@/lib/email/inscription');
-      const result = await sendInscriptionDocumentsEmail({
-        email: destinataire,
-        prenom: data.prenom.trim() || 'Adhérent',
-        token: row.documents_token,
-        missingCertificat: !data.attesteCertificat,
-        missingPhoto: !data.photoRecue,
-        createdAt: row.created_at,
-      });
-      emailSent = result.sent;
-      emailError = result.error;
+    if (destinataire && documentsToken) {
+      try {
+        const { notifyInscriptionCreatedAction } = await import('@/app/inscription/actions');
+        const result = await notifyInscriptionCreatedAction({
+          email: destinataire,
+          prenom: data.prenom.trim(),
+          token: documentsToken,
+          missingCertificat: !attesteCertificat && !certificatDispense,
+          missingPhoto: !data.photoRecue,
+          createdAt: row.created_at ?? now,
+        });
+        emailSent = result.sent;
+        emailError = result.error;
+      } catch (err) {
+        emailSent = false;
+        emailError = err instanceof Error ? err.message : 'Envoi de l’email impossible.';
+      }
+    } else if (!destinataire) {
+      emailError = 'Email adhérent manquant.';
+    } else {
+      emailError = 'Lien documents indisponible : email non envoyé.';
     }
 
     return { success: true, id: row.id, emailSent, emailError };
@@ -958,9 +1103,12 @@ export type ProfileUpdatedFields = {
   code_postal: string;
   ville: string;
   adresse: string;
-  taille_cm: number | null;
-  poids_kg: number | null;
-  taille_tenue: string | null;
+  cours_selectionne: string;
+  montant_total: number;
+  montant_paye: number;
+  type_tarif: string;
+  membre_bureau: boolean;
+  status: string;
   responsable_legal: unknown | null;
   type_profil: 'adulte' | 'mineur' | null;
   accepte_reglement: boolean;
@@ -981,9 +1129,9 @@ export type UpdateProfileResult =
   | { success: false; error: string };
 
 /**
- * Édite le profil d'un adhérent (identité, contact, adresse, mensurations,
- * consentements RGPD / droit à l'image, responsable légal). Utilisé depuis
- * les vues « Inscriptions » et « Adhérents ».
+ * Édite le profil d'un adhérent (identité, contact, adresse,
+ * consentements RGPD / droit à l'image, responsable légal, catégorie de cours).
+ * Utilisé depuis les vues « Inscriptions » et « Adhérents ».
  */
 export async function updateInscriptionProfileAction(
   id: string,
@@ -1030,9 +1178,6 @@ export async function updateInscriptionProfileAction(
     code_postal: data.codePostal || '',
     ville: data.ville || '',
     adresse,
-    taille_cm: data.tailleCm,
-    poids_kg: data.poidsKg,
-    taille_tenue: data.tailleTenue,
     responsable_legal: responsableLegal,
     type_profil: (minor ? 'mineur' : 'adulte') as 'adulte' | 'mineur',
     accepte_reglement: data.accepteReglement,
@@ -1054,17 +1199,109 @@ export async function updateInscriptionProfileAction(
   try {
     const supabase = createServerClient();
 
-    const { data: current, error: fetchError } = await supabase
-      .from('inscriptions')
-      .select(
-        'certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, attestation_questionnaire_sante, certificat_engagement_3_semaines, autorisation_engagement_3_semaines, photo_engagement_3_semaines, dossier_status',
-      )
-      .eq('id', id)
-      .maybeSingle();
+    const { data: current, error: fetchError } = await retrySelectOnMissingColumn(
+      (select) =>
+        supabase
+          .from('inscriptions')
+          .select(select)
+          .eq('id', id)
+          .maybeSingle() as unknown as Promise<{
+          data: {
+            certificat_medical_url: string | null;
+            photo_url: string | null;
+            autorisation_parentale_url: string | null;
+            atteste_certificat: boolean | null;
+            attestation_questionnaire_sante?: boolean | null;
+            questionnaire_sante?: unknown;
+            certificat_engagement_3_semaines: boolean | null;
+            autorisation_engagement_3_semaines: boolean | null;
+            photo_engagement_3_semaines: boolean | null;
+            dossier_status: DossierStatus | null;
+            cours_selectionne: string;
+            montant_total: number;
+            montant_paye: number | null;
+            status: string;
+            membre_bureau?: boolean | null;
+            type_tarif?: string | null;
+          } | null;
+          error: { message: string } | null;
+        }>,
+      'certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, certificat_engagement_3_semaines, autorisation_engagement_3_semaines, photo_engagement_3_semaines, dossier_status, cours_selectionne, montant_total, montant_paye, status, membre_bureau, type_tarif',
+    );
 
     if (fetchError || !current) {
       return { success: false, error: fetchError?.message ?? 'Adhérent introuvable.' };
     }
+
+    let coursSelectionne = current.cours_selectionne;
+    let montantTotal = Number(current.montant_total);
+    let nextStatus: InscriptionStatus = current.status as InscriptionStatus;
+
+    if (
+      data.coursSelectionne &&
+      data.coursSelectionne !== current.cours_selectionne
+    ) {
+      if (
+        !isAdminCoursChangeAllowed(
+          current.cours_selectionne,
+          data.coursSelectionne,
+          data.sexe,
+          data.dateNaissance,
+        )
+      ) {
+        return {
+          success: false,
+          error: 'Cette catégorie n’est pas autorisée pour cet adhérent.',
+        };
+      }
+      coursSelectionne = data.coursSelectionne;
+      const newPrix = getCoursPrixById(data.coursSelectionne);
+      if (newPrix != null) montantTotal = newPrix;
+
+      if (current.status !== 'cancelled') {
+        const paye = Number(current.montant_paye ?? 0);
+        const solde = paye >= montantTotal;
+        if (solde) {
+          nextStatus =
+            current.status === 'validated' || current.status === 'finalized'
+              ? current.status
+              : 'paid';
+        } else if (current.status === 'paid' || current.status === 'finalized') {
+          nextStatus = 'pending_payment';
+        }
+        if (
+          isDossierFinalisable({
+            ...current,
+            ...patch,
+            status: nextStatus,
+            montant_total: montantTotal,
+            montant_paye: current.montant_paye,
+          })
+        ) {
+          nextStatus = 'finalized';
+        }
+      }
+    }
+
+    let montantPaye = Number(current.montant_paye ?? 0);
+    if (isMembreBureau(current) && !data.membreBureau) {
+      const { data: paiements } = await supabase
+        .from('inscription_paiements')
+        .select('montant')
+        .eq('inscription_id', id);
+      montantPaye = (paiements ?? []).reduce((sum, p) => sum + Number(p.montant), 0);
+    }
+    const bureauTarif = applyMembreBureauTarif({
+      membreBureau: Boolean(data.membreBureau),
+      wasMembreBureau: isMembreBureau(current),
+      coursId: coursSelectionne,
+      montantTotal,
+      montantPaye,
+      status: nextStatus,
+    });
+    montantTotal = bureauTarif.montantTotal;
+    montantPaye = bureauTarif.montantPaye;
+    nextStatus = bureauTarif.status as InscriptionStatus;
 
     // Recalcule le statut dossier avec les nouvelles valeurs de consentement.
     const dossierStatus = computeDossierStatus(
@@ -1083,10 +1320,24 @@ export async function updateInscriptionProfileAction(
       current.dossier_status,
     );
 
-    const { error: updateError } = await supabase
-      .from('inscriptions')
-      .update({ ...patch, dossier_status: dossierStatus })
-      .eq('id', id);
+    const fields = {
+      ...patch,
+      cours_selectionne: coursSelectionne,
+      montant_total: montantTotal,
+      montant_paye: montantPaye,
+      type_tarif: bureauTarif.typeTarif,
+      membre_bureau: Boolean(data.membreBureau),
+      status: nextStatus,
+      dossier_status: dossierStatus,
+    };
+
+    const dbPatch: Record<string, unknown> = { ...fields };
+    delete dbPatch.membre_bureau;
+    const { error: updateError } = await retryUpdateOnMissingColumn(
+      (nextPatch) =>
+        supabase.from('inscriptions').update(nextPatch as never).eq('id', id),
+      dbPatch,
+    );
 
     if (updateError) {
       return { success: false, error: `Mise à jour impossible : ${updateError.message}` };
@@ -1096,8 +1347,179 @@ export async function updateInscriptionProfileAction(
 
     return {
       success: true,
-      fields: { ...patch, dossier_status: dossierStatus },
+      fields,
     };
+  } catch {
+    return {
+      success: false,
+      error:
+        'Connexion Supabase impossible. Vérifiez votre connexion internet et les clés dans .env.local.',
+    };
+  }
+}
+
+export type SetMembreBureauResult =
+  | {
+      success: true;
+      membre_bureau: boolean;
+      type_tarif: string;
+      montant_total: number;
+      montant_paye: number;
+      status: string;
+    }
+  | { success: false; error: string };
+
+/** Coche / décoche « membre du bureau » : cotisation offerte et hors chiffre d’affaires. */
+export async function setMembreBureauAction(
+  id: string,
+  membreBureau: boolean,
+): Promise<SetMembreBureauResult> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { success: false, error: 'Accès administrateur requis.' };
+  }
+  if (!id || !z.string().uuid().safeParse(id).success) {
+    return { success: false, error: 'Inscription invalide.' };
+  }
+
+  try {
+    const supabase = createServerClient();
+    const { data: row, error: fetchError } = await retrySelectOnMissingColumn(
+      (select) =>
+        supabase
+          .from('inscriptions')
+          .select(select)
+          .eq('id', id)
+          .maybeSingle() as unknown as Promise<{
+          data: {
+            cours_selectionne: string;
+            montant_total: number;
+            montant_paye: number | null;
+            status: string;
+            membre_bureau?: boolean | null;
+            type_tarif?: string | null;
+          } | null;
+          error: { message: string } | null;
+        }>,
+      'cours_selectionne, montant_total, montant_paye, status, membre_bureau, type_tarif',
+    );
+    if (fetchError || !row) {
+      return { success: false, error: fetchError?.message ?? 'Inscription introuvable.' };
+    }
+    if (row.status === 'cancelled') {
+      return { success: false, error: 'Inscription annulée.' };
+    }
+
+    let montantPaye = Number(row.montant_paye ?? 0);
+    if (isMembreBureau(row) && !membreBureau) {
+      const { data: paiements } = await supabase
+        .from('inscription_paiements')
+        .select('montant')
+        .eq('inscription_id', id);
+      montantPaye = (paiements ?? []).reduce((sum, p) => sum + Number(p.montant), 0);
+    }
+
+    const tarif = applyMembreBureauTarif({
+      membreBureau,
+      wasMembreBureau: isMembreBureau(row),
+      coursId: row.cours_selectionne,
+      montantTotal: Number(row.montant_total),
+      montantPaye,
+      status: row.status,
+    });
+
+    const patch = {
+      type_tarif: tarif.typeTarif,
+      montant_total: tarif.montantTotal,
+      montant_paye: tarif.montantPaye,
+      status: tarif.status,
+      date_paiement:
+        tarif.montantTotal <= 0
+          ? new Date().toISOString()
+          : row.status === 'paid'
+            ? undefined
+            : null,
+    };
+
+    const { error } = await retryUpdateOnMissingColumn(
+      (nextPatch) =>
+        supabase.from('inscriptions').update(nextPatch as never).eq('id', id),
+      patch,
+    );
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidateAdminPaths();
+    return {
+      success: true,
+      membre_bureau: membreBureau,
+      type_tarif: tarif.typeTarif,
+      montant_total: tarif.montantTotal,
+      montant_paye: tarif.montantPaye,
+      status: tarif.status,
+    };
+  } catch {
+    return {
+      success: false,
+      error:
+        'Connexion Supabase impossible. Vérifiez votre connexion internet et les clés dans .env.local.',
+    };
+  }
+}
+
+export type SetVoieInscriptionResult =
+  | { success: true; voie_inscription: VoieInscription; membre_2: unknown }
+  | { success: false; error: string };
+
+/** Marque une inscription comme papier (club) ou en ligne (site). */
+export async function setVoieInscriptionAction(
+  id: string,
+  voie: VoieInscription,
+): Promise<SetVoieInscriptionResult> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { success: false, error: 'Accès administrateur requis.' };
+  }
+  if (!id || !z.string().uuid().safeParse(id).success) {
+    return { success: false, error: 'Inscription invalide.' };
+  }
+  if (voie !== VOIE_INSCRIPTION_PAPIER && voie !== VOIE_INSCRIPTION_EN_LIGNE) {
+    return { success: false, error: 'Voie d’inscription invalide.' };
+  }
+
+  try {
+    const supabase = createServerClient();
+    const { data: row, error: fetchError } = await retrySelectOnMissingColumn(
+      (select) =>
+        supabase
+          .from('inscriptions')
+          .select(select)
+          .eq('id', id)
+          .maybeSingle() as unknown as Promise<{
+          data: { membre_2?: unknown } | null;
+          error: { message: string } | null;
+        }>,
+      'membre_2',
+    );
+    if (fetchError || !row) {
+      return { success: false, error: fetchError?.message ?? 'Inscription introuvable.' };
+    }
+
+    const membre2 = membre2WithVoie(row.membre_2, voie);
+    const { error } = await retryUpdateOnMissingColumn(
+      (nextPatch) =>
+        supabase.from('inscriptions').update(nextPatch as never).eq('id', id),
+      { membre_2: membre2, voie_inscription: voie },
+    );
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidateAdminPaths();
+    return { success: true, voie_inscription: voie, membre_2: membre2 };
   } catch {
     return {
       success: false,
@@ -1149,17 +1571,19 @@ export async function getInscriptionDocumentUrlAction(
   }
 }
 
-const DOC_KIND_SCHEMA = z.enum(['certificat', 'photo']);
+const DOC_KIND_SCHEMA = z.enum(['certificat', 'photo', 'questionnaire']);
 const MAX_DOC_BYTES = 5 * 1024 * 1024;
 
 export type UploadInscriptionDocumentResult =
   | {
       success: true;
-      kind: 'certificat' | 'photo';
+      kind: 'certificat' | 'photo' | 'questionnaire';
       path: string;
       status: string;
       certificat_medical_url: string | null;
       photo_url: string | null;
+      questionnaire_sante_url: string | null;
+      questionnaire_sante?: unknown;
       certificat_engagement_3_semaines: boolean;
       photo_engagement_3_semaines: boolean;
       atteste_certificat: boolean;
@@ -1223,28 +1647,86 @@ export async function uploadAdminInscriptionDocumentAction(
       atteste_certificat?: boolean;
       photo_url?: string;
       photo_engagement_3_semaines?: boolean;
+      questionnaire_sante_url?: string;
+      questionnaire_sante?: unknown;
     };
 
-    const patch: InscriptionUpdate =
-      kind === 'certificat'
-        ? {
-            certificat_medical_url: path,
-            certificat_engagement_3_semaines: false,
-            atteste_certificat: true,
-          }
-        : {
-            photo_url: path,
-            photo_engagement_3_semaines: false,
-          };
+    let patch: InscriptionUpdate;
+    if (kind === 'certificat') {
+      patch = {
+        certificat_medical_url: path,
+        certificat_engagement_3_semaines: false,
+        atteste_certificat: true,
+      };
+    } else if (kind === 'photo') {
+      patch = {
+        photo_url: path,
+        photo_engagement_3_semaines: false,
+      };
+    } else {
+      const { data: currentQs } = await retrySelectOnMissingColumn(
+        (select) =>
+          supabase
+            .from('inscriptions')
+            .select(select)
+            .eq('id', id)
+            .maybeSingle() as unknown as Promise<{
+            data: { questionnaire_sante?: unknown } | null;
+            error: { message: string } | null;
+          }>,
+        'questionnaire_sante',
+      );
+      const att = parseAttestationSante(currentQs?.questionnaire_sante);
+      patch = {
+        questionnaire_sante_url: path,
+        questionnaire_sante: att
+          ? { ...att, fichierUrl: path, origine: att.origine ?? 'papier' }
+          : undefined,
+      };
+    }
 
-    const { data: row, error: updateError } = await supabase
-      .from('inscriptions')
-      .update(patch)
-      .eq('id', id)
-      .select(
-        'status, montant_total, montant_paye, date_naissance, responsable_legal, certificat_medical_url, photo_url, autorisation_parentale_url, certificat_engagement_3_semaines, photo_engagement_3_semaines, autorisation_engagement_3_semaines, atteste_certificat',
-      )
-      .single();
+    const { error: patchError } = await retryUpdateOnMissingColumn(
+      (nextPatch) =>
+        supabase.from('inscriptions').update(nextPatch as never).eq('id', id),
+      patch,
+    );
+    if (patchError) {
+      return {
+        success: false,
+        error: patchError.message ?? 'Mise à jour de l’inscription impossible.',
+      };
+    }
+
+    const docReturnSelect =
+      'status, montant_total, montant_paye, date_naissance, responsable_legal, certificat_medical_url, photo_url, autorisation_parentale_url, certificat_engagement_3_semaines, photo_engagement_3_semaines, autorisation_engagement_3_semaines, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, questionnaire_sante_url';
+    const { data: row, error: updateError } = await retrySelectOnMissingColumn(
+      (select) =>
+        supabase
+          .from('inscriptions')
+          .select(select)
+          .eq('id', id)
+          .single() as unknown as Promise<{
+          data: {
+            status: string;
+            montant_total: number;
+            montant_paye: number | null;
+            date_naissance: string | null;
+            responsable_legal: unknown;
+            certificat_medical_url: string | null;
+            photo_url: string | null;
+            autorisation_parentale_url: string | null;
+            certificat_engagement_3_semaines: boolean | null;
+            photo_engagement_3_semaines: boolean | null;
+            autorisation_engagement_3_semaines: boolean | null;
+            atteste_certificat: boolean | null;
+            attestation_questionnaire_sante?: boolean | null;
+            questionnaire_sante?: unknown;
+            questionnaire_sante_url?: string | null;
+          } | null;
+          error: { message: string } | null;
+        }>,
+      docReturnSelect,
+    );
 
     if (updateError || !row) {
       return {
@@ -1253,7 +1735,7 @@ export async function uploadAdminInscriptionDocumentAction(
       };
     }
 
-    let nextStatus = row.status;
+    let nextStatus: InscriptionStatus = row.status as InscriptionStatus;
     if (isDossierFinalisable(row)) {
       nextStatus = 'finalized';
       const { error: statusError } = await supabase
@@ -1273,6 +1755,8 @@ export async function uploadAdminInscriptionDocumentAction(
       status: nextStatus,
       certificat_medical_url: row.certificat_medical_url,
       photo_url: row.photo_url,
+      questionnaire_sante_url: row.questionnaire_sante_url ?? path,
+      questionnaire_sante: row.questionnaire_sante,
       certificat_engagement_3_semaines: Boolean(row.certificat_engagement_3_semaines),
       photo_engagement_3_semaines: Boolean(row.photo_engagement_3_semaines),
       atteste_certificat: Boolean(row.atteste_certificat),

@@ -1,8 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { isMinor } from '@/lib/inscription/schema';
-import { TAILLE_TENUE_OPTIONS } from '@/lib/inscription/taille-tenue';
+import { useMemo, useState } from 'react';
+import { coursFilterBucket, getCoursLabel, isMinor } from '@/lib/inscription/schema';
+import {
+  ADMIN_COURS_IDS,
+  getAdminCoursChoices,
+  getCoursPrixById,
+  type AdminCoursId,
+} from '@/lib/admin/cours-override';
+import { formatEuros } from '@/lib/admin/labels';
 import {
   updateInscriptionProfileAction,
   type ProfileUpdatedFields,
@@ -22,7 +28,12 @@ export type EditableProfile = {
   ville: string;
   taille_cm: number | null;
   poids_kg: number | null;
-  taille_tenue: string | null;
+  cours_selectionne: string;
+  montant_total: number;
+  montant_paye?: number | null;
+  status?: string;
+  type_tarif?: string | null;
+  membre_bureau?: boolean | null;
   responsable_legal: unknown | null;
   type_profil: 'adulte' | 'mineur' | null;
   accepte_reglement: boolean;
@@ -124,9 +135,7 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
     rue: profile.rue ?? '',
     codePostal: profile.code_postal ?? '',
     ville: profile.ville ?? '',
-    tailleCm: profile.taille_cm != null ? String(profile.taille_cm) : '',
-    poidsKg: profile.poids_kg != null ? String(profile.poids_kg) : '',
-    tailleTenue: profile.taille_tenue ?? '',
+    coursSelectionne: coursFilterBucket(profile.cours_selectionne),
     accepteReglement: Boolean(profile.accepte_reglement),
     accepteCharte: Boolean(profile.accepte_charte),
     accepteRgpd: Boolean(profile.accepte_rgpd),
@@ -141,12 +150,33 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
     telephoneResponsable: resp.telephone ?? '',
     emailResponsable: resp.email ?? '',
     lienParente: (resp.lienParente as string) ?? '',
+    membreBureau: profile.membre_bureau === true || profile.type_tarif === 'bureau',
   });
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const minor = form.dateNaissance ? isMinor(form.dateNaissance) : false;
+  const sexeForm = form.sexe === 'homme' || form.sexe === 'femme' ? form.sexe : profile.sexe;
+  const coursChoices = useMemo(
+    () =>
+      getAdminCoursChoices(
+        profile.cours_selectionne,
+        sexeForm,
+        form.dateNaissance || profile.date_naissance,
+      ),
+    [profile.cours_selectionne, profile.date_naissance, sexeForm, form.dateNaissance],
+  );
+  const selectedCours: AdminCoursId | string = coursChoices.includes(
+    form.coursSelectionne as AdminCoursId,
+  )
+    ? form.coursSelectionne
+    : (coursChoices[0] ?? coursFilterBucket(profile.cours_selectionne));
+  const newPrix = form.membreBureau ? 0 : getCoursPrixById(selectedCours);
+  const tarifChange =
+    newPrix != null && newPrix !== profile.montant_total
+      ? { from: profile.montant_total, to: newPrix }
+      : null;
 
   const setText = (key: keyof typeof form) => (v: string) =>
     setForm((prev) => ({ ...prev, [key]: v }));
@@ -168,9 +198,9 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
         rue: form.rue,
         codePostal: form.codePostal,
         ville: form.ville,
-        tailleCm: form.tailleCm,
-        poidsKg: form.poidsKg,
-        tailleTenue: form.tailleTenue,
+        coursSelectionne: (ADMIN_COURS_IDS as readonly string[]).includes(selectedCours)
+          ? (selectedCours as AdminCoursId)
+          : undefined,
         accepteReglement: form.accepteReglement,
         accepteCharte: form.accepteCharte,
         accepteRgpd: form.accepteRgpd,
@@ -185,6 +215,7 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
         telephoneResponsable: form.telephoneResponsable,
         emailResponsable: form.emailResponsable,
         lienParente: form.lienParente || null,
+        membreBureau: form.membreBureau,
       });
       if (!result.success) {
         setError(result.error);
@@ -262,24 +293,58 @@ export function EditProfileModal({ profile, onClose, onSaved }: Props) {
             <TextField label="Ville" value={form.ville} onChange={setText('ville')} />
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-3">
-            <TextField label="Taille (cm)" type="number" value={form.tailleCm} onChange={setText('tailleCm')} />
-            <TextField label="Poids (kg)" type="number" value={form.poidsKg} onChange={setText('poidsKg')} />
+          <section className="rounded-xl border border-violet-800/60 bg-violet-950/20 p-4">
+            <CheckField
+              label="Membre du bureau (cotisation offerte, hors chiffre d’affaires)"
+              checked={form.membreBureau}
+              onChange={setBool('membreBureau')}
+            />
+            <p className="mt-2 text-[0.7rem] font-normal normal-case tracking-normal text-violet-200/80">
+              Cochez pour un dirigeant, coach ou membre du bureau. Aucun paiement n’est dû, la
+              ligne n’entre pas dans les recettes du club.
+            </p>
+          </section>
+
+          <section>
             <label className={labelClass}>
-              Taille de tenue
-              <select
-                value={form.tailleTenue}
-                onChange={(e) => setText('tailleTenue')(e.target.value)}
-                className={inputClass}
-              >
-                <option value="">—</option>
-                {TAILLE_TENUE_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+              Catégorie de cours
+              {coursChoices.length > 1 ? (
+                <select
+                  value={selectedCours}
+                  onChange={(e) => setText('coursSelectionne')(e.target.value)}
+                  className={inputClass}
+                >
+                  {coursChoices.map((id) => {
+                    const prix = getCoursPrixById(id);
+                    return (
+                      <option key={id} value={id}>
+                        {getCoursLabel(id)}
+                        {prix != null ? ` — ${prix} €` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              ) : (
+                <p className="mt-1 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm font-normal normal-case tracking-normal text-white">
+                  {getCoursLabel(profile.cours_selectionne)}
+                </p>
+              )}
             </label>
+            {coursChoices.length > 1 ? (
+              <p className="mt-1.5 text-[0.7rem] font-normal normal-case tracking-normal text-zinc-500">
+                Dérogation : un adolescent peut passer en cours adultes (gabarit / niveau). Une
+                femme peut rejoindre le mixte ou revenir en section femmes. Le tarif de la
+                nouvelle catégorie s&apos;applique ; le montant déjà payé est conservé.
+              </p>
+            ) : null}
+            {tarifChange ? (
+              <p className="mt-1 text-[0.7rem] font-normal normal-case tracking-normal text-amber-300">
+                Tarif : {formatEuros(tarifChange.from)} → {formatEuros(tarifChange.to)}
+                {profile.montant_paye
+                  ? ` · déjà payé ${formatEuros(profile.montant_paye)}`
+                  : ''}
+              </p>
+            ) : null}
           </section>
 
           {minor && (

@@ -2,14 +2,31 @@
 
 ## Décisions produit (validées)
 
-- **HelloAsso / paiement en ligne** : reporté — masqué du parcours inscription (Phase 0).
-- **Paiements** : uniquement au club — **espèces (cash)**, **chèque**, **virement bancaire**.
+- **HelloAsso / paiement en ligne** : bouton HelloAsso à l’étape Paiement (tous parcours) — nouvel onglet, retour vers l’inscription après paiement (ou 1re échéance).
+- **Paiements** : au club — **espèces**, **chèque** ; **paiement en ligne** via HelloAsso.
 - **Échéances** : possibilité de payer en **1, 2 ou 3 fois** (quel que soit le mode).
 - **Choix à l’inscription** : l’adhérent choisit mode + nombre d’échéances (étape Tarifs) ; l’admin enregistre ensuite les montants reçus.
 - Compte admin : `pretoriamma94@gmail.com` avec `app_metadata.role = 'admin'`.
 - **Mot de passe** : réinitialisation en autonomie via `/admin/login/forgot-password` (e-mail Supabase).
 - Première connexion : même lien « Mot de passe oublié ou première connexion » pour choisir un mot de passe personnel.
 - Redirect URLs Supabase à autoriser : `http://localhost:3000/auth/callback` (+ URL prod).
+
+## Planning & tarifs 2026-2027 (en cours, local)
+
+- **Baby JJB** : samedi 15h-16h, 200 €.
+- **Enfants** : mardi 17h-18h30 (Halles des Violettes) + samedi 16h-17h30 (Coubertin), 250 €.
+- **Adolescents** : mardi 18h30-20h MMA + jeudi 18h30-20h grappling (Halles des Violettes), 250 €.
+- **Adultes mixte** (homme et femme) : 300 €, accès à tous les cours adultes mixtes (lundi MMA, jeudi grappling, samedi sparring).
+- **Section femmes** : 200 €, un créneau samedi 17h30-18h30 MMA/Grappling.
+- Inscription : les femmes adultes choisissent mixte 300 € ou section femmes 200 € à l’étape paiement.
+- **Fiche admin** : les réponses d’inscription (informations, autorisation parentale / droit à l’image, lu et approuvé) sont visibles sur la fiche adhérent et la fiche inscription ; un **Non** (refus) s’affiche en rouge.
+- **Questionnaire de santé (renouvellement)** : seules les attestations sont conservées (pas les réponses individuelles) — « toutes réponses NON » (certificat non requis) ou « au moins un OUI » (engagement certificat). Texte + date + identité du déclarant sur les fiches admin.
+- **Scan QS papier (inscription manuelle)** : alerte rouge **uniquement** si l’inscription est papier **et** le certificat n’est pas requis (toutes réponses NON). Pas de scan pour les inscriptions en ligne, ni quand un certificat médical est demandé. Pastille bleue **Inscription manuelle** sur les listes / fiches.
+- **Baby JJB / santé** : toujours le questionnaire mineur (1re inscription et renouvellement, pas de question « certificat de moins de 3 ans »). Un OUI → certificat obligatoire (upload ou engagement 3 semaines) ; toutes réponses NON → certificat non requis. Même attestation et mêmes bannières sur les fiches admin que pour un mineur MMA.
+- **Certificat sous 3 semaines** : sans fichier, case d’engagement obligatoire pour poursuivre ; admin = décompte J-n puis **alerte** si le délai est dépassé.
+- **Photo d’identité** : étape après Santé / avant RGPD-paiement, tous profils (PNG, JPG, PDF ; photo téléphone fond blanc). Sans fichier, engagement 3 semaines + décompte / alerte admin.
+- **Rappel des obligations** : case **Lu et approuvé** obligatoire à l’étape Autorisations pour tous les profils (MMA adulte, MMA mineur, Baby JJB) avant de poursuivre.
+- **Charte du club** : étape obligatoire avant le paiement (tous profils, y compris Baby JJB) — lecture / téléchargement du PDF + 3 cases (lu, règles, engagement).
 
 ## Phase 0 — Fait
 
@@ -25,7 +42,7 @@
 
 - **Navigation admin** : Accueil | Inscriptions | Paiements / Soldes | Contact | Actualités.
 - **Inscriptions** (`/admin/inscriptions`) : filtres statut + recherche nom/email, libellés FR, pagination (25), détails.
-- **Marquage paiement** : modal « Enregistrer un paiement » (espèces / chèque / virement, 1–3 fois, montant reçu) → met à jour `montant_paye`, solde, statut `paid` si soldé.
+- **Marquage paiement** : modal « Enregistrer un paiement » (espèces / chèque / paiement en ligne HelloAsso, 1–3 fois, montant reçu, n° d’échéance, référence) — inscriptions, soldes, et fiche adhérent.
 - **Soldes dus** (`/admin/paiements`) : liste des adhérents avec reste > 0 (total, payé, reste, mode, échéances).
 - **Contact** : formulaire site → table `contact_messages` ; inbox admin non traités / traités.
 - **Actualités** déplacées vers `/admin/actualites` (création + publier/dépublier).
@@ -49,17 +66,18 @@
 ## Inscription manuelle admin (2026-07-18)
 
 - Bouton **+ Inscription papier** sur `/admin/inscriptions`.
-- Formulaire : infos adhérent (+ responsable si mineur), cours, montant, mode, échéances, montant déjà payé, cases documents papier.
+- Formulaire aligné sur l’inscription en ligne (identité, consents, santé/QS, charte, paiement). Pas de taille de tenue.
+- À la validation : **même email de confirmation** qu’en ligne (`notifyInscriptionCreatedAction`) vers l’email saisi.
 - Statut auto : `paid` si soldé à la saisie, sinon `pending_payment`.
 
 ## Champs adhérent (2026-07-18)
 
 Alignés site + admin papier :
 
-- **Adulte** : prénom, nom, date de naissance, n° + rue, CP, ville, email, téléphone ; taille/poids optionnels ; taille de tenue (XS–XXXL) optionnelle.
-- **Mineur (moins de 18 ans)** : prénom, nom, date de naissance, adresse de l’enfant (n° + rue + CP + ville), nom/prénom + téléphone du représentant légal ; téléphone enfant optionnel ; taille/poids optionnels ; taille de tenue optionnelle.
+- **Adulte** : prénom, nom, date de naissance, n° + rue, CP, ville, email, téléphone.
+- **Mineur (moins de 18 ans)** : prénom, nom, date de naissance, adresse de l’enfant (n° + rue + CP + ville), nom/prénom + téléphone du représentant légal ; téléphone enfant optionnel.
 - Migration : `20260718170000_inscription_adresse_mensurations.sql` (`numero_voie`, `rue`, `taille_cm`, `poids_kg`) **appliquée** sur le remote.
-- Migration : `20260719190000_taille_tenue.sql` (`taille_tenue`) — tenues club, visible fiche Adhérents.
+- **Taille de tenue** : plus utilisée (ni formulaire, ni fiche, ni export). Colonne DB conservée, toujours enregistrée à `null`.
 
 ## Papiers manquants admin (2026-07-18)
 
@@ -113,7 +131,7 @@ Alignés site + admin papier :
 ## Filtre adhérents par catégorie (2026-07-24)
 
 - Sur `/admin/adherents` : filtre **Catégorie** (Baby JJB 3-6 ans, Ados 7-11, Ados 11-18, Adultes) + puces avec effectifs.
-- Colonne **Catégorie** dans le tableau ; l'export Excel reprend la sélection affichée.
+- Colonne **Catégorie** dans le tableau ; l’export **CSV** (s’ouvre dans Excel) reprend la sélection affichée, avec **payé**, **reste dû** et **date du dernier paiement**.
 - Filtrage basé sur `cours_selectionne` (catégorie d'inscription, alignée sur les tranches d'âge).
 
 ## Charte sportive PDF téléchargeable (2026-07-24)
@@ -126,6 +144,7 @@ Alignés site + admin papier :
 - Les admins peuvent **corriger / mettre à jour** un profil depuis **Inscriptions** et **Adhérents**.
 - Modal partagé `EditProfileModal` + action `updateInscriptionProfileAction` (Zod `editProfileSchema`).
 - Champs éditables : identité (nom, prénom, date de naissance, sexe), contact (email, téléphone), adresse, mensurations / taille de tenue, responsable légal (mineur), consentements (RGPD, règlement, charte, assurance), **droit à l'image** (photos site & réseaux), autorisations mineur (pratique, soins, transport, sortie seule).
+- **Catégorie de cours (dérogation)** : un adolescent peut être placé en **adultes mixte** (ou section femmes) ; une femme peut passer **section femmes ↔ mixte** (et revenir en ados si encore mineure). Le **tarif de la nouvelle catégorie** s’applique, le déjà payé est conservé.
 - Recalcule `dossier_status` après modification des consentements.
 - Bouton **Modifier** dans la fiche détail (les deux écrans) ; la liste se met à jour immédiatement.
 
@@ -191,10 +210,10 @@ Alignés site + admin papier :
 - `supabase link` CLI : nécessite access token ; `db push --db-url` via pooler OK.
 - Ancien projet free inaccessible → pas de migration de données.
 - **Fix login admin (2026-07-17)** : `LoginForm` → `auth-browser.ts` (pas `auth.ts` / `next/headers`).
+- **Fix 2026-09-04** : enregistrement d’un paiement (dont la **date de réception**) échouait avec `column inscriptions.questionnaire_sante does not exist`. Les SELECT admin relancent sans les colonnes absentes. La migration `20260904120000_questionnaire_sante_attestation.sql` reste à pousser sur Supabase pour persister les attestations QS.
+- **Membre du bureau** : persisté via `type_tarif = 'bureau'` (cotisation 0, hors CA). La colonne `membre_bureau` n’est pas encore sur le remote (`20260904140000_membre_bureau.sql` à pousser) ; les écritures n’en dépendent plus.
 
 ## Comment tester
-
-1. `npm run dev` → http://localhost:3000
 2. `/inscription` → étape Tarifs : choisir mode + 1/2/3 fois → valider → confirmation affiche le choix
 3. `/admin` → login `pretoriamma94@gmail.com`
 4. Accueil : tuiles réelles (Inscriptions, Paiements, Contact, Actualités)

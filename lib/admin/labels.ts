@@ -1,5 +1,7 @@
 /** Libellés métier FR pour l’espace admin. */
 
+import { isMembreBureau } from '@/lib/admin/membre-bureau';
+
 export const INSCRIPTION_STATUS_LABELS: Record<string, string> = {
   pending_payment: 'Paiement en attente',
   paid: 'Payée',
@@ -11,7 +13,7 @@ export const INSCRIPTION_STATUS_LABELS: Record<string, string> = {
 export const MODE_PAIEMENT_LABELS: Record<string, string> = {
   cash: 'Espèces',
   cheque: 'Chèque',
-  virement: 'Virement',
+  virement: 'Paiement en ligne',
 };
 
 export function getStatusLabel(status: string): string {
@@ -21,6 +23,19 @@ export function getStatusLabel(status: string): string {
 export function getModePaiementLabel(mode: string | null | undefined): string {
   if (!mode) return '—';
   return MODE_PAIEMENT_LABELS[mode] ?? mode;
+}
+
+/** Affiche un ou plusieurs modes (ex. « Espèces + Paiement en ligne »). */
+export function formatModesPaiement(
+  modes: Array<string | null | undefined>,
+): string {
+  const labels: string[] = [];
+  for (const mode of modes) {
+    const label = getModePaiementLabel(mode);
+    if (label === '—') continue;
+    if (!labels.includes(label)) labels.push(label);
+  }
+  return labels.length > 0 ? labels.join(' + ') : '—';
 }
 
 export function getStatusClasses(status: string): string {
@@ -49,6 +64,19 @@ export function soldeRestant(montantTotal: number, montantPaye: number | null | 
   return Math.max(0, Math.round((montantTotal - paye) * 100) / 100);
 }
 
+/** Reste dû en tenant compte de l’exonération bureau / staff. */
+export function resteAPayer(row: {
+  membre_bureau?: boolean | null;
+  type_tarif?: string | null;
+  montant_total: number;
+  montant_paye?: number | null;
+  status?: string;
+}): number {
+  if (row.status === 'cancelled') return 0;
+  if (isMembreBureau(row)) return 0;
+  return soldeRestant(row.montant_total, row.montant_paye);
+}
+
 export type RecettesClub = {
   /** Somme des cotisations dues (inscriptions actives). */
   totalDu: number;
@@ -68,6 +96,8 @@ export function computeRecettesClub(
     montant_total: number;
     montant_paye: number | null | undefined;
     status?: string;
+    membre_bureau?: boolean | null;
+    type_tarif?: string | null;
   }>,
 ): RecettesClub {
   let totalDu = 0;
@@ -75,8 +105,10 @@ export function computeRecettesClub(
   let totalEnAttente = 0;
   let nbSoldesOuverts = 0;
 
-  for (const row of rows) {
-    if (row.status === 'cancelled') continue;
+  const actifs = rows.filter((r) => r.status !== 'cancelled');
+  const cotisants = actifs.filter((r) => !isMembreBureau(r));
+
+  for (const row of cotisants) {
     const total = Number(row.montant_total) || 0;
     const paye = Math.min(Math.max(0, Number(row.montant_paye) || 0), total);
     const reste = soldeRestant(total, paye);
@@ -91,7 +123,7 @@ export function computeRecettesClub(
     totalEncaisse: Math.round(totalEncaisse * 100) / 100,
     totalEnAttente: Math.round(totalEnAttente * 100) / 100,
     nbSoldesOuverts,
-    nbAdherents: rows.filter((r) => r.status !== 'cancelled').length,
+    nbAdherents: cotisants.length,
   };
 }
 
@@ -99,7 +131,9 @@ export function isPaiementPartiel(
   montantTotal: number,
   montantPaye: number | null | undefined,
   status: string,
+  membreBureau?: boolean | null,
 ): boolean {
+  if (membreBureau) return false;
   const paye = montantPaye ?? 0;
   return paye > 0 && paye < montantTotal && status !== 'cancelled' && status !== 'finalized';
 }
@@ -132,9 +166,14 @@ export function getPaiementStatutLabel(
   montantTotal: number,
   montantPaye: number | null | undefined,
   status: string,
+  membreBureau?: boolean | null,
 ): string {
+  if (isMembreBureau({ membre_bureau: membreBureau })) return 'Offert';
   if (status === 'cancelled') return 'Non payé';
   const paye = montantPaye ?? 0;
+  if (montantTotal <= 0 && (status === 'paid' || status === 'validated' || status === 'finalized')) {
+    return 'Offert';
+  }
   if (paye <= 0) return 'Non payé';
   if (paye >= montantTotal) return 'Payé';
   return 'Partiel';
@@ -144,10 +183,12 @@ export function getPaiementStatutClasses(
   montantTotal: number,
   montantPaye: number | null | undefined,
   status: string,
+  membreBureau?: boolean | null,
 ): string {
-  const label = getPaiementStatutLabel(montantTotal, montantPaye, status);
+  const label = getPaiementStatutLabel(montantTotal, montantPaye, status, membreBureau);
   switch (label) {
     case 'Payé':
+    case 'Offert':
       return 'bg-emerald-900/40 text-emerald-200 border-emerald-700/70';
     case 'Partiel':
       return 'bg-amber-900/40 text-amber-200 border-amber-700/70';

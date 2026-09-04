@@ -35,12 +35,97 @@ const optionalMeasureField = z
   .optional()
   .transform((v) => parseOptionalMeasure(v));
 
-export const COURS_OPTIONS = [
-  { id: 'baby', label: 'Baby JJB (3-6 ans)', prix: 200, emoji: '🥋', ageMin: 3, ageMax: 6 },
-  { id: 'ados_7_11', label: 'Ados 7-11 ans', prix: 250, emoji: '🥊', ageMin: 7, ageMax: 11 },
-  { id: 'ados_11_18', label: 'Ados 11-18 ans', prix: 250, emoji: '💪', ageMin: 11, ageMax: 18 },
-  { id: 'adultes', label: 'Adultes', prix: 300, emoji: '🔥', ageMin: 18, ageMax: 120 },
+export const FILIERE_OPTIONS = [
+  { id: 'mma', label: 'MMA', emoji: '🥊' },
+  { id: 'baby', label: 'Baby JJB (3-7 ans)', emoji: '🥋' },
 ] as const;
+
+export const COURS_OPTIONS = [
+  { id: 'baby', label: 'Baby JJB (3-7 ans)', prix: 200, emoji: '🥋', ageMin: 3, ageMax: 7 },
+  { id: 'mma_enfants', label: 'MMA Enfants', prix: 250, emoji: '🥊', ageMin: 7, ageMax: 11 },
+  { id: 'mma_ados', label: 'MMA Adolescents', prix: 250, emoji: '💪', ageMin: 12, ageMax: 17 },
+  { id: 'mma_mixte', label: 'Adultes mixte', prix: 300, emoji: '🔥', ageMin: 18, ageMax: 120 },
+  { id: 'mma_femmes', label: 'Section femmes', prix: 200, emoji: '🥊', ageMin: 18, ageMax: 120 },
+] as const;
+
+export type FormuleAdulte = 'mixte' | 'femmes';
+
+const LEGACY_COURS_LABELS: Record<string, string> = {
+  mma: 'MMA',
+  ados_7_11: 'Ados 7-11 ans',
+  ados_11_18: 'Ados 11-18 ans',
+  adultes: 'Adultes',
+};
+
+const MMA_COURS_IDS = new Set([
+  'mma',
+  'mma_enfants',
+  'mma_ados',
+  'mma_mixte',
+  'mma_femmes',
+  'ados_7_11',
+  'ados_11_18',
+  'adultes',
+]);
+
+export function getCoursLabel(coursId: string): string {
+  const current = COURS_OPTIONS.find((c) => c.id === coursId);
+  if (current) return current.label;
+  return LEGACY_COURS_LABELS[coursId] ?? (coursId || '—');
+}
+
+export function coursFilterBucket(coursId: string): 'mma' | 'baby' | string {
+  if (coursId === 'baby') return 'baby';
+  if (coursId === 'ados_7_11') return 'mma_enfants';
+  if (coursId === 'ados_11_18') return 'mma_ados';
+  if (coursId === 'adultes' || coursId === 'mma') return 'mma_mixte';
+  if (MMA_COURS_IDS.has(coursId)) return coursId;
+  return coursId;
+}
+
+export function matchesCoursFilter(coursId: string, filter: string): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'mma') return MMA_COURS_IDS.has(coursId);
+  return coursFilterBucket(coursId) === filter;
+}
+
+/** Tarif saison 2026-2027 : Baby 200 € · Enfants/Ados 250 € · Section femmes 200 € · Adultes mixte 300 €. */
+export function getCoursPrix(
+  filiere: 'mma' | 'baby',
+  dateNaissance?: string,
+  formuleAdulte?: FormuleAdulte | '',
+): number {
+  if (filiere === 'baby') return 200;
+  if (dateNaissance && isMinor(dateNaissance)) return 250;
+  if (formuleAdulte === 'femmes') return 200;
+  return 300;
+}
+
+export function getTarifLibelle(
+  filiere: 'mma' | 'baby',
+  dateNaissance?: string,
+  formuleAdulte?: FormuleAdulte | '',
+): string {
+  if (filiere === 'baby') return 'Baby JJB';
+  if (dateNaissance && isMinor(dateNaissance)) {
+    const age = Math.floor(getAgeFromBirthDate(dateNaissance));
+    return age < 12 ? 'MMA — Enfants' : 'MMA — Adolescents';
+  }
+  if (formuleAdulte === 'femmes') return 'MMA — Section femmes';
+  return 'MMA — Adultes mixte';
+}
+
+export function resolveCoursSelectionne(
+  filiere: 'mma' | 'baby',
+  dateNaissance: string,
+  formuleAdulte?: FormuleAdulte | '',
+): string {
+  if (filiere === 'baby') return 'baby';
+  if (isMinor(dateNaissance)) {
+    return Math.floor(getAgeFromBirthDate(dateNaissance)) < 12 ? 'mma_enfants' : 'mma_ados';
+  }
+  return formuleAdulte === 'femmes' ? 'mma_femmes' : 'mma_mixte';
+}
 
 export function getAgeFromBirthDate(dateStr: string): number {
   if (!dateStr) return 0;
@@ -199,47 +284,70 @@ export const stepSanteSchema = z.object({
   engagementCertificat: z.boolean().optional(),
 });
 
-/** Étape 5 — Autorisations. */
+/** Étape Autorisations — alignée sur les formulaires papier MMA / Baby JJB. */
 export const stepAutorisationsSchema = z
   .object({
+    filiere: z.enum(['mma', 'baby']).optional(),
     typeProfil: z.enum(['adulte', 'mineur']),
-    accepteReglement: z.boolean(),
-    accepteCharte: z.boolean(),
-    autorisationPratiqueMineur: z.boolean().optional(),
-    autorisationSoinsUrgence: z.boolean().optional(),
-    acceptePhotos: z.boolean().optional(),
-    autoriseTransport: z.boolean().optional(),
+    informeAssurance: z.boolean().optional(),
+    informeDroitAcces: z.boolean().optional(),
+    accepteReglement: z.boolean().optional(),
+    accepteCharte: z.boolean().optional(),
+    autoriseSortieSeul: z.boolean().optional().nullable(),
+    autoriseVoiturePrivee: z.boolean().optional().nullable(),
+    acceptePhotos: z.boolean().optional().nullable(),
   })
   .superRefine((data, ctx) => {
-    if (!data.accepteReglement) {
+    if (data.informeAssurance !== true) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Acceptation du règlement intérieur requise',
+        message: 'Merci de confirmer cette information',
+        path: ['informeAssurance'],
+      });
+    }
+    if (data.informeDroitAcces !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Merci de confirmer cette information',
+        path: ['informeDroitAcces'],
+      });
+    }
+
+    const mineur = data.typeProfil === 'mineur' || data.filiere === 'baby';
+    const isBaby = data.filiere === 'baby';
+
+    if (mineur && !isBaby) {
+      if (data.autoriseSortieSeul !== true && data.autoriseSortieSeul !== false) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Réponse Oui ou Non requise',
+          path: ['autoriseSortieSeul'],
+        });
+      }
+    }
+    if (mineur) {
+      if (data.autoriseVoiturePrivee !== true && data.autoriseVoiturePrivee !== false) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Réponse Oui ou Non requise',
+          path: ['autoriseVoiturePrivee'],
+        });
+      }
+    }
+    if (data.acceptePhotos !== true && data.acceptePhotos !== false) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Réponse Oui ou Non requise',
+        path: ['acceptePhotos'],
+      });
+    }
+
+    if (data.accepteReglement !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Lu et approuvé obligatoire pour poursuivre',
         path: ['accepteReglement'],
       });
-    }
-    if (!data.accepteCharte) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Acceptation de la charte requise',
-        path: ['accepteCharte'],
-      });
-    }
-    if (data.typeProfil === 'mineur') {
-      if (!data.autorisationPratiqueMineur) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Autorisation parentale de pratique requise',
-          path: ['autorisationPratiqueMineur'],
-        });
-      }
-      if (!data.autorisationSoinsUrgence) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Autorisation de soins en cas d’urgence requise',
-          path: ['autorisationSoinsUrgence'],
-        });
-      }
     }
   });
 
@@ -252,8 +360,8 @@ export const stepRgpdSchema = z.object({
 
 /** Étape 7 — Cours + paiement. */
 export const stepCoursSchema = z.object({
-  cours: z.enum(['baby', 'ados_7_11', 'ados_11_18', 'adultes'], {
-    required_error: 'Sélectionnez un cours',
+  cours: z.enum(['mma', 'baby'], {
+    required_error: 'Sélectionnez une activité',
   }),
 });
 
@@ -384,8 +492,8 @@ export const step1Schema = z
   });
 
 export const step2Schema = z.object({
-  cours: z.enum(['baby', 'ados_7_11', 'ados_11_18', 'adultes'], {
-    required_error: 'Sélectionnez un cours',
+  cours: z.enum(['mma', 'baby'], {
+    required_error: 'Sélectionnez une activité',
   }),
   inscriptionFamiliale: z.boolean().default(false),
   nom2: z.string().optional(),
@@ -401,13 +509,13 @@ export const step2Schema = z.object({
   telephoneResponsable2: z.string().optional(),
   emailResponsable2: z.string().optional(),
   lienParente2: z.enum(['pere', 'mere', 'tuteur']).optional(),
-  cours2: z.enum(['baby', 'ados_7_11', 'ados_11_18', 'adultes']).optional(),
+  cours2: z.enum(['mma', 'baby']).optional(),
 });
 
 export const MODE_PAIEMENT_OPTIONS = [
   { id: 'cash', label: 'Espèces' },
   { id: 'cheque', label: 'Chèque' },
-  { id: 'virement', label: 'Virement' },
+  { id: 'virement', label: 'Paiement en ligne' },
 ] as const;
 
 export const ECHEANCES_OPTIONS = [

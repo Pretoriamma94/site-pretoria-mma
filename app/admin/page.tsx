@@ -2,9 +2,9 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getAuthUser, isAdminUser } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { computeRecettesClub, formatEuros, soldeRestant } from '@/lib/admin/labels';
+import { computeRecettesClub, formatEuros, resteAPayer } from '@/lib/admin/labels';
 import { getDocumentsChecklist } from '@/lib/admin/documents';
-import { ADMIN_INSCRIPTION_SELECT } from '@/lib/admin/inscription-fields';
+import { ADMIN_INSCRIPTION_SELECT, missingDbColumn, withoutSelectColumn } from '@/lib/admin/inscription-fields';
 import { getCurrentSchoolYear } from '@/lib/admin/school-year';
 import type { AdminInscription } from './AdminInscriptionsTable';
 import { cn } from '@/lib/utils';
@@ -39,23 +39,35 @@ export default async function AdminHomePage() {
       .in('dossier_status', ['pre_inscrit', 'incomplet']),
     supabase
       .from('inscriptions')
-      .select('montant_total, montant_paye, status')
+      .select('montant_total, montant_paye, status, type_tarif')
       .eq('annee_scolaire', annee)
       .neq('status', 'cancelled'),
-    supabase
-      .from('inscriptions')
-      .select(ADMIN_INSCRIPTION_SELECT)
-      .eq('annee_scolaire', annee)
-      .neq('status', 'cancelled')
-      .or(
-        [
-          'certificat_engagement_3_semaines.eq.true',
-          'photo_engagement_3_semaines.eq.true',
-          'certificat_medical_url.is.null',
-          'photo_url.is.null',
-        ].join(','),
-      )
-      .limit(200),
+    (async () => {
+      let select = ADMIN_INSCRIPTION_SELECT;
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const result = await supabase
+          .from('inscriptions')
+          .select(select)
+          .eq('annee_scolaire', annee)
+          .neq('status', 'cancelled')
+          .or(
+            [
+              'certificat_engagement_3_semaines.eq.true',
+              'photo_engagement_3_semaines.eq.true',
+              'certificat_medical_url.is.null',
+              'photo_url.is.null',
+            ].join(','),
+          )
+          .limit(200);
+        if (!result.error) return result;
+        const missing = missingDbColumn(result.error.message);
+        if (!missing || !select.split(',').map((part) => part.trim()).includes(missing)) {
+          return result;
+        }
+        select = withoutSelectColumn(select, missing);
+      }
+      return { data: [] as never[], error: null };
+    })(),
     supabase
       .from('contact_messages')
       .select('id', { count: 'exact', head: true })
@@ -64,9 +76,7 @@ export default async function AdminHomePage() {
   ]);
 
   const recettes = computeRecettesClub(allForSoldes ?? []);
-  const dues = (allForSoldes ?? []).filter(
-    (r) => soldeRestant(Number(r.montant_total), r.montant_paye) > 0,
-  );
+  const dues = (allForSoldes ?? []).filter((r) => resteAPayer(r) > 0);
 
   const docsMissingCount = ((docsCandidates ?? []) as unknown as AdminInscription[]).filter(
     (r) => getDocumentsChecklist(r).hasMissing,

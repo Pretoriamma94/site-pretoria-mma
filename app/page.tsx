@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PostCard } from '@/components/PostCard';
 import { FaqSection } from '@/components/FaqSection';
+import { COURS_ACCUEIL } from '@/lib/club/planning';
 import {
   Users,
   Trophy,
@@ -60,48 +61,7 @@ const whyJoinCards = [
   },
 ];
 
-const coursesGrid = [
-  {
-    title: 'Baby JJB (3-6 ans)',
-    icon: '🥋',
-    badge: 'Dès 3 ans',
-    description: 'Initiation ludique au Jiu-Jitsu Brésilien',
-    horaires: ['Samedi 15h-16h'],
-    lieu: 'Gymnase Pierre de Coubertin',
-    prix: '200€/an',
-  },
-  {
-    title: 'Ados (7-11 ans)',
-    icon: '🥊',
-    description: 'MMA et grappling adaptés aux enfants',
-    horaires: ['Mardi 17h-18h30'],
-    lieu: 'Halles des Violettes',
-    prix: '250€/an',
-  },
-  {
-    title: 'Ados (11-18 ans)',
-    icon: '💪',
-    description: 'MMA complet pour adolescents',
-    horaires: [
-      'Mardi 18h30-20h (Halles des Violettes)',
-      'Samedi 16h-17h30 (Gymnase Pierre de Coubertin)',
-    ],
-    prix: '250€/an',
-  },
-  {
-    title: 'Adultes (Mixte)',
-    icon: '🔥',
-    badge: 'Populaire',
-    description: 'Boxe, Grappling et MMA tous niveaux',
-    horaires: [
-      'Lundi 20h30-22h30 (Boxe)',
-      'Jeudi 20h30-22h30 (Grappling)',
-      'Samedi 17h30-19h30 (MMA)',
-    ],
-    lieu: 'Gymnase Pierre de Coubertin',
-    prix: '300€/an',
-  },
-];
+const coursesGrid = COURS_ACCUEIL;
 
 const testimonials: {
   quote: string;
@@ -244,7 +204,7 @@ export default async function HomePage() {
                     </span>
                     <div>
                       <CardTitle className="text-lg">{course.title}</CardTitle>
-                      {course.badge && (
+                      {'badge' in course && course.badge && (
                         <span className="mt-1 inline-flex rounded-full bg-red-600/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-red-400">
                           {course.badge}
                         </span>
@@ -268,7 +228,7 @@ export default async function HomePage() {
                     )}
                   </div>
                 )}
-                {course.lieu && (
+                {'lieu' in course && course.lieu && (
                   <p className="text-xs text-zinc-400">Lieu : {course.lieu}</p>
                 )}
                 {course.prix && (

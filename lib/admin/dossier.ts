@@ -1,4 +1,8 @@
-import { type DocsSource } from '@/lib/admin/documents';
+import {
+  getDocumentsChecklist,
+  isCertificatDispenseParQuestionnaire,
+  type DocsSource,
+} from '@/lib/admin/documents';
 import { soldeRestant } from '@/lib/admin/labels';
 
 type DossierSource = DocsSource & {
@@ -13,8 +17,10 @@ type DossierSource = DocsSource & {
  * (Autorisations parentales mineurs = réponses Oui/Non numériques, pas de PDF.)
  */
 export function isDocumentsComplets(row: DocsSource): boolean {
-  if (!row.certificat_medical_url) return false;
+  if (!row.certificat_medical_url && !isCertificatDispenseParQuestionnaire(row)) return false;
   if (!row.photo_url) return false;
+  const docs = getDocumentsChecklist(row);
+  if (docs.questionnaire === 'missing') return false;
   return true;
 }
 

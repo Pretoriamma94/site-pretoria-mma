@@ -1,79 +1,7 @@
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-
-const horaires = [
-  {
-    jour: 'LUNDI',
-    horaire: '20h30 - 22h30',
-    categorie: 'Adulte',
-    discipline: 'Boxe (anglaise, française)',
-    lieu: 'Gymnase Pierre de Coubertin',
-  },
-  {
-    jour: 'MARDI',
-    horaire: '17h00 - 18h30',
-    categorie: 'Ados 7-11 ans',
-    discipline: 'MMA / Grappling',
-    lieu: 'Halles des Violettes',
-  },
-  {
-    jour: 'MARDI',
-    horaire: '18h30 - 20h00',
-    categorie: 'Ados 11-18 ans',
-    discipline: 'MMA / Grappling',
-    lieu: 'Halles des Violettes',
-  },
-  {
-    jour: 'JEUDI',
-    horaire: '20h30 - 22h30',
-    categorie: 'Adulte',
-    discipline: 'Sol (Grappling)',
-    lieu: 'Gymnase Pierre de Coubertin',
-  },
-  {
-    jour: 'SAMEDI',
-    horaire: '15h00 - 16h00',
-    categorie: 'Baby JJB (3-6 ans)',
-    discipline: 'Jiu-Jitsu Brésilien',
-    lieu: 'Gymnase Pierre de Coubertin',
-  },
-  {
-    jour: 'SAMEDI',
-    horaire: '16h00 - 17h30',
-    categorie: 'Ados 11-18 ans',
-    discipline: 'MMA / Grappling',
-    lieu: 'Gymnase Pierre de Coubertin',
-  },
-  {
-    jour: 'SAMEDI',
-    horaire: '17h30 - 19h30',
-    categorie: 'Adulte',
-    discipline: 'MMA',
-    lieu: 'Gymnase Pierre de Coubertin',
-  },
-];
-
-const individualTarifs = [
-  {
-    title: 'Baby JJB',
-    price: '200€/an',
-    category: '3-6 ans',
-    details: ['Samedi 15h-16h', 'Inclus : 1h par semaine'],
-  },
-  {
-    title: 'Cours ados',
-    price: '250€/an',
-    category: '7-18 ans',
-    details: ['2 créneaux disponibles', 'Inclus : 1h30 par semaine'],
-  },
-  {
-    title: 'Cours adultes',
-    price: '300€/an',
-    category: 'Tous niveaux',
-    details: ['3 créneaux disponibles', 'Inclus : 2h par séance'],
-    badge: 'POPULAIRE',
-  },
-];
+import { HORAIRES_COURS, TARIFS_INDIVIDUELS } from '@/lib/club/planning';
 
 const familyPacks = [
   {
@@ -138,7 +66,7 @@ export default function CoursPage() {
                 </tr>
               </thead>
               <tbody>
-                {horaires.map((row) => (
+                {HORAIRES_COURS.map((row) => (
                   <tr key={`${row.jour}-${row.horaire}-${row.categorie}`} className="border-t border-gray-800">
                     <td className="px-4 py-3 text-sm font-semibold text-white">{row.jour}</td>
                     <td className="px-4 py-3 text-sm text-gray-200">{row.horaire}</td>
@@ -153,7 +81,7 @@ export default function CoursPage() {
 
           {/* Cards mobile */}
           <div className="block space-y-4 p-4 md:hidden">
-            {horaires.map((row) => (
+            {HORAIRES_COURS.map((row) => (
               <div
                 key={`${row.jour}-${row.horaire}-${row.categorie}-card`}
                 className="rounded-2xl border border-gray-800 bg-gray-900 p-4 text-sm text-white"
@@ -181,10 +109,10 @@ export default function CoursPage() {
       {/* TARIFS INDIVIDUELS */}
       <section className="mt-10">
         <h2 className="font-display text-xl uppercase tracking-[0.2em] text-white">
-          Tarifs individuels (année 2025/2026)
+          Tarifs individuels (année 2026/2027)
         </h2>
-        <div className="mt-4 grid gap-6 md:grid-cols-3">
-          {individualTarifs.map((t) => (
+        <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {TARIFS_INDIVIDUELS.map((t) => (
             <Card
               key={t.title}
               className="bg-gray-900 border border-gray-800 transition hover:border-red-600"
@@ -192,7 +120,7 @@ export default function CoursPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>{t.title}</CardTitle>
-                  {t.badge && (
+                  {'badge' in t && t.badge && (
                     <span className="rounded-full bg-red-600/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-red-400">
                       {t.badge}
                     </span>
@@ -238,22 +166,32 @@ export default function CoursPage() {
         </div>
       </section>
 
-      <section className="mt-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="font-display text-xl uppercase tracking-[0.2em] text-white">
-            Planning PDF
-          </h2>
-          <p className="mt-2 text-sm text-zinc-300">
-            Téléchargez le planning complet des cours au format PDF avec toutes les informations
-            pratiques.
-          </p>
+      <section className="mt-10">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="font-display text-xl uppercase tracking-[0.2em] text-white">
+              Planning des cours
+            </h2>
+            <p className="mt-2 text-sm text-zinc-300">
+              Planning officiel par groupe : Baby JJB, enfants, ados, section 100 % femmes et
+              adultes mixte.
+            </p>
+          </div>
+          <Button variant="outline" size="lg" asChild>
+            <a href="/images/planning-hebdomadaire.jpg" download="planning-pretoria-mma.jpg">
+              Télécharger le planning
+            </a>
+          </Button>
         </div>
-        <Button variant="outline" size="lg" asChild>
-          {/* TODO: relier vers un PDF stocké dans Supabase Storage bucket "documents" */}
-          <a href="/planning.pdf" download>
-            Télécharger le planning PDF
-          </a>
-        </Button>
+        <div className="mt-6 overflow-hidden rounded-2xl border border-gray-800 bg-gray-900">
+          <Image
+            src="/images/planning-hebdomadaire.jpg"
+            alt="Planning hebdomadaire Pretoria MMA : Baby JJB, enfants, ados, 100 % femmes et adultes mixte"
+            width={1600}
+            height={1100}
+            className="h-auto w-full"
+          />
+        </div>
       </section>
 
       <section className="mt-10">

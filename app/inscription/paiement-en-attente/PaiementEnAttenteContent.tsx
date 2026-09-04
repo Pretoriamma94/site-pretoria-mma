@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { HelloAssoPaiementBlock } from '@/components/inscription/HelloAssoPaiementBlock';
 import {
   MODE_PAIEMENT_OPTIONS,
   montantParEcheance,
@@ -32,7 +33,8 @@ export function PaiementEnAttenteContent() {
   const emailSentParam = searchParams.get('emailSent');
   const emailSent =
     emailSentParam === '1' ? true : emailSentParam === '0' ? false : null;
-  const docsManquants = searchParams.get('docs') !== 'complets';
+  const isPaiementEnLigne = modeParam === 'virement';
+  const docsManquants = searchParams.get('docs') === 'manquants';
 
   const hasParams = Boolean(nom || prenom || cours || montant);
 
@@ -65,7 +67,7 @@ export function PaiementEnAttenteContent() {
             Inscription enregistrée
           </h1>
           <p className="mt-4 text-sm text-zinc-300 md:text-base">
-            Merci ! Votre demande a bien été prise en compte. Le paiement se fait au club.
+            Merci ! Votre demande a bien été prise en compte.
           </p>
         </section>
 
@@ -78,19 +80,31 @@ export function PaiementEnAttenteContent() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm text-zinc-200">
                   <p>
-                    1. Réglez votre cotisation au club
-                    {modeLabel
-                      ? ` en ${modeLabel.toLowerCase()}`
-                      : ' (espèces, chèque ou virement)'}
-                    {echeances != null
-                      ? echeances === 1
-                        ? ' en une fois'
-                        : ` en ${echeances} fois`
-                      : ''}
-                    .
+                    {isPaiementEnLigne ? (
+                      <>
+                        1. Réglez votre cotisation en ligne sur HelloAsso (nouvel onglet). Si vous
+                        choisissez le paiement en 3 fois, seule la 1<sup>re</sup> échéance est
+                        prélevée aujourd&apos;hui — revenez ensuite sur cette page.
+                      </>
+                    ) : (
+                      <>
+                        1. Réglez votre cotisation au club
+                        {modeLabel
+                          ? ` en ${modeLabel.toLowerCase()}`
+                          : ' (espèces ou chèque)'}
+                        {echeances != null
+                          ? echeances === 1
+                            ? ' en une fois'
+                            : ` en ${echeances} fois`
+                          : ''}
+                        .
+                      </>
+                    )}
                   </p>
                   <p>
-                    2. Une fois le paiement validé par le club, votre inscription sera finalisée.
+                    2. Une fois le paiement validé
+                    {isPaiementEnLigne ? ' (au moins la 1re échéance HelloAsso)' : ' par le club'}
+                    , votre inscription sera finalisée.
                   </p>
                 </CardContent>
               </Card>
@@ -147,6 +161,12 @@ export function PaiementEnAttenteContent() {
                 </CardContent>
               </Card>
             </section>
+
+            {isPaiementEnLigne ? (
+              <section className="mt-8">
+                <HelloAssoPaiementBlock />
+              </section>
+            ) : null}
 
             {token ? (
               <section className="mt-8">
@@ -207,7 +227,15 @@ export function PaiementEnAttenteContent() {
               <Card className="border-zinc-700 bg-zinc-900/80">
                 <CardContent className="text-sm text-zinc-200">
                   <p>
-                    Présentez-vous au club pour régler selon le mode choisi. Pour toute question :{' '}
+                    {isPaiementEnLigne ? (
+                      <>
+                        Le paiement en ligne se fait sur HelloAsso. Espèces et chèque se règlent au
+                        club.{' '}
+                      </>
+                    ) : (
+                      <>Présentez-vous au club pour régler selon le mode choisi. </>
+                    )}
+                    Pour toute question :{' '}
                     <Link href="/contact" className="text-red-400 underline hover:text-red-300">
                       contactez-nous
                     </Link>

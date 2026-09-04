@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   formatEuros,
+  formatModesPaiement,
   getModePaiementLabel,
 } from '@/lib/admin/labels';
 import {
@@ -15,6 +16,8 @@ type Props = {
   inscriptionId: string;
   /** Permet d’ajouter immédiatement un paiement sans recharger */
   extraPaiement?: InscriptionPaiementRow | null;
+  /** Version compacte (modal d’enregistrement). */
+  compact?: boolean;
 };
 
 function formatDateReception(value: string): string {
@@ -30,6 +33,7 @@ function formatDateReception(value: string): string {
 export function InscriptionPaiementsHistory({
   inscriptionId,
   extraPaiement,
+  compact = false,
 }: Props) {
   const [paiements, setPaiements] = useState<InscriptionPaiementRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,11 +87,22 @@ export function InscriptionPaiementsHistory({
     }
   };
 
+  const modesLabel = formatModesPaiement(paiements.map((p) => p.mode_paiement));
+
   return (
-    <div className="mt-4 border-t border-zinc-800 pt-4 text-xs">
+    <div
+      className={
+        compact ? 'mt-3 text-xs' : 'mt-4 border-t border-zinc-800 pt-4 text-xs'
+      }
+    >
       <p className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-zinc-400">
-        Historique des paiements
+        {compact ? 'Versements déjà enregistrés' : 'Historique des paiements'}
       </p>
+      {paiements.length > 1 && modesLabel !== '—' ? (
+        <p className="mt-1 text-[0.7rem] text-zinc-300">
+          Modes combinés : <span className="font-semibold text-white">{modesLabel}</span>
+        </p>
+      ) : null}
 
       {loading ? (
         <p className="mt-2 text-zinc-500">Chargement…</p>

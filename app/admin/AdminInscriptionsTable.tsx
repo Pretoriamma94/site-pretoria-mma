@@ -4,28 +4,30 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { COURS_OPTIONS } from '@/lib/inscription/schema';
+import { getCoursLabel } from '@/lib/inscription/schema';
 import {
   formatEuros,
-  getModePaiementLabel,
+  formatModesPaiement,
   getStatusLabel,
   getDossierStatusLabel,
   getDossierStatusClasses,
   getPaiementStatutLabel,
   getPaiementStatutClasses,
   isPaiementPartiel,
+  resteAPayer,
   soldeRestant,
 } from '@/lib/admin/labels';
 import {
   isDocumentsAlerte21Jours,
 } from '@/lib/admin/dossier-status';
 import {
+  getAdminDocumentSlots,
   getDocStatusClasses,
   getDocStatusLabel,
   getDocumentsChecklist,
 } from '@/lib/admin/documents';
 import { getDocumentsCountdown } from '@/lib/admin/document-deadline';
-import { deleteInscriptionAction, updateInscriptionStatusAction } from './actions';
+import { deleteInscriptionAction, setMembreBureauAction, setVoieInscriptionAction, updateInscriptionStatusAction } from './actions';
 import type { InscriptionPaiementRow } from './actions';
 import { PaymentFormModal } from './PaymentFormModal';
 import { InscriptionDocumentDownloads } from './InscriptionDocumentDownloads';
@@ -40,6 +42,18 @@ import {
   InscriptionsLegend,
 } from './inscriptions-table-ui';
 import { PhotoPublicationBadge } from '@/components/admin/PhotoPublicationBadge';
+import { MembreBureauBadge } from '@/components/admin/MembreBureauBadge';
+import { VoieInscriptionBadge } from '@/components/admin/InscriptionManuelleBadge';
+import { isMembreBureau } from '@/lib/admin/membre-bureau';
+import { isInscriptionManuelle } from '@/lib/admin/voie-inscription';
+import { AutorisationsFiche, OuiNonIndicateur } from '@/components/admin/AutorisationsFiche';
+import { AttestationSanteFiche } from '@/components/admin/AttestationSanteFiche';
+import {
+  CertificatDelaiBanner,
+  PhotoDelaiBanner,
+  isCertificatAlerte3Semaines,
+  isPhotoAlerte3Semaines,
+} from '@/components/admin/CertificatDelaiBanner';
 
 export type AdminInscription = {
   id: string;
@@ -83,11 +97,12 @@ export type AdminInscription = {
   montant_paye: number | null;
   taille_cm: number | null;
   poids_kg: number | null;
-  taille_tenue: string | null;
   sexe: 'homme' | 'femme' | null;
   type_profil: 'adulte' | 'mineur' | null;
   dossier_status: 'pre_inscrit' | 'incomplet' | 'complet' | null;
-  attestation_questionnaire_sante: boolean | null;
+  attestation_questionnaire_sante?: boolean | null;
+  questionnaire_sante?: unknown;
+  questionnaire_sante_url?: string | null;
   autorisation_pratique_mineur: boolean | null;
   autorisation_soins_urgence: boolean | null;
   accepte_rgpd: boolean | null;
@@ -95,6 +110,8 @@ export type AdminInscription = {
   created_at: string;
   updated_at: string | null;
   expires_at: string | null;
+  membre_bureau?: boolean | null;
+  voie_inscription?: string | null;
 };
 
 type Props = {
@@ -107,13 +124,11 @@ type Props = {
   anneeFilter: string;
   yearOptions: string[];
   query: string;
+  paiementModesById?: Record<string, string[]>;
 };
 
 type ToastState = { type: 'success' | 'error'; message: string } | null;
 
-function getCoursLabel(id: string) {
-  return COURS_OPTIONS.find((c) => c.id === id)?.label ?? id;
-}
 
 export function AdminInscriptionsTable({
   initialRows,
@@ -125,9 +140,11 @@ export function AdminInscriptionsTable({
   anneeFilter,
   yearOptions,
   query,
+  paiementModesById: initialPaiementModesById = {},
 }: Props) {
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
+  const [paiementModesById, setPaiementModesById] = useState(initialPaiementModesById);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
   const [selected, setSelected] = useState<AdminInscription | null>(null);
@@ -202,6 +219,38 @@ export function AdminInscriptionsTable({
       router.refresh();
     } catch {
       setToast({ type: 'error', message: 'Erreur lors de la suppression.' });
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const toggleBureau = async (row: AdminInscription, next: boolean) => {
+    setLoadingId(row.id);
+    setToast(null);
+    try {
+      const result = await setMembreBureauAction(row.id, next);
+      if (!result.success) {
+        setToast({ type: 'error', message: result.error });
+        return;
+      }
+      const patch = {
+        membre_bureau: result.membre_bureau,
+        type_tarif: result.type_tarif,
+        montant_total: result.montant_total,
+        montant_paye: result.montant_paye,
+        status: result.status,
+      };
+      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, ...patch } : r)));
+      setSelected((prev) => (prev && prev.id === row.id ? { ...prev, ...patch } : prev));
+      setToast({
+        type: 'success',
+        message: next
+          ? 'Membre du bureau : cotisation offerte, hors chiffre d’affaires.'
+          : 'Cotisation réactivée.',
+      });
+      router.refresh();
+    } catch {
+      setToast({ type: 'error', message: 'Impossible de modifier le statut bureau.' });
     } finally {
       setLoadingId(null);
     }
@@ -310,23 +359,38 @@ export function AdminInscriptionsTable({
           <thead className="border-b border-zinc-800 bg-zinc-950/80 text-[0.7rem] uppercase tracking-[0.12em] text-zinc-400">
             <tr>
               <th className="px-4 py-3">Adhérent</th>
-              <th className="px-4 py-3">Dossier</th>
+              <th className="px-4 py-3">Voie</th>
+              <th className="px-4 py-3">Statut</th>
+              <th className="px-4 py-3">Documents manquants</th>
               <th className="px-4 py-3">Paiement</th>
-              <th className="px-4 py-3">Documents</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-900">
             {rows.map((row) => {
+              const bureau = isMembreBureau(row);
               const paye = row.montant_paye ?? 0;
-              const reste = soldeRestant(row.montant_total, paye);
-              const partiel = isPaiementPartiel(row.montant_total, paye, row.status);
+              const reste = resteAPayer(row);
+              const partiel = isPaiementPartiel(row.montant_total, paye, row.status, bureau);
+              const docsCheck = getDocumentsChecklist(row);
               return (
-                <tr key={row.id} className="hover:bg-zinc-900/50">
+                <tr
+                  key={row.id}
+                  className={cn(
+                    'hover:bg-zinc-900/50',
+                    docsCheck.hasMissing && 'bg-red-950/15',
+                    !docsCheck.hasMissing && reste > 0 && 'bg-amber-950/10',
+                  )}
+                >
                   <td className="px-4 py-3.5 align-top">
                     <div className="font-semibold text-zinc-50">
                       {row.prenom} {row.nom}
                     </div>
+                    {bureau ? (
+                      <div className="mt-1">
+                        <MembreBureauBadge compact />
+                      </div>
+                    ) : null}
                     <div className="mt-0.5 text-[0.7rem] text-zinc-300">
                       {getCoursLabel(row.cours_selectionne)}
                     </div>
@@ -339,50 +403,89 @@ export function AdminInscriptionsTable({
                     ) : null}
                   </td>
                   <td className="px-4 py-3.5 align-top">
-                    <span
-                      className={cn(
-                        'inline-flex rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold',
-                        getDossierStatusClasses(row.dossier_status),
-                      )}
-                    >
-                      {getDossierStatusLabel(row.dossier_status)}
-                    </span>
-                    {isDocumentsAlerte21Jours(row) && (
-                      <p className="mt-1 text-[0.65rem] text-red-300">Docs &gt; 21 j</p>
-                    )}
-                    <InscriptionStatusBadge status={row.status} partiel={partiel} />
+                    <VoieInscriptionBadge manuelle={isInscriptionManuelle(row)} compact />
+                  </td>
+                  <td className="px-4 py-3.5 align-top">
+                    <div className="flex flex-col items-start gap-1.5">
+                      <InscriptionStatusBadge status={row.status} partiel={partiel} />
+                      <span
+                        className={cn(
+                          'inline-flex rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold',
+                          getDossierStatusClasses(row.dossier_status),
+                        )}
+                      >
+                        Dossier : {getDossierStatusLabel(row.dossier_status)}
+                      </span>
+                      {isCertificatAlerte3Semaines(row) ? (
+                        <p className="text-[0.65rem] font-semibold text-red-300">
+                          Alerte certificat (3 sem. dépassées)
+                        </p>
+                      ) : null}
+                      {isPhotoAlerte3Semaines(row) ? (
+                        <p className="text-[0.65rem] font-semibold text-red-300">
+                          Alerte photo (3 sem. dépassées)
+                        </p>
+                      ) : null}
+                      {!isCertificatAlerte3Semaines(row) &&
+                      !isPhotoAlerte3Semaines(row) &&
+                      isDocumentsAlerte21Jours(row) ? (
+                        <p className="text-[0.65rem] text-red-300">Docs &gt; 21 j</p>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 align-top">
+                    <InscriptionDocsCell row={row} />
                   </td>
                   <td className="px-4 py-3.5 align-top">
                     <span
                       className={cn(
-                        'inline-flex rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold',
-                        getPaiementStatutClasses(row.montant_total, row.montant_paye, row.status),
+                        'mb-1 inline-flex rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold',
+                        getPaiementStatutClasses(
+                          row.montant_total,
+                          row.montant_paye,
+                          row.status,
+                          bureau,
+                        ),
                       )}
                     >
-                      {getPaiementStatutLabel(row.montant_total, row.montant_paye, row.status)}
+                      {getPaiementStatutLabel(
+                        row.montant_total,
+                        row.montant_paye,
+                        row.status,
+                        bureau,
+                      )}
                     </span>
                     <InscriptionPaymentCell
                       montantTotal={row.montant_total}
                       montantPaye={row.montant_paye}
                       modePaiement={row.mode_paiement}
                       nombreEcheances={row.nombre_echeances}
+                      modesEnregistres={paiementModesById[row.id]}
+                      membreBureau={bureau}
                     />
-                  </td>
-                  <td className="px-4 py-3.5 align-top">
-                    <InscriptionDocsCell row={row} />
+                    {row.status !== 'cancelled' && !bureau && reste > 0 ? (
+                      <button
+                        type="button"
+                        className="mt-2 rounded-full bg-emerald-700 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-white hover:bg-emerald-600 disabled:opacity-60"
+                        onClick={() => setPaymentFor(row)}
+                        disabled={loadingId === row.id}
+                      >
+                        Enregistrer un paiement
+                      </button>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3.5 align-top">
                     <div className="flex flex-col items-end gap-1.5 text-[0.7rem]">
-                      {row.status !== 'cancelled' && reste > 0 && (
-                        <button
-                          type="button"
-                          className="rounded-full bg-emerald-700 px-3 py-1.5 font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
-                          onClick={() => setPaymentFor(row)}
-                          disabled={loadingId === row.id}
-                        >
-                          Paiement
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className="rounded-full border border-mma-red/70 bg-mma-red/20 px-3 py-1.5 font-semibold text-red-100 hover:bg-mma-red/30"
+                        onClick={() => {
+                          setSelected(row);
+                          setEditing(true);
+                        }}
+                      >
+                        Modifier
+                      </button>
                       <button
                         type="button"
                         className="rounded-full border border-zinc-600 bg-zinc-900 px-3 py-1.5 font-semibold text-zinc-100 hover:bg-zinc-800"
@@ -422,7 +525,7 @@ export function AdminInscriptionsTable({
                       )}
                       <button
                         type="button"
-                        className="text-[0.65rem] font-semibold text-red-400 underline-offset-2 hover:text-red-300 hover:underline disabled:opacity-60"
+                        className="rounded-full border border-red-700/70 bg-red-950/40 px-3 py-1.5 font-semibold text-red-200 hover:bg-red-900/50 disabled:opacity-60"
                         onClick={() => handleDelete(row.id)}
                         disabled={loadingId === row.id}
                       >
@@ -435,7 +538,7 @@ export function AdminInscriptionsTable({
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-zinc-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-zinc-400">
                   Aucune inscription ne correspond à ces filtres.
                 </td>
               </tr>
@@ -518,6 +621,33 @@ export function AdminInscriptionsTable({
                 <p className="text-sm">
                   {selected.prenom} {selected.nom}
                 </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <VoieInscriptionBadge manuelle={isInscriptionManuelle(selected)} />
+                  <button
+                    type="button"
+                    className="rounded-full border border-sky-500/60 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-sky-100 hover:bg-sky-950/80"
+                    onClick={() => {
+                      const next = isInscriptionManuelle(selected) ? 'en_ligne' : 'papier';
+                      void (async () => {
+                        const result = await setVoieInscriptionAction(selected.id, next);
+                        if (!result.success) {
+                          setToast({ type: 'error', message: result.error });
+                          return;
+                        }
+                        const fields = {
+                          voie_inscription: result.voie_inscription,
+                          membre_2: result.membre_2,
+                        };
+                        setSelected((prev) => (prev ? { ...prev, ...fields } : prev));
+                        setRows((prev) =>
+                          prev.map((r) => (r.id === selected.id ? { ...r, ...fields } : r)),
+                        );
+                      })();
+                    }}
+                  >
+                    {isInscriptionManuelle(selected) ? 'Marquer en ligne' : 'Marquer papier'}
+                  </button>
+                </div>
                 <p>Année scolaire : {selected.annee_scolaire || '—'}</p>
                 <p>{selected.date_naissance}</p>
                 <p>
@@ -526,95 +656,14 @@ export function AdminInscriptionsTable({
                   <br />
                   {selected.code_postal} {selected.ville}
                 </p>
-                {(selected.taille_cm != null || selected.poids_kg != null) && (
-                  <p>
-                    {selected.taille_cm != null ? `${selected.taille_cm} cm` : ''}
-                    {selected.taille_cm != null && selected.poids_kg != null ? ' · ' : ''}
-                    {selected.poids_kg != null ? `${selected.poids_kg} kg` : ''}
-                  </p>
-                )}
-                {selected.taille_tenue && (
-                  <p>Tenue : {selected.taille_tenue}</p>
-                )}
-                {(selected.autorisation_pratique_mineur != null ||
-                  selected.autorisation_soins_urgence != null ||
-                  selected.autorise_voiture_privee != null ||
-                  selected.accepte_reglement ||
-                  selected.accepte_charte ||
-                  selected.accepte_rgpd != null) && (
-                  <div className="mt-2 space-y-0.5 text-zinc-300">
-                    <p className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-zinc-400">
-                      Autorisations & consentements
-                    </p>
-                    <p>Règlement intérieur : {selected.accepte_reglement ? 'Oui' : 'Non'}</p>
-                    <p>Charte du club : {selected.accepte_charte ? 'Oui' : 'Non'}</p>
-                    <p>
-                      RGPD :{' '}
-                      {selected.accepte_rgpd || selected.informe_droit_acces ? 'Oui' : 'Non'}
-                    </p>
-                    {selected.autorisation_pratique_mineur != null && (
-                      <p>
-                        Autorisation pratique (mineur) :{' '}
-                        {selected.autorisation_pratique_mineur ? 'Oui' : 'Non'}
-                      </p>
-                    )}
-                    {selected.autorisation_soins_urgence != null && (
-                      <p>
-                        Autorisation soins urgence :{' '}
-                        {selected.autorisation_soins_urgence ? 'Oui' : 'Non'}
-                      </p>
-                    )}
-                    <p>
-                      Droit à l&apos;image :{' '}
-                      {selected.autorise_photos === true
-                        ? 'Oui'
-                        : selected.autorise_photos === false
-                          ? 'Non'
-                          : '—'}
-                    </p>
-                    {selected.autorise_voiture_privee != null && (
-                      <p>
-                        Transport encadrants :{' '}
-                        {selected.autorise_voiture_privee ? 'Oui' : 'Non'}
-                      </p>
-                    )}
-                  </div>
-                )}
-                {(selected.autorise_sortie_seul != null ||
-                  selected.autorise_voiture_privee != null ||
-                  selected.autorise_photos != null) &&
-                  selected.responsable_legal != null &&
-                  selected.autorisation_pratique_mineur == null && (
-                  <div className="mt-2 space-y-0.5 text-zinc-300">
-                    <p className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-zinc-400">
-                      Autorisations parentales (ancien format)
-                    </p>
-                    <p>
-                      Sortie seule :{' '}
-                      {selected.autorise_sortie_seul === true
-                        ? 'Oui'
-                        : selected.autorise_sortie_seul === false
-                          ? 'Non'
-                          : '—'}
-                    </p>
-                    <p>
-                      Voiture particulière :{' '}
-                      {selected.autorise_voiture_privee === true
-                        ? 'Oui'
-                        : selected.autorise_voiture_privee === false
-                          ? 'Non'
-                          : '—'}
-                    </p>
-                    <p>
-                      Photos / vidéos :{' '}
-                      {selected.autorise_photos === true
-                        ? 'Oui'
-                        : selected.autorise_photos === false
-                          ? 'Non'
-                          : '—'}
-                    </p>
-                  </div>
-                )}
+                <div className="mt-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3">
+                  <AutorisationsFiche row={selected} />
+                </div>
+                <div className="mt-3 space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3">
+                  <PhotoDelaiBanner row={selected} />
+                  <CertificatDelaiBanner row={selected} />
+                  <AttestationSanteFiche row={selected} />
+                </div>
               </div>
               <div className="space-y-1 text-xs">
                 <p className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-zinc-400">
@@ -642,36 +691,74 @@ export function AdminInscriptionsTable({
                 <p className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-zinc-400">
                   Cours & tarif
                 </p>
+                {isMembreBureau(selected) ? (
+                  <div className="mb-1">
+                    <MembreBureauBadge />
+                  </div>
+                ) : null}
                 <p>Cours : {getCoursLabel(selected.cours_selectionne)}</p>
-                <p>Type tarif : {selected.type_tarif}</p>
+                <p>Type tarif : {isMembreBureau(selected) ? 'Bureau (offert)' : selected.type_tarif}</p>
                 <p>Montant total : {formatEuros(selected.montant_total)}</p>
+                {selected.status !== 'cancelled' ? (
+                  <label className="mt-2 flex items-start gap-2 text-sm text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={isMembreBureau(selected)}
+                      disabled={loadingId === selected.id}
+                      onChange={(e) => void toggleBureau(selected, e.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-violet-600"
+                    />
+                    <span>Membre du bureau — cotisation offerte, hors CA</span>
+                  </label>
+                ) : null}
               </div>
               <div className="space-y-1 text-xs">
                 <p className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-zinc-400">
                   Paiement
                 </p>
                 <p>Statut : {getStatusLabel(selected.status)}</p>
-                <p>Mode : {getModePaiementLabel(selected.mode_paiement)}</p>
-                <p>
-                  Échéances :{' '}
-                  {selected.nombre_echeances ? `${selected.nombre_echeances} fois` : '—'}
-                </p>
-                <p>Déjà payé : {formatEuros(selected.montant_paye ?? 0)}</p>
-                <p
-                  className={
-                    soldeRestant(selected.montant_total, selected.montant_paye) > 0
-                      ? 'font-semibold text-red-400'
-                      : 'font-semibold text-emerald-300'
-                  }
-                >
-                  Reste dû :{' '}
-                  {formatEuros(soldeRestant(selected.montant_total, selected.montant_paye))}
-                </p>
-                {selected.date_paiement && (
-                  <p>
-                    Dernier règlement complet :{' '}
-                    {new Date(selected.date_paiement).toLocaleDateString('fr-FR')}
-                  </p>
+                {isMembreBureau(selected) ? (
+                  <p className="font-semibold text-violet-200">Cotisation offerte — hors chiffre d’affaires</p>
+                ) : (
+                  <>
+                    <p>
+                      Mode :{' '}
+                      {formatModesPaiement(
+                        paiementModesById[selected.id]?.length
+                          ? paiementModesById[selected.id]
+                          : [selected.mode_paiement],
+                      )}
+                    </p>
+                    <p>
+                      Échéances :{' '}
+                      {selected.nombre_echeances ? `${selected.nombre_echeances} fois` : '—'}
+                    </p>
+                    <p>Déjà payé : {formatEuros(selected.montant_paye ?? 0)}</p>
+                    <p
+                      className={
+                        resteAPayer(selected) > 0
+                          ? 'font-semibold text-red-400'
+                          : 'font-semibold text-emerald-300'
+                      }
+                    >
+                      Reste dû : {formatEuros(resteAPayer(selected))}
+                    </p>
+                    {selected.date_paiement && (
+                      <p>
+                        Dernier règlement complet :{' '}
+                        {new Date(selected.date_paiement).toLocaleDateString('fr-FR')}
+                      </p>
+                    )}
+                    {selected.status !== 'cancelled' && resteAPayer(selected) > 0 && (
+                      <button
+                        type="button"
+                        className="mt-3 rounded-full bg-emerald-700 px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-wide text-white hover:bg-emerald-600"
+                        onClick={() => setPaymentFor(selected)}
+                      >
+                        Enregistrer un paiement
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -753,6 +840,30 @@ export function AdminInscriptionsTable({
                         {pendingLabel(docsCheck.photo)}
                       </span>
                     </div>
+                    {docsCheck.questionnaire !== 'not_required' ? (
+                      <div
+                        className={cn(
+                          'rounded-xl border px-3 py-2',
+                          docsCheck.questionnaire === 'missing'
+                            ? 'border-red-600 bg-red-950/40'
+                            : 'border-zinc-800 bg-zinc-900/50',
+                        )}
+                      >
+                        <p className="text-[0.65rem] uppercase tracking-wide text-zinc-500">
+                          Questionnaire de santé (scan si pas de certificat)
+                        </p>
+                        <span
+                          className={cn(
+                            'mt-1 inline-flex rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold',
+                            getDocStatusClasses(docsCheck.questionnaire),
+                          )}
+                        >
+                          {docsCheck.questionnaire === 'missing'
+                            ? 'À joindre (PDF / JPG / PNG)'
+                            : 'Reçu'}
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-3 py-2">
                       <p className="text-[0.65rem] uppercase tracking-wide text-zinc-500">
                         Charte du club
@@ -775,11 +886,19 @@ export function AdminInscriptionsTable({
                       <ul className="mt-1 space-y-0.5 text-[0.7rem] text-zinc-300">
                         <li>
                           Assurance individuelle accident :{' '}
-                          {selected.informe_assurance_individuelle ? 'Informé' : 'Non coché'}
+                          <OuiNonIndicateur
+                            value={selected.informe_assurance_individuelle}
+                            ouiLabel="Informé"
+                            nonLabel="Non coché"
+                          />
                         </li>
                         <li>
                           Droit d&apos;accès / rectification :{' '}
-                          {selected.informe_droit_acces ? 'Informé' : 'Non coché'}
+                          <OuiNonIndicateur
+                            value={selected.informe_droit_acces}
+                            ouiLabel="Informé"
+                            nonLabel="Non coché"
+                          />
                         </li>
                       </ul>
                     </div>
@@ -794,18 +913,7 @@ export function AdminInscriptionsTable({
                   )}
                   <InscriptionDocumentDownloads
                     inscriptionId={selected.id}
-                    documents={[
-                      {
-                        kind: 'certificat',
-                        label: 'Certificat médical',
-                        path: selected.certificat_medical_url,
-                      },
-                      {
-                        kind: 'photo',
-                        label: "Photo d'identité",
-                        path: selected.photo_url,
-                      },
-                    ]}
+                    documents={getAdminDocumentSlots(selected)}
                     onUploaded={(fields) => {
                       setSelected((prev) => (prev ? { ...prev, ...fields } : prev));
                       setRows((prev) =>
@@ -852,6 +960,13 @@ export function AdminInscriptionsTable({
             setSelected((prev) =>
               prev && prev.id === updated.id ? { ...prev, ...updated } : prev,
             );
+            setPaiementModesById((prev) => {
+              const current = prev[updated.id] ?? [];
+              const next = current.includes(paiement.mode_paiement)
+                ? current
+                : [...current, paiement.mode_paiement];
+              return { ...prev, [updated.id]: next };
+            });
             setLastPaiement(paiement);
             setToast({
               type: 'success',

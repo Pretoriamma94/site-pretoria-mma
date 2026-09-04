@@ -4,18 +4,30 @@ import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
   formatEuros,
-  getModePaiementLabel,
   soldeRestant,
 } from '@/lib/admin/labels';
+import { MODE_PAIEMENT_OPTIONS } from '@/lib/inscription/schema';
 import { recordPaymentAction } from './actions';
-import type { AdminInscription } from './AdminInscriptionsTable';
 import type { InscriptionPaiementRow } from './actions';
+import { InscriptionPaiementsHistory } from './InscriptionPaiementsHistory';
+
+export type PaymentTarget = {
+  id: string;
+  prenom: string;
+  nom: string;
+  montant_total: number;
+  montant_paye: number | null;
+  mode_paiement: 'cash' | 'cheque' | 'virement' | null;
+  nombre_echeances: number | null;
+  status: string;
+  date_paiement?: string | null;
+};
 
 type Props = {
-  inscription: AdminInscription;
+  inscription: PaymentTarget;
   onClose: () => void;
   onSaved: (
-    updated: Partial<AdminInscription> & { id: string },
+    updated: Partial<PaymentTarget> & { id: string },
     paiement: InscriptionPaiementRow,
   ) => void;
 };
@@ -31,13 +43,18 @@ function todayIsoDate(): string {
 export function PaymentFormModal({ inscription, onClose, onSaved }: Props) {
   const dejaPaye = inscription.montant_paye ?? 0;
   const reste = soldeRestant(inscription.montant_total, dejaPaye);
-  const [mode, setMode] = useState(inscription.mode_paiement ?? 'cash');
+  const [mode, setMode] = useState<'cash' | 'cheque' | 'virement'>(
+    inscription.mode_paiement ?? 'cash',
+  );
   const [echeances, setEcheances] = useState<1 | 2 | 3>(
     (inscription.nombre_echeances as 1 | 2 | 3) || 1,
   );
-  const [numeroEcheance, setNumeroEcheance] = useState<'' | 1 | 2 | 3>('');
+  const [numeroEcheance, setNumeroEcheance] = useState<'' | 1 | 2 | 3>(
+    dejaPaye <= 0 ? 1 : '',
+  );
   const [dateReception, setDateReception] = useState(todayIsoDate());
   const [montantRecu, setMontantRecu] = useState(reste > 0 ? String(reste) : '');
+  const [note, setNote] = useState('');
   const [preuveName, setPreuveName] = useState<string | null>(null);
   const [preuveFile, setPreuveFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -64,6 +81,7 @@ export function PaymentFormModal({ inscription, onClose, onSaved }: Props) {
       formData.set('montant_recu', String(Number(String(montantRecu).replace(',', '.'))));
       formData.set('date_reception', dateReception);
       if (numeroEcheance) formData.set('numero_echeance', String(numeroEcheance));
+      if (note.trim()) formData.set('note', note.trim());
       if (preuveFile) formData.set('preuve', preuveFile);
 
       const result = await recordPaymentAction(formData);
@@ -137,18 +155,43 @@ export function PaymentFormModal({ inscription, onClose, onSaved }: Props) {
           />
         </label>
 
-        <label className="mt-4 block text-xs text-zinc-300">
-          Mode de paiement
-          <select
-            value={mode}
-            onChange={(e) => setMode(e.target.value as 'cash' | 'cheque' | 'virement')}
-            className="mt-1 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
-          >
-            <option value="cash">{getModePaiementLabel('cash')}</option>
-            <option value="cheque">{getModePaiementLabel('cheque')}</option>
-            <option value="virement">{getModePaiementLabel('virement')}</option>
-          </select>
-        </label>
+        <fieldset className="mt-4">
+          <legend className="text-xs text-zinc-300">Mode de ce versement *</legend>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {MODE_PAIEMENT_OPTIONS.map((opt) => (
+              <label
+                key={opt.id}
+                className={cn(
+                  'cursor-pointer rounded-xl border px-2 py-2 text-center text-[0.7rem] font-semibold',
+                  mode === opt.id
+                    ? 'border-red-600 bg-red-950/30 text-white'
+                    : 'border-zinc-700 text-zinc-300 hover:border-zinc-500',
+                )}
+              >
+                <input
+                  type="radio"
+                  className="sr-only"
+                  name="mode_paiement"
+                  value={opt.id}
+                  checked={mode === opt.id}
+                  onChange={() => setMode(opt.id)}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-[0.7rem] text-zinc-400">
+            Chaque versement a son propre mode. Vous pouvez coupler deux modes (ex. 1er
+            chèque au club, solde HelloAsso) si la personne change d&apos;avis.
+          </p>
+        </fieldset>
+
+        {dejaPaye > 0 ? (
+          <InscriptionPaiementsHistory
+            inscriptionId={inscription.id}
+            compact
+          />
+        ) : null}
 
         <fieldset className="mt-4">
           <legend className="text-xs text-zinc-300">Paiement prévu en combien de fois ?</legend>
@@ -200,7 +243,20 @@ export function PaymentFormModal({ inscription, onClose, onSaved }: Props) {
         </label>
 
         <label className="mt-4 block text-xs text-zinc-300">
-          Photo chèque / preuve de virement (optionnel)
+          Référence (optionnel)
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={
+              mode === 'virement' ? 'N° commande HelloAsso…' : 'N° chèque, commentaire…'
+            }
+            maxLength={280}
+            className="mt-1 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
+          />
+        </label>
+
+        <label className="mt-4 block text-xs text-zinc-300">
+          Preuve (optionnel)
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
@@ -212,7 +268,9 @@ export function PaymentFormModal({ inscription, onClose, onSaved }: Props) {
             }}
           />
           <span className="mt-1 block text-[0.65rem] text-zinc-500">
-            {preuveName ? `Fichier : ${preuveName}` : 'JPG, PNG, WebP ou PDF — max 5 Mo'}
+            {preuveName
+              ? `Fichier : ${preuveName}`
+              : 'Reçu HelloAsso, photo de chèque ou PDF — max 5 Mo'}
           </span>
         </label>
 

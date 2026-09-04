@@ -1,44 +1,33 @@
 import { z } from 'zod';
 import {
   codePostalRegex,
+  getAgeFromBirthDate,
   isMinor,
-  parseOptionalMeasure,
   phoneRegex,
   COURS_OPTIONS,
+  getCoursPrix,
 } from '@/lib/inscription/schema';
-import { optionalTailleTenueField } from '@/lib/inscription/taille-tenue';
 
-const optionalEmailField = z
+const optionalTrimmed = z
   .string()
   .optional()
   .transform((v) => (v ?? '').trim());
 
-const optionalPhoneField = z
-  .string()
-  .optional()
-  .transform((v) => (v ?? '').trim());
-
-const optionalMeasureField = z
-  .union([z.string(), z.number(), z.null(), z.undefined()])
-  .optional()
-  .transform((v) => parseOptionalMeasure(v));
+const optionalPhoneField = optionalTrimmed;
 
 export const manualInscriptionSchema = z
   .object({
     nom: z.string().min(1, 'Nom requis'),
     prenom: z.string().min(1, 'Prénom requis'),
-    email: optionalEmailField,
+    sexe: z.enum(['homme', 'femme']).nullable().optional(),
+    email: z.string().trim().min(1, 'Email requis').email('Email invalide'),
     telephone: optionalPhoneField,
     dateNaissance: z.string().min(1, 'Date de naissance requise'),
-    numeroVoie: z.string().min(1, 'N° de voie requis'),
-    rue: z.string().min(1, 'Rue / voie requise'),
+    adresse: z.string().min(1, 'Adresse requise'),
     codePostal: z.string().regex(codePostalRegex, 'Code postal invalide (5 chiffres)'),
     ville: z.string().min(1, 'Ville requise'),
-    tailleCm: optionalMeasureField,
-    poidsKg: optionalMeasureField,
-    tailleTenue: optionalTailleTenueField,
-    cours: z.enum(['baby', 'ados_7_11', 'ados_11_18', 'adultes'], {
-      required_error: 'Sélectionnez un cours',
+    cours: z.enum(['baby', 'mma_enfants', 'mma_ados', 'mma_mixte', 'mma_femmes'], {
+      required_error: 'Sélectionnez une activité',
     }),
     montantTotal: z.number().positive('Montant total invalide'),
     modePaiement: z.enum(['cash', 'cheque', 'virement'], {
@@ -49,29 +38,38 @@ export const manualInscriptionSchema = z
       invalid_type_error: 'Nombre d’échéances invalide',
     }),
     montantPaye: z.number().min(0, 'Montant payé invalide'),
+    membreBureau: z.boolean().optional().default(false),
     accepteReglement: z.boolean(),
     attesteCertificat: z.boolean(),
     photoRecue: z.boolean().optional().default(false),
     engagementPhoto: z.boolean().optional().default(false),
     engagementCertificat: z.boolean().optional().default(false),
-    autorisePhotos: z.boolean(),
+    acceptePhotos: z.boolean().nullable(),
     informeAssurance: z.boolean(),
     informeDroitAcces: z.boolean(),
-    autoriseSortieSeul: z.boolean().optional(),
-    autoriseVoiturePrivee: z.boolean().optional(),
-    autorisePhotosMineur: z.boolean().optional(),
-    nomResponsable: z.string().optional(),
-    prenomResponsable: z.string().optional(),
-    telephoneResponsable: optionalPhoneField,
-    emailResponsable: optionalEmailField,
-    lienParente: z.enum(['pere', 'mere', 'tuteur']).optional(),
+    accepteRgpd: z.boolean(),
+    charteLue: z.boolean(),
+    charteReglesConnues: z.boolean(),
+    charteEngagementRespect: z.boolean(),
+    parcoursSante: z.enum(['nouveau', 'renouvellement']).nullable().optional(),
+    certificatMoinsDe3Ans: z.boolean().nullable().optional(),
+    attestationResultat: z.enum(['non_toutes', 'oui_au_moins_une']).nullable().optional(),
+    autoriseSortieSeul: z.boolean().nullable().optional(),
+    autoriseVoiturePrivee: z.boolean().nullable().optional(),
+    nomResponsable: optionalTrimmed,
+    prenomResponsable: optionalTrimmed,
+    nomPere: optionalTrimmed,
+    prenomPere: optionalTrimmed,
+    telephonePere: optionalPhoneField,
+    nomMere: optionalTrimmed,
+    prenomMere: optionalTrimmed,
+    telephoneMere: optionalPhoneField,
   })
   .superRefine((data, ctx) => {
-    const minor = isMinor(data.dateNaissance);
+    const isBaby = data.cours === 'baby';
+    const age = data.dateNaissance ? Math.floor(getAgeFromBirthDate(data.dateNaissance)) : 0;
+    const mineur = isBaby || isMinor(data.dateNaissance);
 
-    if (data.email && !z.string().email().safeParse(data.email).success) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Email invalide', path: ['email'] });
-    }
     if (data.telephone && !phoneRegex.test(data.telephone)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -80,9 +78,65 @@ export const manualInscriptionSchema = z
       });
     }
 
-    if (!minor) {
-      if (!data.email) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Email requis', path: ['email'] });
+    if (isBaby) {
+      if (age < 3) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Le Baby JJB est réservé aux enfants à partir de 3 ans.',
+          path: ['dateNaissance'],
+        });
+      }
+      if (age > 7) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Le Baby JJB est réservé aux enfants jusqu’à 7 ans.',
+          path: ['dateNaissance'],
+        });
+      }
+      if (!data.nomPere) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Nom du parent 1 requis', path: ['nomPere'] });
+      }
+      if (!data.prenomPere) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Prénom du parent 1 requis',
+          path: ['prenomPere'],
+        });
+      }
+      if (!data.nomMere) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Nom du parent 2 requis', path: ['nomMere'] });
+      }
+      if (!data.prenomMere) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Prénom du parent 2 requis',
+          path: ['prenomMere'],
+        });
+      }
+      if (data.telephonePere && !phoneRegex.test(data.telephonePere)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Téléphone du parent 1 invalide',
+          path: ['telephonePere'],
+        });
+      }
+      if (data.telephoneMere && !phoneRegex.test(data.telephoneMere)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Téléphone du parent 2 invalide',
+          path: ['telephoneMere'],
+        });
+      }
+    } else {
+      if (age < 7) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Le MMA est réservé aux 7 ans et plus. Pour moins de 7 ans, choisissez Baby JJB.',
+          path: ['dateNaissance'],
+        });
+      }
+      if (data.sexe !== 'homme' && data.sexe !== 'femme') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Sexe requis', path: ['sexe'] });
       }
       if (!data.telephone) {
         ctx.addIssue({
@@ -91,56 +145,123 @@ export const manualInscriptionSchema = z
           path: ['telephone'],
         });
       }
-      return;
+      if (mineur) {
+        if (!data.nomResponsable) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Nom du représentant légal requis',
+            path: ['nomResponsable'],
+          });
+        }
+        if (!data.prenomResponsable) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Prénom du représentant légal requis',
+            path: ['prenomResponsable'],
+          });
+        }
+      }
     }
 
-    if (!data.nomResponsable?.trim()) {
+    if (data.informeAssurance !== true) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Nom du responsable requis',
-        path: ['nomResponsable'],
+        message: 'Information assurance requise',
+        path: ['informeAssurance'],
       });
     }
-    if (!data.prenomResponsable?.trim()) {
+    if (data.informeDroitAcces !== true) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Prénom du responsable requis',
-        path: ['prenomResponsable'],
+        message: 'Information droit d’accès requise',
+        path: ['informeDroitAcces'],
       });
     }
-    if (!data.telephoneResponsable) {
+    if (data.accepteReglement !== true) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Téléphone du responsable requis',
-        path: ['telephoneResponsable'],
+        message: 'Lu et approuvé obligatoire',
+        path: ['accepteReglement'],
       });
-    } else if (!phoneRegex.test(data.telephoneResponsable)) {
+    }
+    if (data.accepteRgpd !== true) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Téléphone du responsable invalide',
-        path: ['telephoneResponsable'],
+        message: 'Consentement RGPD requis',
+        path: ['accepteRgpd'],
+      });
+    }
+    if (data.charteLue !== true || data.charteReglesConnues !== true || data.charteEngagementRespect !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Les 3 cases de la charte sont obligatoires',
+        path: ['charteLue'],
+      });
+    }
+    if (data.acceptePhotos !== true && data.acceptePhotos !== false) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Réponse Oui ou Non requise',
+        path: ['acceptePhotos'],
       });
     }
 
-    if (data.autoriseSortieSeul !== true && data.autoriseSortieSeul !== false) {
+    if (mineur && !isBaby) {
+      if (data.autoriseSortieSeul !== true && data.autoriseSortieSeul !== false) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Réponse Oui ou Non requise',
+          path: ['autoriseSortieSeul'],
+        });
+      }
+    }
+    if (mineur) {
+      if (data.autoriseVoiturePrivee !== true && data.autoriseVoiturePrivee !== false) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Réponse Oui ou Non requise',
+          path: ['autoriseVoiturePrivee'],
+        });
+      }
+    }
+
+    if (data.parcoursSante !== 'nouveau' && data.parcoursSante !== 'renouvellement') {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Réponse Oui ou Non requise',
-        path: ['autoriseSortieSeul'],
+        message: 'Indiquez première inscription ou renouvellement',
+        path: ['parcoursSante'],
       });
     }
-    if (data.autoriseVoiturePrivee !== true && data.autoriseVoiturePrivee !== false) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Réponse Oui ou Non requise',
-        path: ['autoriseVoiturePrivee'],
-      });
+    if (!isBaby && data.parcoursSante === 'renouvellement') {
+      if (data.certificatMoinsDe3Ans !== true && data.certificatMoinsDe3Ans !== false) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Réponse Oui ou Non requise',
+          path: ['certificatMoinsDe3Ans'],
+        });
+      }
     }
-    if (data.autorisePhotosMineur !== true && data.autorisePhotosMineur !== false) {
+    const usesQuestionnaire = usesQuestionnaireSante(data);
+    if (usesQuestionnaire) {
+      if (data.attestationResultat !== 'non_toutes' && data.attestationResultat !== 'oui_au_moins_une') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Indiquez le résultat du questionnaire de santé',
+          path: ['attestationResultat'],
+        });
+      }
+      if (data.attestationResultat === 'oui_au_moins_une' && !data.attesteCertificat && !data.engagementCertificat) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Un OUI au questionnaire impose le certificat (reçu ou engagement 3 semaines)',
+          path: ['engagementCertificat'],
+        });
+      }
+    } else if (!data.attesteCertificat && !data.engagementCertificat) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Réponse Oui ou Non requise',
-        path: ['autorisePhotosMineur'],
+        message: 'Indiquez certificat reçu ou engagement sous 3 semaines',
+        path: ['engagementCertificat'],
       });
     }
 
@@ -151,14 +272,6 @@ export const manualInscriptionSchema = z
         path: ['engagementPhoto'],
       });
     }
-
-    if (!data.attesteCertificat && !data.engagementCertificat) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Indiquez certificat reçu ou engagement sous 3 semaines',
-        path: ['engagementCertificat'],
-      });
-    }
   })
   .refine((data) => data.montantPaye <= data.montantTotal, {
     message: 'Le montant payé ne peut pas dépasser le total',
@@ -167,6 +280,15 @@ export const manualInscriptionSchema = z
 
 export type ManualInscriptionInput = z.infer<typeof manualInscriptionSchema>;
 
+export function usesQuestionnaireSante(data: {
+  cours: string;
+  parcoursSante?: string | null;
+  certificatMoinsDe3Ans?: boolean | null;
+}): boolean {
+  if (data.cours === 'baby') return true;
+  return data.parcoursSante === 'renouvellement' && data.certificatMoinsDe3Ans === true;
+}
+
 export function defaultMontantForCours(coursId: string): number {
-  return COURS_OPTIONS.find((c) => c.id === coursId)?.prix ?? 0;
+  return COURS_OPTIONS.find((c) => c.id === coursId)?.prix ?? getCoursPrix(coursId === 'baby' ? 'baby' : 'mma');
 }

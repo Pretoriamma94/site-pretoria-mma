@@ -2,12 +2,38 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { COURS_OPTIONS, isMinor } from '@/lib/inscription/schema';
+import {
+  COURS_OPTIONS,
+  coursFilterBucket,
+  getCoursLabel,
+  isMinor,
+  matchesCoursFilter,
+} from '@/lib/inscription/schema';
 import { PhotoPublicationBadge } from '@/components/admin/PhotoPublicationBadge';
+import { MembreBureauBadge } from '@/components/admin/MembreBureauBadge';
+import { VoieInscriptionBadge } from '@/components/admin/InscriptionManuelleBadge';
+import { isMembreBureau } from '@/lib/admin/membre-bureau';
+import { isInscriptionManuelle } from '@/lib/admin/voie-inscription';
+import { AutorisationsFiche } from '@/components/admin/AutorisationsFiche';
+import { AttestationSanteFiche } from '@/components/admin/AttestationSanteFiche';
+import {
+  CertificatDelaiBanner,
+  PhotoDelaiBanner,
+} from '@/components/admin/CertificatDelaiBanner';
 import { cn } from '@/lib/utils';
+import {
+  formatEuros,
+  getModePaiementLabel,
+  resteAPayer,
+} from '@/lib/admin/labels';
+import { getAdminDocumentSlots } from '@/lib/admin/documents';
 import { downloadAdherentsCsv } from '@/lib/admin/export-adherents';
 import { getInscriptionDocumentUrlAction } from '../actions';
 import { EditProfileModal } from '../EditProfileModal';
+import { PaymentFormModal } from '../PaymentFormModal';
+import { InscriptionPaiementsHistory } from '../InscriptionPaiementsHistory';
+import { InscriptionDocumentDownloads } from '../InscriptionDocumentDownloads';
+import type { InscriptionPaiementRow } from '../actions';
 
 export type AdherentRow = {
   id: string;
@@ -25,7 +51,6 @@ export type AdherentRow = {
   photo_url: string | null;
   taille_cm: number | null;
   poids_kg: number | null;
-  taille_tenue: string | null;
   autorise_photos: boolean | null;
   autorise_sortie_seul: boolean | null;
   autorise_voiture_privee: boolean | null;
@@ -35,10 +60,30 @@ export type AdherentRow = {
   accepte_reglement: boolean;
   accepte_charte: boolean;
   informe_assurance_individuelle: boolean | null;
+  informe_droit_acces: boolean | null;
   type_profil: 'adulte' | 'mineur' | null;
   sexe: 'homme' | 'femme' | null;
   annee_scolaire: string;
   cours_selectionne: string;
+  status: string;
+  montant_total: number;
+  montant_paye: number | null;
+  date_paiement: string | null;
+  /** Dernier encaissement (historique), sinon date de solde. */
+  date_dernier_paiement?: string | null;
+  mode_paiement: 'cash' | 'cheque' | 'virement' | null;
+  nombre_echeances: number | null;
+  certificat_medical_url: string | null;
+  attestation_questionnaire_sante?: boolean | null;
+  questionnaire_sante?: unknown;
+  questionnaire_sante_url?: string | null;
+  certificat_engagement_3_semaines: boolean | null;
+  photo_engagement_3_semaines: boolean | null;
+  created_at: string | null;
+  type_tarif?: string | null;
+  membre_bureau?: boolean | null;
+  voie_inscription?: string | null;
+  membre_2?: unknown;
 };
 
 type Props = {
@@ -54,17 +99,29 @@ const CATEGORIE_OPTIONS = [
   ...COURS_OPTIONS.map((c) => ({ id: c.id, label: `${c.emoji} ${c.label}` })),
 ] as const;
 
-function getCoursLabel(coursId: string): string {
-  return COURS_OPTIONS.find((c) => c.id === coursId)?.label ?? (coursId || '—');
-}
-
 type Responsable = {
   nom?: string;
   prenom?: string;
   telephone?: string;
   email?: string;
   lienParente?: string;
+  pere?: { nom?: string; prenom?: string; telephone?: string };
+  mere?: { nom?: string; prenom?: string; telephone?: string };
 };
+
+function parentLigne(
+  label: string,
+  p?: { nom?: string; prenom?: string; telephone?: string },
+) {
+  if (!p?.nom && !p?.prenom && !p?.telephone) return null;
+  return (
+    <div className="mt-1.5">
+      <p className="text-[0.65rem] uppercase tracking-wide text-zinc-500">{label}</p>
+      <p>{[p?.prenom, p?.nom].filter(Boolean).join(' ') || '—'}</p>
+      {p?.telephone ? <p>Tél. {p.telephone}</p> : null}
+    </div>
+  );
+}
 
 function formatAdresseLigne(row: AdherentRow): string {
   const voie = [row.numero_voie, row.rue].filter(Boolean).join(' ').trim();
@@ -82,11 +139,34 @@ function formatDateNaissance(value: string | null): string {
   });
 }
 
-function formatMensurations(row: AdherentRow): string | null {
-  const parts: string[] = [];
-  if (row.taille_cm != null) parts.push(`${row.taille_cm} cm`);
-  if (row.poids_kg != null) parts.push(`${row.poids_kg} kg`);
-  return parts.length ? parts.join(' · ') : null;
+function paymentDateLabel(row: AdherentRow): string | null {
+  const raw = row.date_dernier_paiement ?? row.date_paiement;
+  if (!raw) return null;
+  const formatted = formatDateNaissance(raw);
+  return formatted === '—' ? null : formatted;
+}
+
+function AdherentPaymentCell({ row }: { row: AdherentRow }) {
+  if (isMembreBureau(row)) {
+    return (
+      <div className="space-y-0.5">
+        <p className="font-semibold text-violet-200">Offert</p>
+        <p className="text-[0.65rem] text-zinc-500">Hors CA</p>
+      </div>
+    );
+  }
+  const paye = row.montant_paye ?? 0;
+  const reste = resteAPayer(row);
+  const date = paymentDateLabel(row);
+  return (
+    <div className="space-y-0.5">
+      <p className="text-zinc-200">Payé {formatEuros(paye)}</p>
+      <p className={reste > 0 ? 'font-semibold text-red-400' : 'font-semibold text-emerald-300'}>
+        Reste {formatEuros(reste)}
+      </p>
+      {date ? <p className="text-[0.65rem] text-zinc-500">{date}</p> : null}
+    </div>
+  );
 }
 
 function getResponsable(row: AdherentRow): Responsable | null {
@@ -108,6 +188,8 @@ export function AdherentsDirectory({
   const [categorie, setCategorie] = useState(categorieFilter);
   const [selected, setSelected] = useState<AdherentRow | null>(null);
   const [editing, setEditing] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [lastPaiement, setLastPaiement] = useState<InscriptionPaiementRow | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -116,16 +198,28 @@ export function AdherentsDirectory({
     const counts: Record<string, number> = {};
     for (const opt of COURS_OPTIONS) counts[opt.id] = 0;
     for (const row of rows) {
-      const id = row.cours_selectionne;
-      if (id) counts[id] = (counts[id] ?? 0) + 1;
+      const bucket = coursFilterBucket(row.cours_selectionne);
+      if (bucket) counts[bucket] = (counts[bucket] ?? 0) + 1;
     }
     return counts;
   }, [rows]);
 
   const visibleRows = useMemo(() => {
-    if (categorie === 'all') return rows;
-    return rows.filter((r) => r.cours_selectionne === categorie);
-  }, [rows, categorie]);
+    const q = search.trim().toLowerCase();
+    let list = rows;
+    if (q) {
+      list = list.filter(
+        (r) =>
+          r.nom.toLowerCase().includes(q) ||
+          r.prenom.toLowerCase().includes(q) ||
+          r.email.toLowerCase().includes(q),
+      );
+    }
+    if (categorie !== 'all') {
+      list = list.filter((r) => matchesCoursFilter(r.cours_selectionne, categorie));
+    }
+    return list;
+  }, [rows, categorie, search]);
 
   const summary = useMemo(() => {
     if (visibleRows.length === 0) return 'Aucun adhérent.';
@@ -137,23 +231,33 @@ export function AdherentsDirectory({
     return parts.join(' · ');
   }, [visibleRows.length, anneeFilter, categorie]);
 
-  const applyFilters = () => {
+  const applyFilters = (next?: {
+    annee?: string;
+    categorie?: string;
+    search?: string;
+  }) => {
+    const nextAnnee = next?.annee ?? annee;
+    const nextCategorie = next?.categorie ?? categorie;
+    const nextSearch = next?.search ?? search;
     const params = new URLSearchParams();
-    if (annee && annee !== 'all') params.set('annee', annee);
-    if (categorie && categorie !== 'all') params.set('categorie', categorie);
-    if (search.trim()) params.set('q', search.trim());
+    if (nextAnnee && nextAnnee !== 'all') params.set('annee', nextAnnee);
+    if (nextCategorie && nextCategorie !== 'all') params.set('categorie', nextCategorie);
+    if (nextSearch.trim()) params.set('q', nextSearch.trim());
     const qs = params.toString();
     router.push(qs ? `/admin/adherents?${qs}` : '/admin/adherents');
   };
 
-  const openFiche = async (row: AdherentRow) => {
-    setSelected(row);
+  const loadPhotoPreview = async (path: string | null) => {
     setPhotoUrl(null);
     setPhotoError(null);
-    if (!row.photo_url) return;
+    if (!path) return;
+    if (/\.pdf$/i.test(path)) {
+      setPhotoError('Photo PDF — utiliser Voir / Télécharger ci-dessous.');
+      return;
+    }
     setPhotoLoading(true);
     try {
-      const result = await getInscriptionDocumentUrlAction(row.photo_url);
+      const result = await getInscriptionDocumentUrlAction(path);
       if (!result.success) {
         setPhotoError(result.error);
         return;
@@ -164,6 +268,11 @@ export function AdherentsDirectory({
     } finally {
       setPhotoLoading(false);
     }
+  };
+
+  const openFiche = async (row: AdherentRow) => {
+    setSelected(row);
+    await loadPhotoPreview(row.photo_url);
   };
 
   return (
@@ -178,14 +287,17 @@ export function AdherentsDirectory({
               Annuaire du club — {summary}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => downloadAdherentsCsv(visibleRows, anneeFilter)}
-            disabled={visibleRows.length === 0}
-            className="rounded-full border border-zinc-600 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-100 transition hover:border-zinc-400 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Exporter (Excel)
-          </button>
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={() => downloadAdherentsCsv(visibleRows, anneeFilter)}
+              disabled={visibleRows.length === 0}
+              className="rounded-full border border-zinc-600 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-100 transition hover:border-zinc-400 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Exporter CSV
+            </button>
+            <p className="mt-1 text-[0.65rem] text-zinc-500">Sauvegarde — s’ouvre dans Excel</p>
+          </div>
         </div>
 
         <form
@@ -195,7 +307,7 @@ export function AdherentsDirectory({
             applyFilters();
           }}
         >
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <label className="text-[0.65rem] uppercase tracking-wide text-zinc-400 lg:col-span-2">
               Recherche
               <input
@@ -209,7 +321,11 @@ export function AdherentsDirectory({
               Année scolaire
               <select
                 value={annee}
-                onChange={(e) => setAnnee(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setAnnee(value);
+                  applyFilters({ annee: value });
+                }}
                 className="mt-1 block w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
               >
                 <option value="all">Toutes</option>
@@ -234,14 +350,6 @@ export function AdherentsDirectory({
                 ))}
               </select>
             </label>
-            <div className="flex items-end">
-              <button
-                type="submit"
-                className="w-full rounded-full bg-mma-red px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-white"
-              >
-                Filtrer
-              </button>
-            </div>
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
@@ -286,12 +394,11 @@ export function AdherentsDirectory({
               <th className="px-4 py-3">Né(e) le</th>
               <th className="px-4 py-3">Adresse</th>
               <th className="px-4 py-3">Ville</th>
-              <th className="px-4 py-3">Taille / Poids</th>
+              <th className="px-4 py-3">Paiement</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-900">
             {visibleRows.map((row) => {
-              const mensurations = formatMensurations(row);
               const photosRefusees = row.autorise_photos === false;
               return (
                 <tr
@@ -306,6 +413,14 @@ export function AdherentsDirectory({
                     <span className="font-semibold text-zinc-50">
                       {row.prenom} {row.nom}
                     </span>
+                    <span className="mt-1 block">
+                      <VoieInscriptionBadge manuelle={isInscriptionManuelle(row)} compact />
+                    </span>
+                    {isMembreBureau(row) ? (
+                      <span className="mt-1 block">
+                        <MembreBureauBadge compact />
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3.5 text-zinc-300">
                     {getCoursLabel(row.cours_selectionne)}
@@ -325,8 +440,8 @@ export function AdherentsDirectory({
                     ) : null}
                   </td>
                   <td className="px-4 py-3.5 text-zinc-300">{row.ville || '—'}</td>
-                  <td className="px-4 py-3.5 text-zinc-400">
-                    {mensurations ?? '—'}
+                  <td className="px-4 py-3.5">
+                    <AdherentPaymentCell row={row} />
                   </td>
                 </tr>
               );
@@ -348,7 +463,7 @@ export function AdherentsDirectory({
           onClick={() => setSelected(null)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-5 text-sm text-zinc-100"
+            className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-5 text-sm text-zinc-100"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
@@ -369,6 +484,8 @@ export function AdherentsDirectory({
                   onClick={() => {
                     setSelected(null);
                     setEditing(false);
+                    setPaymentOpen(false);
+                    setLastPaiement(null);
                   }}
                 >
                   Fermer
@@ -414,6 +531,14 @@ export function AdherentsDirectory({
                   <p className="text-base font-semibold text-white">
                     {selected.prenom} {selected.nom}
                   </p>
+                  <div className="mt-2">
+                    <VoieInscriptionBadge manuelle={isInscriptionManuelle(selected)} />
+                  </div>
+                  {isMembreBureau(selected) ? (
+                    <div className="mt-2">
+                      <MembreBureauBadge />
+                    </div>
+                  ) : null}
                   <p className="mt-1 text-zinc-300">
                     Né(e) le {formatDateNaissance(selected.date_naissance)}
                   </p>
@@ -431,6 +556,16 @@ export function AdherentsDirectory({
                       if (!r) {
                         return (
                           <p className="mt-1 text-zinc-400">Non renseigné</p>
+                        );
+                      }
+                      const pere = parentLigne('Parent 1', r.pere);
+                      const mere = parentLigne('Parent 2', r.mere);
+                      if (pere || mere) {
+                        return (
+                          <div className="mt-1 space-y-0.5 text-zinc-200">
+                            {pere}
+                            {mere}
+                          </div>
                         );
                       }
                       return (
@@ -477,65 +612,104 @@ export function AdherentsDirectory({
                   </div>
                 </div>
 
-                {formatMensurations(selected) && (
-                  <div>
+                <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3">
+                  <div className="flex items-start justify-between gap-2">
                     <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-                      Taille / Poids
+                      Paiement
                     </p>
-                    <p className="mt-1 text-zinc-200">
-                      {formatMensurations(selected)}
-                    </p>
+                    {selected.status !== 'cancelled' &&
+                    !isMembreBureau(selected) &&
+                    resteAPayer(selected) > 0 ? (
+                      <button
+                        type="button"
+                        className="rounded-full bg-emerald-700 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-white hover:bg-emerald-600"
+                        onClick={() => setPaymentOpen(true)}
+                      >
+                        Enregistrer
+                      </button>
+                    ) : null}
                   </div>
-                )}
-
-                <div>
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-                    Taille de tenue
-                  </p>
-                  <p className="mt-1 text-zinc-200">
-                    {selected.taille_tenue || '—'}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-                    Autorisations & consentements
-                  </p>
-                  <ul className="mt-1 space-y-0.5 text-zinc-200">
-                    <li>Règlement : {selected.accepte_reglement ? 'Oui' : 'Non'}</li>
-                    <li>Charte : {selected.accepte_charte ? 'Oui' : 'Non'}</li>
-                    <li>RGPD : {selected.accepte_rgpd ? 'Oui' : 'Non'}</li>
-                    {selected.autorisation_pratique_mineur != null && (
-                      <li>
-                        Pratique (mineur) :{' '}
-                        {selected.autorisation_pratique_mineur ? 'Oui' : 'Non'}
-                      </li>
-                    )}
-                    {selected.autorisation_soins_urgence != null && (
-                      <li>
-                        Soins urgence :{' '}
-                        {selected.autorisation_soins_urgence ? 'Oui' : 'Non'}
-                      </li>
-                    )}
+                  <ul className="mt-2 space-y-0.5 text-zinc-200">
+                    <li>Mode : {getModePaiementLabel(selected.mode_paiement)}</li>
                     <li>
-                      Droit à l&apos;image :{' '}
-                      {selected.autorise_photos === true
-                        ? 'Oui'
-                        : selected.autorise_photos === false
-                          ? 'Non'
-                          : '—'}
+                      Échéances :{' '}
+                      {selected.nombre_echeances ? `${selected.nombre_echeances} fois` : '—'}
                     </li>
-                    {selected.autorise_voiture_privee != null && (
-                      <li>
-                        Transport : {selected.autorise_voiture_privee ? 'Oui' : 'Non'}
+                    <li>Total : {formatEuros(selected.montant_total || 0)}</li>
+                    <li>Payé : {formatEuros(selected.montant_paye ?? 0)}</li>
+                    {paymentDateLabel(selected) ? (
+                      <li>Dernier paiement : {paymentDateLabel(selected)}</li>
+                    ) : null}
+                    {isMembreBureau(selected) ? (
+                      <li className="font-semibold text-violet-200">
+                        Cotisation offerte — hors chiffre d’affaires
+                      </li>
+                    ) : (
+                      <li
+                        className={
+                          resteAPayer(selected) > 0
+                            ? 'font-semibold text-red-400'
+                            : 'font-semibold text-emerald-300'
+                        }
+                      >
+                        Reste : {formatEuros(resteAPayer(selected))}
                       </li>
                     )}
                   </ul>
+                  <div className="mt-3">
+                    <InscriptionPaiementsHistory
+                      inscriptionId={selected.id}
+                      extraPaiement={
+                        lastPaiement?.inscription_id === selected.id ? lastPaiement : null
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3">
+                  <PhotoDelaiBanner row={selected} />
+                  <CertificatDelaiBanner row={selected} />
+                  <AttestationSanteFiche row={selected} />
+                  <InscriptionDocumentDownloads
+                    inscriptionId={selected.id}
+                    documents={getAdminDocumentSlots(selected)}
+                    onUploaded={(fields) => {
+                      const next = { ...selected, ...fields };
+                      setSelected(next);
+                      setRows((prev) =>
+                        prev.map((r) => (r.id === next.id ? { ...r, ...fields } : r)),
+                      );
+                      void loadPhotoPreview(fields.photo_url);
+                    }}
+                  />
+                </div>
+
+                <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3">
+                  <AutorisationsFiche row={selected} />
                 </div>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {paymentOpen && selected && (
+        <PaymentFormModal
+          inscription={selected}
+          onClose={() => setPaymentOpen(false)}
+          onSaved={(fields, paiement) => {
+            const extra = {
+              ...fields,
+              date_dernier_paiement: paiement.date_reception,
+            };
+            const next = { ...selected, ...extra };
+            setSelected(next);
+            setRows((prev) => prev.map((r) => (r.id === next.id ? { ...r, ...extra } : r)));
+            setLastPaiement(paiement);
+            setPaymentOpen(false);
+            router.refresh();
+          }}
+        />
       )}
 
       {editing && selected && (

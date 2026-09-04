@@ -26,7 +26,7 @@ const faqItems: FaqItem[] = [
   {
     question: 'À partir de quel âge peut-on s\u2019inscrire au club ?',
     answer:
-      'Dès 3 ans avec le Baby JJB (initiation ludique au Jiu-Jitsu Brésilien), puis des groupes Ados (7-11 ans et 11-18 ans) et un cours Adultes mixte tous niveaux. Il n\u2019y a pas d\u2019âge maximum : chacun progresse selon ses objectifs, loisir ou compétition.',
+      'Dès 3 ans avec le Baby JJB, puis des groupes Enfants et Adolescents, un cours Adultes mixte (homme et femme) et une section femmes (un créneau). Il n\u2019y a pas d\u2019âge maximum : chacun progresse selon ses objectifs, loisir ou compétition.',
   },
   {
     question: 'Faut-il déjà avoir de l\u2019expérience ou un équipement pour commencer ?',
@@ -46,7 +46,7 @@ const faqItems: FaqItem[] = [
   {
     question: 'Combien coûte l\u2019adhésion et comment s\u2019inscrire ?',
     answer:
-      'L\u2019adhésion annuelle va de 200 à 300 € selon le cours (année complète). Le règlement se fait au club en espèces, chèque ou virement, avec la possibilité de payer en 1, 2 ou 3 fois. L\u2019inscription se fait en ligne depuis la page S\u2019inscrire ; le club vous accompagne pour finaliser le dossier.',
+      'L\u2019adhésion annuelle va de 200 à 300 € selon le cours : Baby JJB 200 €, enfants et adolescents 250 €, section femmes 200 € (un créneau), adultes mixte 300 € (accès à tous les cours adultes mixtes). Le règlement se fait au club en espèces ou chèque (1, 2 ou 3 fois), ou en ligne via HelloAsso (paiement en une fois ou en plusieurs fois). L\u2019inscription se fait en ligne depuis la page S\u2019inscrire.',
   },
 ];
 
