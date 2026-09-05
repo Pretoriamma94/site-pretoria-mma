@@ -71,6 +71,20 @@ Le compte admin (`pretoriamma94@gmail.com`) possède déjà le rôle `admin`. Le
 
 ---
 
+## 6. Google Search Console (indexation)
+
+Le site n’apparaît pas tout de suite dans Google : c’est normal. Pour accélérer :
+
+1. Aller sur [Google Search Console](https://search.google.com/search-console) avec `pretoriamma94@gmail.com`.
+2. Ajouter une propriété **Préfixe d’URL** : `https://pretoriamma94.fr`.
+3. Valider la propriété (méthode recommandée : **enregistrement DNS** chez le registrar, ou fichier HTML).
+4. Dans **Sitemaps**, soumettre : `https://pretoriamma94.fr/sitemap.xml`.
+5. Dans **Inspection d’URL**, coller `https://pretoriamma94.fr` → **Demander une indexation**.
+
+Fichiers déjà en place sur le site : `/robots.txt` et `/sitemap.xml` (pages publiques + actualités publiées ; admin et liens personnels exclus).
+
+---
+
 ## Notes
 
 - **Emails de reset** : par défaut, service email intégré de Supabase (quotas limités, risque de spam). Suffisant pour démarrer ; pour des emails 100 % fiables au nom du club, brancher un SMTP dédié (ex. Resend) dans Supabase → Authentication → SMTP Settings.

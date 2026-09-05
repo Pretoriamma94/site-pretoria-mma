@@ -1,3 +1,9 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
+
 export default function EspaceMembrePage() {
   // TODO: protéger cette route (auth Supabase) et afficher les données réelles
   return (

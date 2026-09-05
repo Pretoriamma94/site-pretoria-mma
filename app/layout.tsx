@@ -13,9 +13,19 @@ const display = Bebas_Neue({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://pretoriamma94.fr'),
   title: 'Pretoria MMA La Queue-en-Brie',
   description:
     'Pretoria MMA La Queue-en-Brie : club de MMA à La Queue-en-Brie (94) pour enfants et adultes, du débutant au compétiteur.',
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    locale: 'fr_FR',
+    siteName: 'Pretoria MMA La Queue-en-Brie',
+    title: 'Pretoria MMA La Queue-en-Brie',
+    description:
+      'Club de MMA à La Queue-en-Brie (94) pour enfants et adultes, du débutant au compétiteur.',
+  },
 };
 
 export default function RootLayout({

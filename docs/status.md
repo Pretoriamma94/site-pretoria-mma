@@ -196,6 +196,7 @@ Alignés site + admin papier :
 - Nouvelle section **Questions fréquentes** en bas de la page d'accueil (`components/FaqSection.tsx`, insérée dans `app/page.tsx` avant le CTA final).
 - **7 questions** couvrant 3 profils : novice en MMA, curieux du club, futur adhérent (c'est quoi le MMA, débutants/enfants, âge dès 3 ans, équipement, cours d'essai offert, lieux/horaires La Queue-en-Brie 94, tarifs 200-300 €/an + paiement au club).
 - **SEO** : balisage **JSON-LD `FAQPage`** (rich results Google) + mots-clés locaux ; accordéon natif `<details>` (accessible, sans JS, Server Component).
+- **Indexation Google (2026-09-05)** : `/robots.txt` + `/sitemap.xml` (pages publiques + actualités publiées). Admin, espace membre et `/mon-inscription/` exclus. Search Console : voir `docs/deploiement.md` §6.
 - CTA « S'inscrire » / « Poser une question » sous la FAQ.
 
 ## Fix publication actualités — écran d'erreur client (2026-07-24)
