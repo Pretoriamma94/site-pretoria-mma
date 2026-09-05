@@ -23,8 +23,11 @@ export function ManualSantePhotoSection({ form, setField, isBaby }: Props) {
     parcoursSante: form.parcoursSante || null,
     certificatMoinsDe3Ans: form.certificatMoinsDe3Ans,
   });
+  const situationChoisie =
+    form.parcoursSante === 'nouveau' || form.parcoursSante === 'renouvellement';
   const certificatRequis =
-    !usesQuestionnaire || form.attestationResultat === 'oui_au_moins_une';
+    situationChoisie &&
+    (!usesQuestionnaire || form.attestationResultat === 'oui_au_moins_une');
   const dateAttestation = new Date().toLocaleDateString('fr-FR');
 
   return (
@@ -38,35 +41,66 @@ export function ManualSantePhotoSection({ form, setField, isBaby }: Props) {
             ? 'Baby JJB : questionnaire de santé mineur, y compris en renouvellement. Un OUI à une question rend le certificat médical obligatoire.'
             : 'Première inscription : certificat de non contre-indication MMA. Renouvellement : questionnaire de santé si le dernier certificat date de moins de 3 ans.'}
         </p>
-        <fieldset>
-          <legend className="mb-2 text-xs text-zinc-400">Situation *</legend>
-          <div className="flex flex-wrap gap-2">
+        <fieldset
+          className={cn(
+            'rounded-xl border p-4',
+            situationChoisie
+              ? 'border-zinc-700 bg-zinc-900/40'
+              : 'border-amber-500 bg-amber-950/35',
+          )}
+        >
+          <legend className="px-1 text-sm font-semibold text-white">Situation *</legend>
+          <p
+            className={cn(
+              'mb-3 text-xs',
+              situationChoisie ? 'text-zinc-400' : 'font-medium text-amber-200',
+            )}
+          >
+            {situationChoisie
+              ? 'Première inscription ou renouvellement.'
+              : 'Obligatoire — cliquez sur une des deux cases pour continuer.'}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
             {(
               [
                 { id: 'nouveau', label: 'Première inscription au club' },
                 { id: 'renouvellement', label: 'Déjà adhérent (renouvellement)' },
               ] as const
-            ).map((opt) => (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => {
-                  setField('parcoursSante', opt.id);
-                  if (opt.id === 'nouveau') {
-                    setField('attestationResultat', '');
-                    setField('certificatMoinsDe3Ans', null);
-                  }
-                }}
-                className={cn(
-                  'rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide',
-                  form.parcoursSante === opt.id
-                    ? 'border-mma-red bg-mma-red text-white'
-                    : 'border-zinc-600 text-zinc-300 hover:border-zinc-400',
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
+            ).map((opt) => {
+              const selected = form.parcoursSante === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    setField('parcoursSante', opt.id);
+                    if (opt.id === 'nouveau') {
+                      setField('attestationResultat', '');
+                      setField('certificatMoinsDe3Ans', null);
+                    }
+                  }}
+                  className={cn(
+                    'flex min-h-[3.25rem] items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-semibold',
+                    selected
+                      ? 'border-red-600 bg-red-950/40 text-white'
+                      : situationChoisie
+                        ? 'border-zinc-600 text-zinc-300 hover:border-zinc-400'
+                        : 'border-amber-400/80 bg-black/30 text-white hover:border-amber-300 hover:bg-amber-950/40',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                      selected ? 'border-red-500 bg-red-600' : 'border-zinc-400',
+                    )}
+                    aria-hidden
+                  >
+                    {selected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
+                  </span>
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </fieldset>
 
@@ -90,7 +124,7 @@ export function ManualSantePhotoSection({ form, setField, isBaby }: Props) {
           />
         ) : null}
 
-        {usesQuestionnaire && (
+        {situationChoisie && usesQuestionnaire && (
           <fieldset className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
             <legend className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
               Questionnaire de santé (papier)

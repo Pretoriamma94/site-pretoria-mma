@@ -8,6 +8,32 @@ export function formatAdresse(numeroVoie: string, rue: string): string {
   return `${numeroVoie.trim()} ${rue.trim()}`.trim();
 }
 
+const NUMERO_VOIE_CORE =
+  '(\\d{1,4}(?:\\s*(?:bis|ter|quater)|[A-Za-z])?(?:\\s*[-/]\\s*\\d{1,4})?)';
+
+/**
+ * Sépare un libellé « N° + rue » saisi en un seul champ.
+ * Accepte le numéro en tête (17 rue de Paris) ou en fin (Praça Junqueiro 17).
+ */
+export function splitAdresseVoie(adresse: string): { numeroVoie: string; rue: string } {
+  const trimmed = adresse.trim().replace(/\s+/g, ' ');
+  if (!trimmed) return { numeroVoie: '', rue: '' };
+
+  const leading = new RegExp(`^(?:n[°oº]?\\s*)?${NUMERO_VOIE_CORE}\\s+(.+)$`, 'i');
+  const lead = trimmed.match(leading);
+  if (lead) {
+    return { numeroVoie: lead[1].trim(), rue: lead[2].trim() };
+  }
+
+  const trailing = new RegExp(`^(.+?)\\s+${NUMERO_VOIE_CORE}$`, 'i');
+  const trail = trimmed.match(trailing);
+  if (trail) {
+    return { numeroVoie: trail[2].trim(), rue: trail[1].trim() };
+  }
+
+  return { numeroVoie: '', rue: trimmed };
+}
+
 /** Préremplissage adresse (majorité des adhérents) — modifiable. */
 export const DEFAULT_CODE_POSTAL = '94510';
 export const DEFAULT_VILLE = 'La Queue-en-Brie';

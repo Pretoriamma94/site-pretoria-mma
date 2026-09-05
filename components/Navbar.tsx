@@ -45,15 +45,25 @@ export function Navbar() {
           </Link>
         </div>
 
-        <button
-          type="button"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-zinc-200 transition hover:bg-zinc-800 md:hidden"
-          aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
-          aria-expanded={open}
-          onClick={() => setOpen((prev) => !prev)}
-        >
-          {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+        <div className="flex items-center gap-2 md:hidden">
+          {!pathname.startsWith('/inscription') ? (
+            <Link
+              href="/inscription"
+              className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-mma-red px-3.5 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mma-red"
+            >
+              S&apos;inscrire
+            </Link>
+          ) : null}
+          <button
+            type="button"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-zinc-200 transition hover:bg-zinc-800"
+            aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={open}
+            onClick={() => setOpen((prev) => !prev)}
+          >
+            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
 
         <div className="hidden items-center gap-5 lg:gap-6 md:flex">
           {navLinks.map((link) => {

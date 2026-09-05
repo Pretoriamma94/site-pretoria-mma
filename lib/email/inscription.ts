@@ -15,6 +15,7 @@ export type InscriptionDocumentsMailPayload = {
   missingPhoto: boolean;
   /** Date de création de l'inscription — sert à calculer la date limite exacte. */
   createdAt?: string | null;
+  modePaiement?: 'cash' | 'cheque' | 'virement' | null;
 };
 
 function escapeHtml(value: string): string {
@@ -53,6 +54,39 @@ function buildManquants(payload: InscriptionDocumentsMailPayload): string[] {
   return manquants;
 }
 
+function paiementEnLigne(payload: InscriptionDocumentsMailPayload): boolean {
+  return payload.modePaiement === 'virement';
+}
+
+function paiementText(payload: InscriptionDocumentsMailPayload): string[] {
+  if (paiementEnLigne(payload)) {
+    return [
+      `Dernière étape : régler votre cotisation en ligne via HelloAsso (une ou plusieurs fois).`,
+      `Votre inscription est déjà enregistrée : pas besoin de revenir sur le site après le paiement.`,
+      HELLOASSO_ADHESION_URL,
+    ];
+  }
+  return [
+    `Règlement de la cotisation : au club (espèces ou chèque) ou en ligne via HelloAsso.`,
+    `Vous pouvez payer en plusieurs fois, ou changer de mode si vous changez d'avis :`,
+    HELLOASSO_ADHESION_URL,
+  ];
+}
+
+function paiementHtml(payload: InscriptionDocumentsMailPayload): string {
+  const cta = `
+        <p><a href="${HELLOASSO_ADHESION_URL}" style="display:inline-block;background:#0A0A0A;color:#ffffff;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:bold;border:1px solid #DC2626;">Payer en ligne (HelloAsso)</a></p>
+        <p style="font-size:12px;color:#666;">Ou copiez ce lien : ${HELLOASSO_ADHESION_URL}</p>`;
+  if (paiementEnLigne(payload)) {
+    return `
+        <p><strong>Dernière étape :</strong> régler votre cotisation <strong>en ligne via HelloAsso</strong> (une ou plusieurs fois). Votre inscription est déjà enregistrée : pas besoin de revenir sur le site après le paiement.</p>
+        ${cta}`;
+  }
+  return `
+        <p>Règlement de la cotisation : au club (espèces ou chèque) ou <strong>en ligne via HelloAsso</strong>. Vous pouvez payer en plusieurs fois, ou changer de mode si vous changez d'avis.</p>
+        ${cta}`;
+}
+
 /**
  * Envoie à l'adhérent l'email de confirmation d'inscription.
  *
@@ -60,6 +94,9 @@ function buildManquants(payload: InscriptionDocumentsMailPayload): string[] {
  *   lien personnel pour les transmettre.
  * - Si le dossier est complet : confirmation + lien pour vérifier / corriger
  *   un document (en cas d'erreur dans une pièce déjà transmise).
+ *
+ * Une copie cachée (BCC) part vers l'email du club, sauf si l'adhérent est
+ * déjà cette adresse.
  *
  * Non bloquant : renvoie { sent:false } si Resend n'est pas configuré ou en
  * cas d'échec — l'inscription reste valide.
@@ -77,6 +114,9 @@ export async function sendInscriptionDocumentsEmail(
   }
 
   const from = normalizeFromEmail(process.env.CONTACT_FROM_EMAIL);
+  const to = payload.email.toLowerCase();
+  const clubCopy = ASSOCIATION_EMAIL.toLowerCase();
+  const bcc = to !== clubCopy ? [clubCopy] : undefined;
   const prenom = formatPrenom(payload.prenom) || payload.prenom;
   const lien = `${getSiteUrl()}/mon-inscription/${payload.token}`;
 
@@ -101,6 +141,10 @@ export async function sendInscriptionDocumentsEmail(
     ``,
   ];
 
+  if (paiementEnLigne(payload)) {
+    textLines.push(...paiementText(payload), ``);
+  }
+
   if (hasMissing) {
     textLines.push(`Pour compléter votre dossier, il nous reste à recevoir :`);
     for (const item of manquants) textLines.push(`  • ${item}`);
@@ -115,16 +159,13 @@ export async function sendInscriptionDocumentsEmail(
     );
   }
 
-  textLines.push(
-    lien,
-    ``,
-    `Règlement de la cotisation : au club (espèces ou chèque) ou en ligne via HelloAsso.`,
-    `Vous pouvez payer en plusieurs fois, ou changer de mode si vous changez d'avis :`,
-    HELLOASSO_ADHESION_URL,
-    ``,
-    `Sportivement,`,
-    ASSOCIATION_NOM,
-  );
+  textLines.push(lien, ``);
+
+  if (!paiementEnLigne(payload)) {
+    textLines.push(...paiementText(payload), ``);
+  }
+
+  textLines.push(`Sportivement,`, ASSOCIATION_NOM);
 
   const manquantsHtml = hasMissing
     ? `<ul style="margin:0 0 12px;padding-left:20px;color:#111;">${manquants
@@ -146,19 +187,19 @@ export async function sendInscriptionDocumentsEmail(
     const resend = new Resend(apiKey);
     const { data, error } = await resend.emails.send({
       from,
-      to: [payload.email.toLowerCase()],
+      to: [to],
+      ...(bcc ? { bcc } : {}),
       replyTo: ASSOCIATION_EMAIL,
       subject: `${ASSOCIATION_NOM} — Inscription confirmée`,
       text: textLines.join('\n'),
       html: `
         <p>Bonjour ${escapeHtml(prenom)},</p>
         <p>Votre <strong>inscription</strong> au club <strong>${escapeHtml(ASSOCIATION_NOM)}</strong> est bien enregistrée.</p>
+        ${paiementEnLigne(payload) ? paiementHtml(payload) : ''}
         ${corpsHtml}
         <p><a href="${lien}" style="display:inline-block;background:#DC2626;color:#ffffff;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:bold;">${escapeHtml(ctaLabel)}</a></p>
         <p style="font-size:12px;color:#666;">Ou copiez ce lien : ${lien}</p>
-        <p>Règlement de la cotisation : au club (espèces ou chèque) ou <strong>en ligne via HelloAsso</strong>. Vous pouvez payer en plusieurs fois, ou changer de mode si vous changez d'avis.</p>
-        <p><a href="${HELLOASSO_ADHESION_URL}" style="display:inline-block;background:#0A0A0A;color:#ffffff;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:bold;border:1px solid #DC2626;">Payer en ligne (HelloAsso)</a></p>
-        <p style="font-size:12px;color:#666;">Ou copiez ce lien : ${HELLOASSO_ADHESION_URL}</p>
+        ${paiementEnLigne(payload) ? '' : paiementHtml(payload)}
         <p>Sportivement,<br/>${escapeHtml(ASSOCIATION_NOM)}</p>
       `,
     });
@@ -167,13 +208,14 @@ export async function sendInscriptionDocumentsEmail(
       console.error('[inscription-email] Resend error', {
         message: error.message,
         from,
-        to: payload.email.toLowerCase(),
+        to,
       });
       return { sent: false, error: error.message };
     }
     console.info('[inscription-email] sent', {
       id: data?.id,
-      to: payload.email.toLowerCase(),
+      to,
+      bcc: bcc ?? [],
       hasMissing,
     });
     return { sent: true };

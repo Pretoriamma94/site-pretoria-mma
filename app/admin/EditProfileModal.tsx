@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { coursFilterBucket, getCoursLabel, isMinor } from '@/lib/inscription/schema';
+import { coursFilterBucket, getCoursLabel, isMinor, splitAdresseVoie } from '@/lib/inscription/schema';
 import {
   ADMIN_COURS_IDS,
   getAdminCoursChoices,
@@ -62,6 +62,16 @@ type Responsable = {
 function getResponsable(value: unknown): Responsable {
   if (value && typeof value === 'object') return value as Responsable;
   return {};
+}
+
+function initialAdresseFields(profile: EditableProfile) {
+  const existingNumero = (profile.numero_voie ?? '').trim();
+  if (existingNumero) {
+    return { numeroVoie: existingNumero, rue: profile.rue ?? '' };
+  }
+  const source = (profile.rue ?? '').trim();
+  const split = splitAdresseVoie(source);
+  return { numeroVoie: split.numeroVoie, rue: split.rue || source };
 }
 
 const inputClass =
@@ -153,6 +163,7 @@ export function EditProfileModal({
   children,
 }: Props) {
   const resp = getResponsable(profile.responsable_legal);
+  const adresseInit = initialAdresseFields(profile);
 
   const [form, setForm] = useState({
     nom: profile.nom ?? '',
@@ -161,8 +172,8 @@ export function EditProfileModal({
     sexe: profile.sexe ?? '',
     email: profile.email ?? '',
     telephone: profile.telephone ?? '',
-    numeroVoie: profile.numero_voie ?? '',
-    rue: profile.rue ?? '',
+    numeroVoie: adresseInit.numeroVoie,
+    rue: adresseInit.rue,
     codePostal: profile.code_postal ?? '',
     ville: profile.ville ?? '',
     coursSelectionne: coursFilterBucket(profile.cours_selectionne),

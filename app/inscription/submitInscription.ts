@@ -12,10 +12,12 @@ import {
   type AttestationSanteEnregistree,
 } from '@/lib/inscription/questionnaire-sante';
 import {
+  formatAdresse,
   getCoursLabel,
   getCoursPrix,
   isMinor,
   resolveCoursSelectionne,
+  splitAdresseVoie,
   step3Schema,
   stepAutorisationsSchema,
   stepRgpdSchema,
@@ -208,7 +210,9 @@ export async function submitInscription(params: {
     filiere === 'baby'
       ? (values.telephonePere || values.telephoneMere || '').trim()
       : (values.telephone || '').trim();
-  const adresse = values.adresse.trim();
+  const adresseSaisie = values.adresse.trim();
+  const { numeroVoie, rue } = splitAdresseVoie(adresseSaisie);
+  const adresse = formatAdresse(numeroVoie, rue) || adresseSaisie;
 
   try {
     let certificatPath: string | null = null;
@@ -240,8 +244,8 @@ export async function submitInscription(params: {
       telephone: telPrincipal,
       date_naissance: values.dateNaissance,
       adresse,
-      numero_voie: '',
-      rue: adresse,
+      numero_voie: numeroVoie,
+      rue: rue || adresseSaisie,
       code_postal: values.codePostal,
       ville: values.ville,
       taille_cm: null,
@@ -323,6 +327,7 @@ export async function submitInscription(params: {
           missingCertificat,
           missingPhoto,
           createdAt: new Date().toISOString(),
+          modePaiement: paiementResult.data.modePaiement,
         });
         emailSent = mail.sent;
       } catch {

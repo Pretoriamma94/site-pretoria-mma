@@ -164,7 +164,9 @@ export function StepRecap({ form, onGoToStep, onSubmit, isSubmitting, hasPhotoFi
               {tarifLibelle} — {total}€
             </p>
             <p>
-              {modeLabel ?? '—'} · {watch('nombreEcheances') ?? '—'} échéance(s)
+              {watch('modePaiement') === 'virement'
+                ? `${modeLabel ?? 'Paiement en ligne'} — lien HelloAsso après validation`
+                : `${modeLabel ?? '—'} · ${watch('nombreEcheances') ?? '—'} échéance(s)`}
             </p>
           </CardContent>
         </Card>
@@ -173,6 +175,9 @@ export function StepRecap({ form, onGoToStep, onSubmit, isSubmitting, hasPhotoFi
             <p className="font-medium text-white">Statut après validation : Pré-inscrit</p>
             <p className="mt-1 text-xs text-zinc-500">
               Sans certificat ou photo le jour J, l&apos;engagement sous 3 semaines est enregistré.
+              {watch('modePaiement') === 'virement'
+                ? ' Le lien de paiement HelloAsso s’affichera ensuite, et sera envoyé par email.'
+                : ''}
             </p>
           </CardContent>
         </Card>

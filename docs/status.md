@@ -2,7 +2,7 @@
 
 ## Décisions produit (validées)
 
-- **HelloAsso / paiement en ligne** : bouton HelloAsso à l’étape Paiement (tous parcours) — nouvel onglet, retour vers l’inscription après paiement (ou 1re échéance).
+- **HelloAsso / paiement en ligne** : le bouton HelloAsso n’est **plus** à l’étape Paiement. L’adhérent choisit seulement le mode ; le paiement HelloAsso se fait **après validation** (page de confirmation + email). Pas besoin de revenir sur le site ensuite.
 - **Paiements** : au club — **espèces**, **chèque** ; **paiement en ligne** via HelloAsso. Espèces / chèque : consigne enveloppe fermée (nom-prénom, montant, nombre de chèques) à l’étape Paiement et sur la page de confirmation.
 - **Échéances** : possibilité de payer en **1, 2 ou 3 fois** (quel que soit le mode).
 - **Choix à l’inscription** : l’adhérent choisit mode + nombre d’échéances (étape Tarifs) ; l’admin enregistre ensuite les montants reçus.
@@ -49,6 +49,12 @@
 - Badge **Pack family** (listes + fiches). Incompatible avec « membre du bureau ».
 - Recettes club : le tarif pack est sur le payeur (adulte ou enfant) ; les membres reliés à 0 € ne doublent pas le CA.
 - Migration `20260904170000_pack_family.sql` (`pack_family_parent_id`) **appliquée** sur le remote le 2026-09-04. Repli JSON dans `membre_2` conservé en secours.
+
+## HelloAsso après validation (2026-09-05)
+
+- L’étape Paiement du wizard : choix du mode seulement (pas de bouton HelloAsso).
+- Après « Valider ma pré-inscription » : page de confirmation + email avec le lien HelloAsso. L’adhérent n’a pas à revenir sur le site.
+- Page `/inscription/helloasso-retour` : remercie et renvoie à l’accueil (plus vers le formulaire).
 
 ## Phase 0 — Fait
 
@@ -99,6 +105,7 @@ Alignés site + admin papier :
 - **Adulte** : prénom, nom, date de naissance, n° + rue, CP, ville, email, téléphone.
 - **Mineur (moins de 18 ans)** : prénom, nom, date de naissance, adresse de l’enfant (n° + rue + CP + ville), nom/prénom + téléphone du représentant légal ; téléphone enfant optionnel.
 - Migration : `20260718170000_inscription_adresse_mensurations.sql` (`numero_voie`, `rue`, `taille_cm`, `poids_kg`) **appliquée** sur le remote.
+- **Split N° / rue (2026-09-05)** : l’adresse saisie en un champ (« 17 rue de Paris » ou « Praça Junqueiro 17 ») alimente `numero_voie` + `rue`. La fiche admin préremplit le N° si l’ancien dossier l’avait tout mis dans la rue.
 - **Taille de tenue** : plus utilisée (ni formulaire, ni fiche, ni export). Colonne DB conservée, toujours enregistrée à `null`.
 
 ## Papiers manquants admin (2026-07-18)
@@ -177,7 +184,7 @@ Alignés site + admin papier :
   - Migration `20260724120000_inscription_documents_token.sql` : colonne `documents_token uuid unique default gen_random_uuid()` (attribuée aussi aux inscriptions existantes). **⚠️ à pusher au déploiement.**
   - Jeton **généré côté client** à l'inscription et inséré (le RLS anonyme n'autorise pas la relecture après insert).
 - **Page publique** `/mon-inscription/[token]` (Server Component + `DocumentsClient`) : statut de chaque doc (Transmis / À fournir) + upload des manquants. `noindex`. Upload direct vers Storage (bucket `inscriptions`) puis server action `submitInscriptionDocumentAction` (jeton = authentification) qui met à jour l'URL, désactive l'engagement, recalcule Finalisé, revalide l'admin.
-- **Email (Option A retenue)** : `lib/email/inscription.ts` + `notifyInscriptionCreatedAction` envoient à l'adhérent le lien « préinscription confirmée + documents ». **Nécessite domaine vérifié Resend + `CONTACT_FROM_EMAIL` (Vercel).**
+- **Email (Option A retenue)** : `lib/email/inscription.ts` + `notifyInscriptionCreatedAction` envoient à l'adhérent le lien « préinscription confirmée + documents ». **Nécessite domaine vérifié Resend + `CONTACT_FROM_EMAIL` (Vercel).** Copie **BCC** vers `pretoriamma94@gmail.com` (2026-09-05).
 - **Fix 2026-07-24** : l'email était lancé en fire-and-forget puis la redirection annulait la Server Action → aucun envoi. Correction : **await** avant redirect + statut `emailSent` sur la page confirmation. Admin : bouton **Renvoyer l'email** dans `DocumentsLinkBox`.
 - **Confirmation** `/inscription/paiement-en-attente` : section « Documents à compléter » avec le lien (jeton passé en query) + feedback email envoyé / non envoyé.
 - **Admin** : fiche inscription → `DocumentsLinkBox` (copier le lien + renvoyer l'email). `documents_token` ajouté au select admin + types.
@@ -217,6 +224,7 @@ Alignés site + admin papier :
 
 - Composant réutilisable `components/SocialLinks.tsx` (Instagram + TikTok) — DRY, remplace le code en dur du footer.
 - **Navbar** : icônes réseaux visibles site-wide (desktop, séparateur avant le CTA « S'inscrire » ; menu mobile sous « Suivez-nous »). Donc visibles au-dessus de la ligne de flottaison sur l'accueil.
+- **CTA S'inscrire mobile (2026-09-05)** : bouton visible dans la barre (à côté du menu) + premier bouton du hero accueil. Desktop inchangé (CTA toujours dans la nav).
 - **Footer** refactorisé pour utiliser `SocialLinks`.
 
 ## Déploiement (2026-07-21)
@@ -237,7 +245,7 @@ Alignés site + admin papier :
 - **Pack family** : `inscription_familiale` + `type_tarif = 'familial'` + lien parent/enfants (`pack_family_parent_id`, migration `20260904170000_pack_family.sql` **appliquée**). Repli JSON dans `membre_2` conservé en secours.
 
 ## Comment tester
-2. `/inscription` → étape Tarifs : choisir mode + 1/2/3 fois → valider → confirmation affiche le choix
+2. `/inscription` → étape Paiement : choisir le mode (sans bouton HelloAsso) → valider le récap → confirmation affiche le choix ; si paiement en ligne, bouton HelloAsso **après** validation
 3. `/admin` → login `pretoriamma94@gmail.com`
 4. Accueil : tuiles réelles (Inscriptions, Paiements, Contact, Actualités)
 5. Inscriptions : filtrer / rechercher ; **+ Inscription papier** ; **Enregistrer un paiement** (montant reçu)

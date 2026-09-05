@@ -220,18 +220,18 @@ export function ManualAdherentSection({
             </h3>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <label className="text-xs text-zinc-400">
-                Nom *
-                <input
-                  value={form.nomPere}
-                  onChange={(e) => setField('nomPere', e.target.value)}
-                  className={inputClass}
-                />
-              </label>
-              <label className="text-xs text-zinc-400">
                 Prénom *
                 <input
                   value={form.prenomPere}
                   onChange={(e) => setField('prenomPere', e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-xs text-zinc-400">
+                Nom *
+                <input
+                  value={form.nomPere}
+                  onChange={(e) => setField('nomPere', e.target.value)}
                   className={inputClass}
                 />
               </label>
@@ -252,18 +252,18 @@ export function ManualAdherentSection({
             </h3>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <label className="text-xs text-zinc-400">
-                Nom *
-                <input
-                  value={form.nomMere}
-                  onChange={(e) => setField('nomMere', e.target.value)}
-                  className={inputClass}
-                />
-              </label>
-              <label className="text-xs text-zinc-400">
                 Prénom *
                 <input
                   value={form.prenomMere}
                   onChange={(e) => setField('prenomMere', e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-xs text-zinc-400">
+                Nom *
+                <input
+                  value={form.nomMere}
+                  onChange={(e) => setField('nomMere', e.target.value)}
                   className={inputClass}
                 />
               </label>

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireAdmin } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { isMinor, formatAdresse } from '@/lib/inscription/schema';
+import { isMinor, formatAdresse, splitAdresseVoie } from '@/lib/inscription/schema';
 import { buildAttestationSante, parseAttestationSante } from '@/lib/inscription/questionnaire-sante';
 import {
   manualInscriptionSchema,
@@ -996,7 +996,9 @@ export async function createManualInscriptionAction(
         }
       : null;
 
-  const adresse = data.adresse.trim();
+  const adresseSaisie = data.adresse.trim();
+  const { numeroVoie, rue } = splitAdresseVoie(adresseSaisie);
+  const adresse = formatAdresse(numeroVoie, rue) || adresseSaisie;
   const telephone = isBaby
     ? (data.telephonePere || data.telephoneMere || '').trim()
     : (data.telephone || '').trim();
@@ -1017,8 +1019,8 @@ export async function createManualInscriptionAction(
         telephone,
         date_naissance: data.dateNaissance,
         adresse,
-        numero_voie: '',
-        rue: adresse,
+        numero_voie: numeroVoie,
+        rue: rue || adresseSaisie,
         code_postal: data.codePostal.trim(),
         ville: data.ville.trim(),
         taille_cm: null,
@@ -1105,6 +1107,7 @@ export async function createManualInscriptionAction(
           missingCertificat: !attesteCertificat && !certificatDispense,
           missingPhoto: !data.photoRecue,
           createdAt: row.created_at ?? now,
+          modePaiement: data.modePaiement,
         });
         emailSent = result.sent;
         emailError = result.error;
@@ -1201,7 +1204,14 @@ export async function updateInscriptionProfileAction(
       }
     : null;
 
-  const adresse = formatAdresse(data.numeroVoie, data.rue);
+  let numeroVoie = data.numeroVoie;
+  let rue = data.rue;
+  if (!numeroVoie && rue) {
+    const split = splitAdresseVoie(rue);
+    numeroVoie = split.numeroVoie;
+    rue = split.rue;
+  }
+  const adresse = formatAdresse(numeroVoie, rue);
 
   const patch = {
     nom: data.nom.trim(),
@@ -1210,8 +1220,8 @@ export async function updateInscriptionProfileAction(
     sexe: data.sexe ?? null,
     email: (data.email || '').toLowerCase(),
     telephone: data.telephone || '',
-    numero_voie: data.numeroVoie || null,
-    rue: data.rue || null,
+    numero_voie: numeroVoie || null,
+    rue: rue || null,
     code_postal: data.codePostal || '',
     ville: data.ville || '',
     adresse,
@@ -2053,7 +2063,7 @@ export async function resendInscriptionDocumentsEmailAction(
     const { data, error } = await supabase
       .from('inscriptions')
       .select(
-        'id, prenom, email, documents_token, certificat_medical_url, photo_url, responsable_legal, created_at',
+        'id, prenom, email, documents_token, certificat_medical_url, photo_url, responsable_legal, created_at, mode_paiement',
       )
       .eq('id', idParsed.data)
       .maybeSingle();
@@ -2097,6 +2107,12 @@ export async function resendInscriptionDocumentsEmailAction(
       missingCertificat,
       missingPhoto,
       createdAt: data.created_at,
+      modePaiement:
+        data.mode_paiement === 'cash' ||
+        data.mode_paiement === 'cheque' ||
+        data.mode_paiement === 'virement'
+          ? data.mode_paiement
+          : null,
     });
 
     if (!result.sent) {

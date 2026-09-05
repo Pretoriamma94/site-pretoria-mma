@@ -130,11 +130,11 @@ export function StepIdentite({ form }: Props) {
               Parent 1
             </h3>
             <div className="grid gap-4 sm:grid-cols-2">
-              <InscriptionField label="Nom *" error={errors.nomPere?.message}>
-                <input {...register('nomPere')} className={inscriptionInputClass} />
-              </InscriptionField>
               <InscriptionField label="Prénom *" error={errors.prenomPere?.message}>
                 <input {...register('prenomPere')} className={inscriptionInputClass} />
+              </InscriptionField>
+              <InscriptionField label="Nom *" error={errors.nomPere?.message}>
+                <input {...register('nomPere')} className={inscriptionInputClass} />
               </InscriptionField>
               <InscriptionField
                 label="Téléphone"
@@ -154,11 +154,11 @@ export function StepIdentite({ form }: Props) {
               Parent 2
             </h3>
             <div className="grid gap-4 sm:grid-cols-2">
-              <InscriptionField label="Nom *" error={errors.nomMere?.message}>
-                <input {...register('nomMere')} className={inscriptionInputClass} />
-              </InscriptionField>
               <InscriptionField label="Prénom *" error={errors.prenomMere?.message}>
                 <input {...register('prenomMere')} className={inscriptionInputClass} />
+              </InscriptionField>
+              <InscriptionField label="Nom *" error={errors.nomMere?.message}>
+                <input {...register('nomMere')} className={inscriptionInputClass} />
               </InscriptionField>
               <InscriptionField
                 label="Téléphone"

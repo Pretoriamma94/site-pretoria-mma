@@ -1,6 +1,5 @@
 import type { UseFormReturn } from 'react-hook-form';
 import { EnveloppePaiementNotice } from '@/components/inscription/EnveloppePaiementNotice';
-import { HelloAssoPaiementBlock } from '@/components/inscription/HelloAssoPaiementBlock';
 import {
   ECHEANCES_OPTIONS,
   MODE_PAIEMENT_OPTIONS,
@@ -47,8 +46,8 @@ export function StepPaiement({ form }: Props) {
         Paiement
       </h2>
       <p className="text-sm text-zinc-400">
-        Espèces et chèque se règlent au club. Le paiement en ligne s&apos;effectue sur HelloAsso
-        (nouvel onglet).
+        Espèces et chèque se règlent au club. Le paiement en ligne (HelloAsso) se fait après
+        validation de l&apos;inscription.
       </p>
 
       {showFormuleFemmes && (
@@ -137,7 +136,16 @@ export function StepPaiement({ form }: Props) {
           )}
         </fieldset>
         {modePaiement === 'virement' ? (
-          <HelloAssoPaiementBlock />
+          <div className="rounded-xl border border-zinc-700 bg-zinc-950/50 p-4 text-sm text-zinc-300">
+            <p>
+              Le lien HelloAsso s&apos;affichera sur la page de confirmation, et vous sera envoyé
+              par email. Vous pourrez payer en une fois ou en plusieurs fois.
+            </p>
+            <p className="mt-2 text-zinc-400">
+              Votre inscription sera déjà enregistrée : pas besoin de revenir sur le site après le
+              paiement.
+            </p>
+          </div>
         ) : (
           <>
             <fieldset>

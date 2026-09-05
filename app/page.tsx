@@ -110,16 +110,22 @@ export default async function HomePage() {
             Progressez en Arts Martiaux Mixtes, quel que soit votre niveau — dès 3 ans
           </p>
           <div className="flex flex-col items-center gap-3">
-            <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex w-full max-w-xs flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center sm:gap-4">
+              <Link
+                href="/inscription"
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-mma-red px-8 py-3 font-bold uppercase tracking-wide text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black md:hidden"
+              >
+                S&apos;inscrire
+              </Link>
               <Link
                 href="/contact"
-                className="inline-flex min-h-11 items-center rounded-full bg-mma-red px-8 py-3 font-bold uppercase tracking-wide text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-mma-red px-8 py-3 font-bold uppercase tracking-wide text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               >
                 1er COURS OFFERT
               </Link>
               <Link
                 href="/le-club"
-                className="inline-flex min-h-11 items-center rounded-full border-2 border-white px-8 py-3 font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                className="hidden min-h-11 items-center justify-center rounded-full border-2 border-white px-8 py-3 font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black md:inline-flex"
               >
                 Découvrir
               </Link>

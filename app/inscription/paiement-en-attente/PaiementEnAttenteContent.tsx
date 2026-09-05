@@ -83,9 +83,9 @@ export function PaiementEnAttenteContent() {
                   <p>
                     {isPaiementEnLigne ? (
                       <>
-                        1. Réglez votre cotisation en ligne sur HelloAsso (nouvel onglet). Si vous
-                        choisissez le paiement en 3 fois, seule la 1<sup>re</sup> échéance est
-                        prélevée aujourd&apos;hui — revenez ensuite sur cette page.
+                        1. Réglez votre cotisation en ligne sur HelloAsso (bouton ci-dessous, ou
+                        lien dans l&apos;email). Vous pouvez payer en une fois ou en plusieurs
+                        fois. Pas besoin de revenir sur ce site ensuite.
                       </>
                     ) : (
                       <>
@@ -105,8 +105,10 @@ export function PaiementEnAttenteContent() {
                   {!isPaiementEnLigne ? <EnveloppePaiementNotice /> : null}
                   <p>
                     2. Une fois le paiement validé
-                    {isPaiementEnLigne ? ' (au moins la 1re échéance HelloAsso)' : ' par le club'}
-                    , votre inscription sera finalisée.
+                    {isPaiementEnLigne
+                      ? ' (au moins la 1re échéance HelloAsso), le club le confirmera sur votre dossier'
+                      : ' par le club, votre inscription sera finalisée'}
+                    .
                   </p>
                 </CardContent>
               </Card>
@@ -200,12 +202,16 @@ export function PaiementEnAttenteContent() {
                     )}
                     {emailSent === true ? (
                       <p className="rounded-lg border border-emerald-800/60 bg-emerald-950/40 px-3 py-2 text-emerald-200">
-                        Un email de confirmation avec ce lien a été envoyé à votre adresse.
-                        Pensez à vérifier vos spams.
+                        Un email de confirmation
+                        {isPaiementEnLigne ? ' avec le lien de paiement HelloAsso' : ' avec ce lien'}{' '}
+                        a été envoyé à votre adresse. Pensez à vérifier vos spams.
                       </p>
                     ) : emailSent === false ? (
                       <p className="rounded-lg border border-amber-700/60 bg-amber-950/40 px-3 py-2 text-amber-100">
                         L&apos;email n&apos;a pas pu être envoyé automatiquement. Conservez bien
+                        {isPaiementEnLigne
+                          ? ' le bouton HelloAsso ci-dessus et'
+                          : ''}{' '}
                         le lien ci-dessous (ou demandez-le au club).
                       </p>
                     ) : null}
@@ -231,8 +237,8 @@ export function PaiementEnAttenteContent() {
                   <p>
                     {isPaiementEnLigne ? (
                       <>
-                        Le paiement en ligne se fait sur HelloAsso. Espèces et chèque se règlent au
-                        club.{' '}
+                        Le paiement en ligne se fait sur HelloAsso après validation de
+                        l&apos;inscription. Espèces et chèque se règlent au club.{' '}
                       </>
                     ) : (
                       <>Présentez-vous au club pour régler selon le mode choisi. </>

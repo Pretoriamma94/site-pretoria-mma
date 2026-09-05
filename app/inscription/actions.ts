@@ -10,6 +10,7 @@ const notifySchema = z.object({
   missingCertificat: z.boolean(),
   missingPhoto: z.boolean(),
   createdAt: z.string().optional(),
+  modePaiement: z.enum(['cash', 'cheque', 'virement']).optional(),
 });
 
 /**
@@ -28,6 +29,7 @@ export async function notifyInscriptionCreatedAction(input: {
   missingCertificat: boolean;
   missingPhoto: boolean;
   createdAt?: string;
+  modePaiement?: 'cash' | 'cheque' | 'virement';
 }): Promise<{ sent: boolean; error?: string }> {
   const parsed = notifySchema.safeParse(input);
   if (!parsed.success) {
