@@ -11,6 +11,9 @@ const notifySchema = z.object({
   missingPhoto: z.boolean(),
   createdAt: z.string().optional(),
   modePaiement: z.enum(['cash', 'cheque', 'virement']).optional(),
+  packCode: z.enum(['PACK2', 'PACK3', 'PACK4']).optional(),
+  packFoyerCode: z.string().max(24).optional(),
+  packRole: z.enum(['holder', 'additional']).optional(),
 });
 
 /**
@@ -30,6 +33,9 @@ export async function notifyInscriptionCreatedAction(input: {
   missingPhoto: boolean;
   createdAt?: string;
   modePaiement?: 'cash' | 'cheque' | 'virement';
+  packCode?: 'PACK2' | 'PACK3' | 'PACK4';
+  packFoyerCode?: string;
+  packRole?: 'holder' | 'additional';
 }): Promise<{ sent: boolean; error?: string }> {
   const parsed = notifySchema.safeParse(input);
   if (!parsed.success) {

@@ -5,7 +5,11 @@ import {
   openHelloAssoPaiementTab,
 } from '@/lib/inscription/helloasso';
 
-export function HelloAssoPaiementBlock() {
+type Props = {
+  packCode?: string | null;
+};
+
+export function HelloAssoPaiementBlock({ packCode }: Props) {
   return (
     <div className="rounded-xl border border-red-800/60 bg-red-950/20 p-4 text-sm text-zinc-200">
       <p className="font-medium text-white">Dernière étape : régler en ligne</p>
@@ -13,6 +17,11 @@ export function HelloAssoPaiementBlock() {
         Votre inscription est déjà enregistrée. Réglez votre cotisation sur HelloAsso (nouvel
         onglet). Vous pouvez payer en une fois ou en plusieurs fois.
       </p>
+      {packCode ? (
+        <p className="mt-2 font-medium text-white">
+          Saisissez le code promo {packCode} sur HelloAsso pour la réduction pack famille.
+        </p>
+      ) : null}
       <p className="mt-2 text-zinc-300">
         Pas besoin de revenir ensuite : le club confirmera le paiement sur votre dossier. Le même
         lien vous a aussi été envoyé par email.

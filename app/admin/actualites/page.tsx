@@ -2,11 +2,30 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getAuthUser, isAdminUser } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { retrySelectOnMissingColumn } from '@/lib/admin/inscription-fields';
 import { AdminCreatePostForm } from '../AdminCreatePostForm';
 import { setPostPublishStateAction } from '../actions';
 import { DeletePostButton } from './DeletePostButton';
+import { AdminPostPopupBadge } from '@/components/admin/AdminPostPopupBadge';
 
 type SearchParams = Promise<{ created?: string; photos?: string }>;
+
+const POSTS_ADMIN_SELECT =
+  'id, titre, slug, categorie, publie, date_publication, image_url, created_at, popup_actif, popup_debut, popup_fin';
+
+type AdminPostRow = {
+  id: string;
+  titre: string;
+  slug: string;
+  categorie: string;
+  publie: boolean;
+  date_publication: string | null;
+  image_url: string | null;
+  created_at: string | null;
+  popup_actif?: boolean | null;
+  popup_debut?: string | null;
+  popup_fin?: string | null;
+};
 
 export default async function AdminActualitesPage({
   searchParams,
@@ -22,11 +41,18 @@ export default async function AdminActualitesPage({
   const justCreated = params.created === '1';
 
   const supabase = createServerClient();
-  const { data: posts, error: postsError } = await supabase
-    .from('posts')
-    .select('id, titre, slug, categorie, publie, date_publication, image_url, created_at')
-    .order('created_at', { ascending: false })
-    .limit(50);
+  const { data: posts, error: postsError } = await retrySelectOnMissingColumn(
+    (select) =>
+      supabase
+        .from('posts')
+        .select(select)
+        .order('created_at', { ascending: false })
+        .limit(50) as unknown as Promise<{
+        data: AdminPostRow[] | null;
+        error: { message: string } | null;
+      }>,
+    POSTS_ADMIN_SELECT,
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 md:px-6">
@@ -34,7 +60,7 @@ export default async function AdminActualitesPage({
         Actualités
       </h1>
       <p className="mt-3 text-sm text-zinc-300">
-        Création, modification, publication et suivi des articles du club.
+        Création, modification, publication et pop-up des articles du club.
       </p>
 
       {justCreated ? (
@@ -65,6 +91,7 @@ export default async function AdminActualitesPage({
               <th className="px-4 py-3">Titre</th>
               <th className="px-4 py-3">Catégorie</th>
               <th className="px-4 py-3">Publication</th>
+              <th className="px-4 py-3">Pop-up</th>
               <th className="px-4 py-3">Image</th>
               <th className="px-4 py-3">Lien</th>
               <th className="px-4 py-3">Action</th>
@@ -86,6 +113,13 @@ export default async function AdminActualitesPage({
                         Brouillon
                       </span>
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <AdminPostPopupBadge
+                      popup_actif={post.popup_actif}
+                      popup_debut={post.popup_debut}
+                      popup_fin={post.popup_fin}
+                    />
                   </td>
                   <td className="px-4 py-3">
                     {post.image_url ? (
@@ -131,7 +165,7 @@ export default async function AdminActualitesPage({
               ))
             ) : (
               <tr>
-                <td className="px-4 py-4 text-zinc-400" colSpan={6}>
+                <td className="px-4 py-4 text-zinc-400" colSpan={7}>
                   Aucun article pour le moment.
                 </td>
               </tr>

@@ -55,6 +55,15 @@ const fallbackCoaches: CoachCardData[] = [
     photoUrl: '/images/coachs/christophe.jpg',
     isFounder: true,
   },
+  {
+    id: 'fallback-duff',
+    name: 'Anthony "Duff"',
+    specialities: 'Coach JJB Gi & No-Gi / Grappling',
+    diplomas: 'Ceinture noire JJB — FORCE & HONNEUR',
+    bio: 'Duff, de son prénom Anthony, débute le grappling No-Gi en 2013 avant de se lancer également dans le ju-jitsu brésilien Gi. Passionné, assidu et compétiteur dans l’âme, il gravit les échelons jusqu’à l’obtention de sa ceinture noire de JJB en 2025. Proche du milieu du MMA, son expertise du combat au sol s’est affinée au contact de nombreux combattants. C’est sur les tatamis de compétition qu’il croise à plusieurs reprises la Team Pretoria : de ces confrontations naissent le respect, les échanges, puis une véritable amitié. En 2026, Duff rejoint l’équipe pédagogique de Pretoria MMA, où il transmet son expérience en JJB Gi, No-Gi et grappling, avec pour objectif d’accompagner et de faire progresser les compétiteurs du club.',
+    photoUrl: '/images/coachs/duff.jpg',
+    isFounder: false,
+  },
 ];
 
 async function getCoachesFromDb(): Promise<CoachCardData[] | null> {
@@ -110,10 +119,11 @@ export async function CoachesSection() {
       <p className="max-w-2xl text-sm text-zinc-300 md:text-base">
         Découvrez les coachs qui encadrent les cours au sein de Pretoria MMA La Queue-en-Brie.
         Fondé par Christophe &quot;Patate&quot;, le club s&apos;appuie sur une équipe de
-        pratiquants expérimentés et diplômés, dont Romain et Pacino, ses tout premiers élèves.
+        pratiquants expérimentés et diplômés : Romain et Pacino, ses tout premiers élèves, et
+        Duff, ceinture noire de JJB.
       </p>
 
-      <div className="mt-6 grid gap-6 md:grid-cols-3">
+      <div className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {coaches.map((coach) => (
           <Card
             key={coach.id}
@@ -128,7 +138,7 @@ export async function CoachesSection() {
                 fill
                 className="object-cover object-top"
                 quality={90}
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
               />
               {coach.isFounder && (
                 <span className="absolute left-3 top-3 inline-flex items-center rounded-full bg-mma-red px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow-lg">
@@ -140,7 +150,7 @@ export async function CoachesSection() {
               <CardTitle>{coach.name}</CardTitle>
               <CardDescription>{coach.specialities}</CardDescription>
             </CardHeader>
-            <CardContent className="mt-auto space-y-2 text-sm text-zinc-300">
+            <CardContent className="space-y-2 text-sm text-zinc-300">
               <p>{coach.bio}</p>
               <p className="text-xs text-zinc-400">Distinction et mantra : {coach.diplomas}</p>
             </CardContent>

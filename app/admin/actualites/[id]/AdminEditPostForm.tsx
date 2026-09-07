@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react';
 import Link from 'next/link';
 import { updatePostAction, type UpdatePostActionState } from '../../actions';
+import { AdminPostPopupFields } from '@/components/admin/AdminPostPopupFields';
 
 export type EditablePost = {
   id: string;
@@ -14,6 +15,10 @@ export type EditablePost = {
   publie: boolean;
   image_url: string | null;
   galerie_urls: string[] | null;
+  popup_actif?: boolean | null;
+  popup_debut?: string | null;
+  popup_fin?: string | null;
+  popup_max_affichages?: number | null;
 };
 
 const initialState: UpdatePostActionState = {};
@@ -200,6 +205,13 @@ export function AdminEditPostForm({ post }: { post: EditablePost }) {
         />
         Article publié
       </label>
+
+      <AdminPostPopupFields
+        defaultActif={Boolean(post.popup_actif)}
+        defaultDebut={post.popup_debut}
+        defaultFin={post.popup_fin}
+        defaultMaxAffichages={post.popup_max_affichages}
+      />
 
       {tooHeavy ? (
         <p className="rounded-xl border border-amber-900/50 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">

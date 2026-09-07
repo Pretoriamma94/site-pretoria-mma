@@ -36,6 +36,9 @@ export function PaiementEnAttenteContent() {
     emailSentParam === '1' ? true : emailSentParam === '0' ? false : null;
   const isPaiementEnLigne = modeParam === 'virement';
   const docsManquants = searchParams.get('docs') === 'manquants';
+  const foyerCode = searchParams.get('foyer') ?? '';
+  const packCode = searchParams.get('pack') ?? '';
+  const packRole = searchParams.get('packRole') ?? '';
 
   const hasParams = Boolean(nom || prenom || cours || montant);
 
@@ -166,9 +169,46 @@ export function PaiementEnAttenteContent() {
               </Card>
             </section>
 
+            {foyerCode ? (
+              <section className="mt-8">
+                <Card className="border-sky-800/60 bg-sky-950/20">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Pack famille {packCode || ''}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm text-zinc-200">
+                    <p>
+                      Code foyer :{' '}
+                      <span className="font-semibold tracking-wide text-white">{foyerCode}</span>
+                    </p>
+                    {packCode ? (
+                      <p>
+                        En paiement en ligne, saisissez le code promo{' '}
+                        <span className="font-semibold text-white">{packCode}</span> sur HelloAsso.
+                      </p>
+                    ) : null}
+                    {packRole !== 'additional' ? (
+                      <Link
+                        href={`/inscription?famille=${encodeURIComponent(foyerCode)}`}
+                        className="inline-flex h-11 items-center justify-center rounded-full bg-sky-700 px-6 text-sm font-semibold uppercase tracking-wide text-white hover:bg-sky-600"
+                      >
+                        Ajouter un membre de la famille
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/inscription?famille=${encodeURIComponent(foyerCode)}`}
+                        className="inline-flex h-11 items-center justify-center rounded-full border border-sky-600 px-6 text-sm font-semibold uppercase tracking-wide text-sky-100 hover:bg-sky-950"
+                      >
+                        Ajouter encore un membre
+                      </Link>
+                    )}
+                  </CardContent>
+                </Card>
+              </section>
+            ) : null}
+
             {isPaiementEnLigne ? (
               <section className="mt-8">
-                <HelloAssoPaiementBlock />
+                <HelloAssoPaiementBlock packCode={packCode || null} />
               </section>
             ) : null}
 

@@ -20,7 +20,7 @@ export const HORAIRES_COURS: HoraireCours[] = [
   },
   {
     jour: 'MARDI',
-    horaire: '17h00 - 18h30',
+    horaire: '17h15 - 18h30',
     categorie: 'Enfants',
     discipline: 'MMA',
     lieu: LIEU_VIOLETTES,
@@ -87,7 +87,7 @@ export const TARIFS_INDIVIDUELS = [
     title: 'Enfants',
     price: '250€/an',
     category: 'MMA',
-    details: ['Mardi 17h-18h30 · Halles des Violettes', 'Samedi 16h-17h30 · Gymnase Pierre de Coubertin'],
+    details: ['Mardi 17h15-18h30 · Halles des Violettes', 'Samedi 16h-17h30 · Gymnase Pierre de Coubertin'],
   },
   {
     title: 'Adolescents',
@@ -129,7 +129,7 @@ export const COURS_ACCUEIL = [
     title: 'Enfants',
     icon: '🥊',
     description: 'MMA adapté aux enfants',
-    horaires: ['Mardi 17h-18h30 (Halles des Violettes)', 'Samedi 16h-17h30 (Gymnase Pierre de Coubertin)'],
+    horaires: ['Mardi 17h15-18h30 (Halles des Violettes)', 'Samedi 16h-17h30 (Gymnase Pierre de Coubertin)'],
     prix: '250€/an',
   },
   {

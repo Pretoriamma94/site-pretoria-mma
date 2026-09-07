@@ -5,19 +5,19 @@ import { HORAIRES_COURS, TARIFS_INDIVIDUELS } from '@/lib/club/planning';
 
 const familyPacks = [
   {
-    title: 'Pack Adulte + Baby JJB',
+    title: 'PACK2 — 2 membres',
     description:
-      "Tarif préférentiel pour 1 adulte et 1 enfant en Baby JJB (3-6 ans). Idéal pour commencer en famille et partager l'entraînement.",
+      '50 € de réduction pour 2 membres d’une même famille (père + enfant, ou fratrie). Le premier membre paie le tarif catalogue ; le second bénéficie de −50 €. Code HelloAsso : PACK2.',
   },
   {
-    title: 'Pack Fratrie',
+    title: 'PACK3 — 3 membres',
     description:
-      "Formule avantageuse pour 2 enfants ou plus de la même famille (Baby JJB et/ou Ados). Parfait pour les frères et sœurs qui s'entraînent ensemble.",
+      '100 € de réduction pour 3 membres (ex. adulte + 2 ados, ou 2 Baby JJB + 1 adolescent). Chaque inscription supplémentaire : −50 €. Code HelloAsso : PACK3.',
   },
   {
-    title: 'Pack Famille complète',
+    title: 'PACK4 — 4 membres',
     description:
-      'Pack combinant au moins 1 adulte et 1 enfant (ou plus). Contactez-nous pour construire la formule la plus adaptée et réaliser jusqu’à 200€ d’économie sur l’année.',
+      '150 € de réduction pour 4 membres (ex. adulte + 2 ados + Baby JJB). Chaque inscription supplémentaire : −50 €. Code HelloAsso : PACK4.',
   },
 ];
 
@@ -147,7 +147,10 @@ export default function CoursPage() {
         <h2 className="font-display text-xl uppercase tracking-[0.2em] text-white">
           Packs familiaux
         </h2>
-        <p className="mt-2 text-sm text-zinc-300">Économisez jusqu&apos;à 200€</p>
+        <p className="mt-2 text-sm text-zinc-300">
+          Plus vous êtes nombreux dans la famille, plus vous économisez (jusqu&apos;à 150 €).
+          Déclarez le pack à l&apos;inscription, puis ajoutez les autres membres avec le code foyer.
+        </p>
         <div className="mt-4 space-y-3">
           {familyPacks.map((pack) => (
             <details

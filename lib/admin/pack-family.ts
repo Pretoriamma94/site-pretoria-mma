@@ -11,6 +11,8 @@ export type PackFamilyRow = {
   inscription_familiale?: boolean | null;
   type_tarif?: string | null;
   pack_family_parent_id?: string | null;
+  pack_code?: string | null;
+  pack_foyer_code?: string | null;
   membre_2?: unknown;
   montant_total?: number | null;
 };

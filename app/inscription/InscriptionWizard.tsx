@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ConsentCheckbox, RgpdInfoBloc } from '@/components/inscription/ConsentCheckbox';
 import { isMinor, step3Schema, stepAutorisationsSchema, stepRgpdSchema } from '@/lib/inscription/schema';
+import { packFamilleSchema, normalizeFoyerCode } from '@/lib/inscription/pack-famille';
+import { getPackFoyerPrefillAction } from '@/lib/inscription/pack-famille-actions';
 import { TEXTE_ACCEPTER_RGPD, TEXTE_INFO_ASSURANCE } from '@/lib/inscription/legal-texts';
 import { StepFiliere } from './steps/StepFiliere';
 import { StepIdentite } from './steps/StepIdentite';
@@ -48,6 +50,7 @@ export function InscriptionWizard() {
   const [certificatFile, setCertificatFile] = useState<File | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const form = useForm<InscriptionFormValues>({
     defaultValues: inscriptionDefaultValues,
@@ -58,6 +61,26 @@ export function InscriptionWizard() {
   const filiere = watch('filiere');
   const dateNaissance = watch('dateNaissance');
   const isMineur = filiere === 'baby' || Boolean(dateNaissance && isMinor(dateNaissance));
+
+  useEffect(() => {
+    const famille = normalizeFoyerCode(searchParams.get('famille') ?? '');
+    if (!famille) return;
+    setValue('packRole', 'additional');
+    setValue('packFoyerCode', famille);
+    void getPackFoyerPrefillAction(famille).then((result) => {
+      if (!result.ok) {
+        setError('packFoyerCode', { type: 'manual', message: result.message });
+        return;
+      }
+      const { prefill } = result;
+      setValue('packTaille', prefill.packTaille);
+      if (prefill.email) setValue('email', prefill.email);
+      if (prefill.telephone) setValue('telephone', prefill.telephone);
+      if (prefill.adresse) setValue('adresse', prefill.adresse);
+      if (prefill.codePostal) setValue('codePostal', prefill.codePostal);
+      if (prefill.ville) setValue('ville', prefill.ville);
+    });
+  }, [searchParams, setError, setValue]);
 
   const goNext = async () => {
     const values = getValues();
@@ -197,7 +220,16 @@ export function InscriptionWizard() {
         applyZodErrors(paiementResult.error.flatten().fieldErrors, setError);
         return;
       }
-      clearErrors(['modePaiement', 'nombreEcheances', 'formuleAdulte']);
+      const packResult = packFamilleSchema.safeParse({
+        packRole: values.packRole ?? 'none',
+        packTaille: values.packTaille,
+        packFoyerCode: values.packFoyerCode,
+      });
+      if (!packResult.success) {
+        applyZodErrors(packResult.error.flatten().fieldErrors, setError);
+        return;
+      }
+      clearErrors(['modePaiement', 'nombreEcheances', 'formuleAdulte', 'packTaille', 'packFoyerCode']);
     }
 
     setStep((s) => Math.min(s + 1, INSCRIPTION_STEPS.length - 1));
@@ -230,12 +262,6 @@ export function InscriptionWizard() {
         Formulaire en {INSCRIPTION_STEPS.length} étapes. Les documents pourront être complétés
         après validation.
       </p>
-      {step === 0 ? (
-        <p className="mt-3 text-sm text-zinc-400">
-          Packs famille : des réductions existent. Pour en bénéficier, rapprochez-vous des
-          membres de l’association.
-        </p>
-      ) : null}
 
       <div className="mt-8 flex items-center justify-between gap-1 text-xs uppercase tracking-wider text-zinc-400">
         {INSCRIPTION_STEPS.map((label, index) => (

@@ -9,6 +9,7 @@ import {
   isMinor,
   resolveCoursSelectionne,
 } from '@/lib/inscription/schema';
+import { montantPackMembre, packCodeFromTaille } from '@/lib/inscription/pack-famille';
 import {
   TEXTE_ATTESTATION_QS_NON,
   TEXTE_ATTESTATION_QS_OUI,
@@ -33,7 +34,11 @@ export function StepRecap({ form, onGoToStep, onSubmit, isSubmitting, hasPhotoFi
   const mineur = Boolean(dateNaissance && isMinor(dateNaissance)) || filiere === 'baby';
   const formuleEffective =
     filiere === 'mma' && !mineur && sexe === 'homme' ? 'mixte' : formuleAdulte;
-  const total = filiere ? getCoursPrix(filiere, dateNaissance, formuleEffective) : 0;
+  const catalogue = filiere ? getCoursPrix(filiere, dateNaissance, formuleEffective) : 0;
+  const packRole = watch('packRole') ?? 'none';
+  const total = montantPackMembre(catalogue, packRole === 'additional');
+  const packCode = packRole === 'none' ? null : packCodeFromTaille(watch('packTaille') ?? 2);
+  const foyerCode = watch('packFoyerCode');
   const tarifLibelle = filiere ? getTarifLibelle(filiere, dateNaissance, formuleEffective) : '';
   const coursId =
     filiere && dateNaissance
@@ -163,6 +168,15 @@ export function StepRecap({ form, onGoToStep, onSubmit, isSubmitting, hasPhotoFi
             <p>
               {tarifLibelle} — {total}€
             </p>
+            {packRole === 'holder' ? (
+              <p>
+                Pack famille {packCode} — premier membre (tarif plein). Code foyer : {foyerCode || '—'}
+              </p>
+            ) : packRole === 'additional' ? (
+              <p>
+                Pack famille {packCode} — membre supplémentaire (−50 €). Code foyer : {foyerCode || '—'}
+              </p>
+            ) : null}
             <p>
               {watch('modePaiement') === 'virement'
                 ? `${modeLabel ?? 'Paiement en ligne'} — lien HelloAsso après validation`

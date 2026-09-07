@@ -16,6 +16,9 @@ export type InscriptionDocumentsMailPayload = {
   /** Date de création de l'inscription — sert à calculer la date limite exacte. */
   createdAt?: string | null;
   modePaiement?: 'cash' | 'cheque' | 'virement' | null;
+  packCode?: string | null;
+  packFoyerCode?: string | null;
+  packRole?: 'holder' | 'additional' | null;
 };
 
 function escapeHtml(value: string): string {
@@ -52,6 +55,32 @@ function buildManquants(payload: InscriptionDocumentsMailPayload): string[] {
   if (payload.missingCertificat) manquants.push('le certificat médical (moins de 3 mois)');
   if (payload.missingPhoto) manquants.push("une photo d'identité");
   return manquants;
+}
+
+function packFamilleText(payload: InscriptionDocumentsMailPayload): string[] {
+  if (!payload.packCode || !payload.packFoyerCode) return [];
+  const addUrl = `${getSiteUrl()}/inscription?famille=${encodeURIComponent(payload.packFoyerCode)}`;
+  const lines = [
+    `Pack famille ${payload.packCode} — code foyer : ${payload.packFoyerCode}.`,
+    `Sur HelloAsso, saisissez le code promo ${payload.packCode}.`,
+  ];
+  if (payload.packRole === 'holder') {
+    lines.push(`Pour inscrire les autres membres de la famille : ${addUrl}`);
+  }
+  return lines;
+}
+
+function packFamilleHtml(payload: InscriptionDocumentsMailPayload): string {
+  if (!payload.packCode || !payload.packFoyerCode) return '';
+  const addUrl = `${getSiteUrl()}/inscription?famille=${encodeURIComponent(payload.packFoyerCode)}`;
+  const addLink =
+    payload.packRole === 'holder'
+      ? `<p>Pour inscrire les autres membres de la famille : <a href="${addUrl}">${addUrl}</a></p>`
+      : '';
+  return `
+        <p><strong>Pack famille ${escapeHtml(payload.packCode)}</strong> — code foyer : <strong>${escapeHtml(payload.packFoyerCode)}</strong>.</p>
+        <p>Sur HelloAsso, saisissez le code promo <strong>${escapeHtml(payload.packCode)}</strong>.</p>
+        ${addLink}`;
 }
 
 function paiementEnLigne(payload: InscriptionDocumentsMailPayload): boolean {
@@ -139,7 +168,11 @@ export async function sendInscriptionDocumentsEmail(
     ``,
     `Votre inscription au club ${ASSOCIATION_NOM} est bien enregistrée.`,
     ``,
+    ...packFamilleText(payload),
   ];
+  if (packFamilleText(payload).length > 0) {
+    textLines.push(``);
+  }
 
   if (paiementEnLigne(payload)) {
     textLines.push(...paiementText(payload), ``);
@@ -195,6 +228,7 @@ export async function sendInscriptionDocumentsEmail(
       html: `
         <p>Bonjour ${escapeHtml(prenom)},</p>
         <p>Votre <strong>inscription</strong> au club <strong>${escapeHtml(ASSOCIATION_NOM)}</strong> est bien enregistrée.</p>
+        ${packFamilleHtml(payload)}
         ${paiementEnLigne(payload) ? paiementHtml(payload) : ''}
         ${corpsHtml}
         <p><a href="${lien}" style="display:inline-block;background:#DC2626;color:#ffffff;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:bold;">${escapeHtml(ctaLabel)}</a></p>

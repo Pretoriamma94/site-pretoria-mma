@@ -46,6 +46,7 @@ import { MembreBureauBadge } from '@/components/admin/MembreBureauBadge';
 import { VoieInscriptionBadge } from '@/components/admin/InscriptionManuelleBadge';
 import { isMembreBureau } from '@/lib/admin/membre-bureau';
 import { isPackFamily, isPackFamilyChild } from '@/lib/admin/pack-family';
+import { getPackCodeFromRow } from '@/lib/inscription/pack-famille';
 import { PackFamilyBadge } from '@/components/admin/PackFamilyBadge';
 import { PackFamilyPanel } from './PackFamilyPanel';
 import { RecuEmailButton } from './RecuEmailButton';
@@ -79,6 +80,8 @@ export type AdminInscription = {
   pack_family_parent_id?: string | null;
   membre_2: unknown | null;
   type_tarif: string;
+  pack_code?: string | null;
+  pack_foyer_code?: string | null;
   montant_total: number;
   certificat_medical_url: string | null;
   autorisation_parentale_url: string | null;
@@ -375,7 +378,7 @@ export function AdminInscriptionsTable({
                     ) : null}
                     {packFamily ? (
                       <div className="mt-1">
-                        <PackFamilyBadge compact />
+                        <PackFamilyBadge compact packCode={getPackCodeFromRow(row)} />
                       </div>
                     ) : null}
                     <div className="mt-0.5 text-[0.7rem] text-zinc-300">
@@ -627,7 +630,7 @@ export function AdminInscriptionsTable({
                 ) : null}
                 {isPackFamily(selected) ? (
                   <div className="mb-1">
-                    <PackFamilyBadge />
+                    <PackFamilyBadge packCode={getPackCodeFromRow(selected)} />
                   </div>
                 ) : null}
                 <p>Cours : {getCoursLabel(selected.cours_selectionne)}</p>

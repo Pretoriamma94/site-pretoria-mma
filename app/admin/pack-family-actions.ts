@@ -16,6 +16,7 @@ import {
 } from '@/lib/admin/pack-family';
 import {
   applyChildShare,
+  applyOfficialPackBareme,
   applyRestore,
   linkedToHolder,
   loadPackFamilyRow,
@@ -284,4 +285,28 @@ export async function setPackFamilyAction(input: unknown): Promise<SetPackFamily
     const message = err instanceof Error ? err.message : 'Impossible d’enregistrer le pack family.';
     return { success: false, error: message };
   }
+}
+
+export async function applyPackBaremeAction(
+  holderId: string,
+): Promise<SetPackFamilyResult> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { success: false, error: 'Accès administrateur requis.' };
+  }
+  if (!z.string().uuid().safeParse(holderId).success) {
+    return { success: false, error: 'Inscription invalide.' };
+  }
+  const { row, error } = await loadPackFamilyRow(holderId);
+  if (error || !row) return { success: false, error: error ?? 'Inscription introuvable.' };
+  if (getPackFamilyParentId(row)) {
+    return { success: false, error: 'Ouvrez la fiche du premier membre du foyer pour appliquer le barème.' };
+  }
+  const yearRows = await loadPackFamilyYearRows(row.annee_scolaire);
+  const children = linkedToHolder(row.id, yearRows);
+  const result = await applyOfficialPackBareme(row, children);
+  if ('error' in result) return { success: false, error: result.error };
+  revalidateAdminPaths();
+  return { success: true, members: result.members };
 }

@@ -9,10 +9,18 @@ import {
   membre2WithPackFamily,
   restoreIndividualTarif,
 } from '@/lib/admin/pack-family';
+import {
+  cataloguePrix,
+  generateFoyerCode,
+  getPackFoyerCodeFromRow,
+  membre2WithPackPromo,
+  montantPackMembre,
+  packCodeFromTaille,
+} from '@/lib/inscription/pack-famille';
 
 /** Colonnes stables sur le remote (lien pack via membre_2 si pack_family_parent_id absent). */
 export const FAMILY_SELECT =
-  'id, nom, prenom, annee_scolaire, cours_selectionne, status, montant_total, montant_paye, inscription_familiale, type_tarif, membre_2, date_naissance, type_profil';
+  'id, nom, prenom, annee_scolaire, cours_selectionne, status, montant_total, montant_paye, inscription_familiale, type_tarif, membre_2, date_naissance, type_profil, pack_code, pack_foyer_code, pack_family_parent_id';
 
 export type PackFamilyDbRow = {
   id: string;
@@ -27,6 +35,8 @@ export type PackFamilyDbRow = {
   inscription_familiale: boolean | null;
   pack_family_parent_id?: string | null;
   type_tarif?: string | null;
+  pack_code?: string | null;
+  pack_foyer_code?: string | null;
   membre_bureau?: boolean | null;
   membre_2?: unknown;
   date_naissance: string | null;
@@ -42,6 +52,8 @@ export type PackFamilyMemberPatch = {
   montant_paye: number;
   status: string;
   membre_2: unknown;
+  pack_code?: string | null;
+  pack_foyer_code?: string | null;
 };
 
 export function nextStatusForAmount(
@@ -144,7 +156,10 @@ export async function applyRestore(
     status: row.status,
   });
   const status = nextStatusForAmount(tarif.status, tarif.montantTotal, tarif.montantPaye);
-  const membre2 = membre2WithPackFamily(row.membre_2, { parentId: null, childIds: [] });
+  const membre2 = membre2WithPackPromo(
+    membre2WithPackFamily(row.membre_2, { parentId: null, childIds: [] }),
+    { packCode: null, foyerCode: null },
+  );
   const patch = {
     inscription_familiale: false,
     pack_family_parent_id: null as string | null,
@@ -153,8 +168,78 @@ export async function applyRestore(
     montant_paye: tarif.montantPaye,
     status,
     membre_2: membre2,
+    pack_code: null as string | null,
+    pack_foyer_code: null as string | null,
   };
   const error = await writePackFamilyPatch(row.id, patch);
   if (error) return { error: error.message };
   return { id: row.id, ...patch };
+}
+
+export async function applyOfficialPackBareme(
+  holder: PackFamilyDbRow,
+  children: PackFamilyDbRow[],
+): Promise<{ members: PackFamilyMemberPatch[] } | { error: string }> {
+  if (children.length < 1) {
+    return { error: 'Reliez au moins un membre du foyer avant d’appliquer le barème PACK.' };
+  }
+
+  const packCode = packCodeFromTaille(1 + children.length);
+  const foyerCode = getPackFoyerCodeFromRow(holder) || generateFoyerCode();
+  const members: PackFamilyMemberPatch[] = [];
+
+  const holderMontant = montantPackMembre(cataloguePrix(holder.cours_selectionne), false);
+  const holderTarif = applyPackFamilyShareTarif({
+    status: holder.status,
+    montantPaye: Number(holder.montant_paye ?? 0),
+    montantTotal: holderMontant,
+  });
+  const holderStatus = nextStatusForAmount(
+    holderTarif.status,
+    holderTarif.montantTotal,
+    holderTarif.montantPaye,
+  );
+  const holderMembre2 = membre2WithPackPromo(
+    membre2WithPackFamily(holder.membre_2, {
+      parentId: null,
+      childIds: children.map((c) => c.id),
+    }),
+    { packCode, foyerCode },
+  );
+  const holderPatch = {
+    inscription_familiale: true,
+    pack_family_parent_id: null as string | null,
+    type_tarif: holderTarif.typeTarif,
+    montant_total: holderTarif.montantTotal,
+    montant_paye: holderTarif.montantPaye,
+    status: holderStatus,
+    membre_2: holderMembre2,
+    pack_code: packCode,
+    pack_foyer_code: foyerCode,
+  };
+  const holderError = await writePackFamilyPatch(holder.id, holderPatch);
+  if (holderError) return { error: holderError.message };
+  members.push({ id: holder.id, ...holderPatch });
+
+  for (const child of children) {
+    const childMontant = montantPackMembre(cataloguePrix(child.cours_selectionne), true);
+    const linked = await applyChildShare(child, holder.id, childMontant);
+    if ('error' in linked) return { error: linked.error };
+    const childMembre2 = membre2WithPackPromo(linked.membre_2, { packCode, foyerCode });
+    const childPatch = {
+      ...linked,
+      membre_2: childMembre2,
+      pack_code: packCode,
+      pack_foyer_code: foyerCode,
+    };
+    const childError = await writePackFamilyPatch(child.id, {
+      membre_2: childMembre2,
+      pack_code: packCode,
+      pack_foyer_code: foyerCode,
+    });
+    if (childError) return { error: childError.message };
+    members.push(childPatch);
+  }
+
+  return { members };
 }

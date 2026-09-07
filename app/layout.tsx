@@ -4,6 +4,7 @@ import './globals.css';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { CookieConsent } from '@/components/CookieConsent';
+import { NewsPopupHost } from '@/components/NewsPopupHost';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const display = Bebas_Neue({ 
@@ -25,6 +26,14 @@ export const metadata: Metadata = {
     title: 'Pretoria MMA La Queue-en-Brie',
     description:
       'Club de MMA à La Queue-en-Brie (94) pour enfants et adultes, du débutant au compétiteur.',
+    images: [{ url: '/images/logo.png', width: 1024, height: 1024, alt: 'Pretoria MMA' }],
+  },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32' },
+      { url: '/icon.png', type: 'image/png' },
+    ],
+    apple: '/apple-icon.png',
   },
 };
 
@@ -41,6 +50,7 @@ export default function RootLayout({
           {children}
         </main>
         <Footer />
+        <NewsPopupHost />
         <CookieConsent />
       </body>
     </html>

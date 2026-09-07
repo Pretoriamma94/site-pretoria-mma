@@ -63,6 +63,10 @@ export interface Database {
           auteur_id: string | null;
           publie: boolean;
           date_publication: string | null;
+          popup_actif: boolean;
+          popup_debut: string | null;
+          popup_fin: string | null;
+          popup_max_affichages: number;
           created_at: string | null;
           updated_at: string | null;
         };
@@ -78,6 +82,10 @@ export interface Database {
           auteur_id?: string | null;
           publie?: boolean;
           date_publication?: string | null;
+          popup_actif?: boolean;
+          popup_debut?: string | null;
+          popup_fin?: string | null;
+          popup_max_affichages?: number;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -249,6 +257,10 @@ export interface Database {
           pack_family_parent_id: string | null;
           membre_2: Json | null;
           type_tarif: string;
+          /** PACK2 / PACK3 / PACK4 — null hors pack famille. */
+          pack_code: string | null;
+          /** Code foyer partagé (ex. FAM-7K2P). */
+          pack_foyer_code: string | null;
           montant_total: number;
           certificat_medical_url: string | null;
           autorisation_parentale_url: string | null;
@@ -318,6 +330,8 @@ export interface Database {
           pack_family_parent_id?: string | null;
           membre_2?: Json | null;
           type_tarif?: string;
+          pack_code?: string | null;
+          pack_foyer_code?: string | null;
           montant_total: number;
           certificat_medical_url?: string | null;
           autorisation_parentale_url?: string | null;

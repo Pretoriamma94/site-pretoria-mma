@@ -1,6 +1,6 @@
 import type { UseFormReturn } from 'react-hook-form';
 import { FILIERE_OPTIONS } from '@/lib/inscription/schema';
-import { ASSOCIATION_EMAIL, TEXTE_PACK_FAMILLE_INSCRIPTION } from '@/lib/inscription/legal-texts';
+import { TEXTE_PACK_FAMILLE_INSCRIPTION } from '@/lib/inscription/legal-texts';
 import type { InscriptionFormValues } from '@/app/inscription/form-values';
 import { cn } from '@/lib/utils';
 
@@ -32,14 +32,8 @@ export function StepFiliere({ form }: Props) {
         <p className="font-semibold uppercase tracking-wide text-white">Pack famille</p>
         <p className="mt-1.5 text-zinc-300">{TEXTE_PACK_FAMILLE_INSCRIPTION}</p>
         <p className="mt-2 text-zinc-400">
-          Au club, ou par e-mail :{' '}
-          <a
-            href={`mailto:${ASSOCIATION_EMAIL}`}
-            className="text-red-300 underline decoration-red-300/50 underline-offset-2 hover:text-red-200"
-          >
-            {ASSOCIATION_EMAIL}
-          </a>
-          .
+          Chaque personne a son propre dossier (santé, photo, charte). Le lien famille se fait à
+          l&apos;étape Paiement.
         </p>
       </div>
       <h2 className="font-display text-xl uppercase tracking-[0.2em] text-white">

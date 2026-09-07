@@ -2,9 +2,13 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { getAuthUser, isAdminUser } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { AdminEditPostForm } from './AdminEditPostForm';
+import { retrySelectOnMissingColumn } from '@/lib/admin/inscription-fields';
+import { AdminEditPostForm, type EditablePost } from './AdminEditPostForm';
 
 type Params = Promise<{ id: string }>;
+
+const POST_EDIT_SELECT =
+  'id, titre, slug, resume, contenu, categorie, publie, image_url, galerie_urls, popup_actif, popup_debut, popup_fin, popup_max_affichages';
 
 export default async function AdminEditActualitePage({
   params,
@@ -18,13 +22,14 @@ export default async function AdminEditActualitePage({
 
   const { id } = await params;
   const supabase = createServerClient();
-  const { data: post, error } = await supabase
-    .from('posts')
-    .select(
-      'id, titre, slug, resume, contenu, categorie, publie, image_url, galerie_urls',
-    )
-    .eq('id', id)
-    .maybeSingle();
+  const { data: post, error } = await retrySelectOnMissingColumn(
+    (select) =>
+      supabase.from('posts').select(select).eq('id', id).maybeSingle() as unknown as Promise<{
+        data: EditablePost | null;
+        error: { message: string } | null;
+      }>,
+    POST_EDIT_SELECT,
+  );
 
   if (error || !post) {
     notFound();

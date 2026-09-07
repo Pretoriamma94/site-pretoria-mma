@@ -15,6 +15,7 @@ import { PackFamilyBadge } from '@/components/admin/PackFamilyBadge';
 import { VoieInscriptionBadge } from '@/components/admin/InscriptionManuelleBadge';
 import { isMembreBureau } from '@/lib/admin/membre-bureau';
 import { isPackFamily, isPackFamilyChild } from '@/lib/admin/pack-family';
+import { getPackCodeFromRow } from '@/lib/inscription/pack-famille';
 import { PackFamilyPanel } from '../PackFamilyPanel';
 import { RecuEmailButton } from '../RecuEmailButton';
 import { isInscriptionManuelle } from '@/lib/admin/voie-inscription';
@@ -88,6 +89,8 @@ export type AdherentRow = {
   membre_bureau?: boolean | null;
   inscription_familiale?: boolean | null;
   pack_family_parent_id?: string | null;
+  pack_code?: string | null;
+  pack_foyer_code?: string | null;
   voie_inscription?: string | null;
   membre_2?: unknown;
 };
@@ -438,7 +441,7 @@ export function AdherentsDirectory({
                     ) : null}
                     {isPackFamily(row) ? (
                       <span className="mt-1 block">
-                        <PackFamilyBadge compact />
+                        <PackFamilyBadge compact packCode={getPackCodeFromRow(row)} />
                       </span>
                     ) : null}
                   </td>
@@ -561,7 +564,7 @@ export function AdherentsDirectory({
                   ) : null}
                   {isPackFamily(selected) ? (
                     <div className="mt-2">
-                      <PackFamilyBadge />
+                      <PackFamilyBadge packCode={getPackCodeFromRow(selected)} />
                     </div>
                   ) : null}
                   <p className="mt-1 text-zinc-300">

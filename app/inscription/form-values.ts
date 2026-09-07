@@ -46,6 +46,9 @@ export type InscriptionFormValues = {
   charteEngagementRespect?: boolean;
   modePaiement?: 'cash' | 'cheque' | 'virement';
   nombreEcheances?: 1 | 2 | 3;
+  packRole?: 'none' | 'holder' | 'additional';
+  packTaille?: 2 | 3 | 4;
+  packFoyerCode?: string;
 };
 
 export const inscriptionDefaultValues: InscriptionFormValues = {
@@ -76,6 +79,8 @@ export const inscriptionDefaultValues: InscriptionFormValues = {
   charteLue: false,
   charteReglesConnues: false,
   charteEngagementRespect: false,
+  packRole: 'none',
+  packFoyerCode: '',
 };
 
 export const INSCRIPTION_STEPS = [

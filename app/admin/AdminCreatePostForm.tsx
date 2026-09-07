@@ -7,6 +7,7 @@ import {
   uploadAdminPostImageAction,
 } from './actions';
 import { POST_IMAGE_MAX_BYTES } from '@/lib/admin/upload-post-image';
+import { AdminPostPopupFields } from '@/components/admin/AdminPostPopupFields';
 
 function formatMo(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
@@ -262,6 +263,8 @@ export function AdminCreatePostForm() {
         <input name="publie" type="checkbox" className="h-4 w-4 accent-red-600" />
         Publier immédiatement
       </label>
+
+      <AdminPostPopupFields />
 
       <div>
         <button

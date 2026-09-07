@@ -59,6 +59,8 @@ const ADHERENT_SELECT = [
   'membre_bureau',
   'inscription_familiale',
   'pack_family_parent_id',
+  'pack_code',
+  'pack_foyer_code',
   'voie_inscription',
   'membre_2',
 ].join(', ');

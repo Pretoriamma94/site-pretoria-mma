@@ -19,6 +19,8 @@ export const ADMIN_INSCRIPTION_COLUMNS = [
   'pack_family_parent_id',
   'membre_2',
   'type_tarif',
+  'pack_code',
+  'pack_foyer_code',
   'montant_total',
   'certificat_medical_url',
   'autorisation_parentale_url',

@@ -9,10 +9,12 @@ import {
   listPackFamilyCandidates,
   type PackFamilyCandidateRow,
 } from '@/lib/admin/pack-family';
+import { getPackCodeFromRow, getPackFoyerCodeFromRow } from '@/lib/inscription/pack-famille';
 import { PackFamilyBadge } from '@/components/admin/PackFamilyBadge';
 import {
   getPackFamilyContextAction,
   setPackFamilyAction,
+  applyPackBaremeAction,
 } from './pack-family-actions';
 import type { PackFamilyMemberPatch } from '@/lib/admin/pack-family-store';
 
@@ -40,6 +42,8 @@ export function PackFamilyPanel({ row, knownRows = [], disabled, onSaved, onErro
   const packOn = isPackFamily(row);
   const childCours = isPackFamilyChildCours(row.cours_selectionne);
   const linkedChild = isPackFamilyChild(row);
+  const packCode = getPackCodeFromRow(row);
+  const foyerCode = getPackFoyerCodeFromRow(row);
 
   const localCandidates = useMemo(
     () => listPackFamilyCandidates(knownRows, { id: row.id, annee_scolaire: row.annee_scolaire }),
@@ -192,6 +196,14 @@ export function PackFamilyPanel({ row, knownRows = [], disabled, onSaved, onErro
     <div className="mt-3 rounded-xl border border-sky-800/50 bg-sky-950/15 p-3">
       <div className="flex flex-wrap items-center gap-2">
         {packOn ? <PackFamilyBadge /> : null}
+        {packCode ? (
+          <span className="text-[0.7rem] font-semibold uppercase tracking-wide text-sky-200">
+            {packCode}
+            {foyerCode ? ` · ${foyerCode}` : ''}
+          </span>
+        ) : foyerCode ? (
+          <span className="text-[0.7rem] font-semibold tracking-wide text-sky-200">{foyerCode}</span>
+        ) : null}
       </div>
       {row.status !== 'cancelled' ? (
         <label className="mt-2 flex items-start gap-2 text-sm text-zinc-200">
@@ -251,6 +263,8 @@ export function PackFamilyPanel({ row, knownRows = [], disabled, onSaved, onErro
           <p className="text-[0.7rem] font-normal normal-case tracking-normal text-zinc-500">
             Cochez un ou plusieurs enfants (baby, enfants, ado). Pour chaque enfant, indiquez sa
             part : 0 € = inclus sans reçu, un montant &gt; 0 € = reçu distinct à son nom.
+            « Appliquer le barème PACK » (après enregistrement) : 1er membre au tarif catalogue,
+            chaque lié à −50 €. Ne recalcule rien tant que vous ne cliquez pas.
           </p>
           {selectedIds.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -265,6 +279,27 @@ export function PackFamilyPanel({ row, knownRows = [], disabled, onSaved, onErro
                 className="rounded-full border border-sky-700/70 bg-sky-950/60 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-sky-100 hover:bg-sky-900/70 disabled:opacity-50"
               >
                 Répartir à parts égales
+              </button>
+              <button
+                type="button"
+                disabled={saving || disabled || !packOn || selectedIds.length < 1}
+                onClick={() => {
+                  void (async () => {
+                    setSaving(true);
+                    setLocalError(null);
+                    const result = await applyPackBaremeAction(row.id);
+                    setSaving(false);
+                    if (!result.success) {
+                      setLocalError(result.error);
+                      onError(result.error);
+                      return;
+                    }
+                    onSaved(result.members);
+                  })();
+                }}
+                className="rounded-full border border-sky-700/70 bg-sky-950/60 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-sky-100 hover:bg-sky-900/70 disabled:opacity-50"
+              >
+                Appliquer le barème PACK
               </button>
             </div>
           ) : null}

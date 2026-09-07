@@ -41,6 +41,12 @@ import {
   uploadPostImageFile,
 } from '@/lib/admin/upload-post-image';
 import type { Database, Json } from '@/types/database';
+import {
+  applyPopupSchedule,
+  parsePopupFormFields,
+  popupColumnsMissingMessage,
+  popupConflictMessage,
+} from '@/lib/news-popup';
 
 type InscriptionStatus = Database['public']['Enums']['inscription_status_type'];
 
@@ -141,6 +147,11 @@ export async function createPostAction(
     return { error: formatZodError(parsed.error) };
   }
 
+  const popupParsed = parsePopupFormFields(formData);
+  if ('error' in popupParsed) {
+    return { error: popupParsed.error };
+  }
+
   const payload = parsed.data;
   const generatedSlug = payload.slug ? slugify(payload.slug) : slugify(payload.titre);
   const finalSlug = generatedSlug || `actualite-${Date.now()}`;
@@ -186,7 +197,18 @@ export async function createPostAction(
       galerie_urls: galerieUrls,
       publie: payload.publie,
       date_publication: payload.publie ? new Date().toISOString() : null,
+      popup_actif: popupParsed.popup_actif,
+      popup_debut: popupParsed.popup_debut,
+      popup_fin: popupParsed.popup_fin,
+      popup_max_affichages: popupParsed.popup_max_affichages,
     };
+
+    if (popupParsed.popup_actif) {
+      const deactivated = await applyPopupSchedule({ schedule: popupParsed });
+      if (deactivated.error) {
+        return { error: deactivated.error };
+      }
+    }
 
     const { data: inserted, error } = await supabase
       .from('posts')
@@ -195,9 +217,42 @@ export async function createPostAction(
       .single();
 
     if (error) {
-      return { error: `Création impossible : ${error.message}` };
-    }
-    if (!inserted) {
+      const missing = missingDbColumn(error.message);
+      if (missing === 'popup_max_affichages') {
+        if (popupParsed.popup_max_affichages > 1) {
+          return { error: popupColumnsMissingMessage(error.message) ?? error.message };
+        }
+        const { popup_max_affichages: _max, ...withoutMax } = insertRow;
+        const retryMax = await supabase.from('posts').insert(withoutMax).select('id').single();
+        if (retryMax.error || !retryMax.data) {
+          return {
+            error: `Création impossible : ${retryMax.error?.message ?? error.message}`,
+          };
+        }
+      } else {
+        const popupHint = popupColumnsMissingMessage(error.message);
+        if (popupHint && popupParsed.popup_actif) {
+          return { error: popupHint };
+        }
+        if (popupHint) {
+          const {
+            popup_actif: _pa,
+            popup_debut: _pd,
+            popup_fin: _pf,
+            popup_max_affichages: _pm,
+            ...withoutPopup
+          } = insertRow;
+          const retry = await supabase.from('posts').insert(withoutPopup).select('id').single();
+          if (retry.error || !retry.data) {
+            return { error: `Création impossible : ${retry.error?.message ?? error.message}` };
+          }
+        } else {
+          return {
+            error: popupConflictMessage(error.message) ?? `Création impossible : ${error.message}`,
+          };
+        }
+      }
+    } else if (!inserted) {
       return { error: 'Création impossible : aucune confirmation de la base.' };
     }
   } catch (err) {
@@ -210,6 +265,7 @@ export async function createPostAction(
   revalidateAdminPaths();
   revalidatePath('/actualites');
   revalidatePath('/');
+  revalidatePath('/', 'layout');
   revalidatePath(`/actualites/${finalSlug}`);
 
   const hasPhotos = Boolean(imageUrl) || galerieUrls.length > 0;
@@ -260,6 +316,7 @@ export async function setPostPublishStateAction(formData: FormData) {
   revalidateAdminPaths();
   revalidatePath('/actualites');
   revalidatePath('/');
+  revalidatePath('/', 'layout');
 }
 
 export async function deletePostAction(formData: FormData) {
@@ -307,6 +364,7 @@ export async function deletePostAction(formData: FormData) {
     revalidateAdminPaths();
     revalidatePath('/actualites');
     revalidatePath('/');
+    revalidatePath('/', 'layout');
     if (post.slug) revalidatePath(`/actualites/${post.slug}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur inconnue';
@@ -355,6 +413,11 @@ export async function updatePostAction(
 
   if (!parsed.success) {
     return { error: formatZodError(parsed.error) };
+  }
+
+  const popupParsed = parsePopupFormFields(formData);
+  if ('error' in popupParsed) {
+    return { error: popupParsed.error };
   }
 
   const payload = parsed.data;
@@ -428,17 +491,65 @@ export async function updatePostAction(
       galerie_urls: galerieUrls,
       publie: payload.publie,
       date_publication: datePublication,
+      popup_actif: popupParsed.popup_actif,
+      popup_debut: popupParsed.popup_debut,
+      popup_fin: popupParsed.popup_fin,
+      popup_max_affichages: popupParsed.popup_max_affichages,
     };
+
+    if (popupParsed.popup_actif) {
+      const deactivated = await applyPopupSchedule({
+        keepId: payload.id,
+        schedule: popupParsed,
+      });
+      if (deactivated.error) {
+        return { error: deactivated.error };
+      }
+    }
 
     const { error } = await supabase.from('posts').update(updateRow).eq('id', payload.id);
 
     if (error) {
-      return { error: `Mise à jour impossible : ${error.message}` };
+      const missing = missingDbColumn(error.message);
+      if (missing === 'popup_max_affichages') {
+        if (popupParsed.popup_max_affichages > 1) {
+          return { error: popupColumnsMissingMessage(error.message) ?? error.message };
+        }
+        const { popup_max_affichages: _max, ...withoutMax } = updateRow;
+        const retryMax = await supabase.from('posts').update(withoutMax).eq('id', payload.id);
+        if (retryMax.error) {
+          return { error: `Mise à jour impossible : ${retryMax.error.message}` };
+        }
+      } else {
+        const popupHint = popupColumnsMissingMessage(error.message);
+        if (popupHint && popupParsed.popup_actif) {
+          return { error: popupHint };
+        }
+        if (popupHint) {
+          const {
+            popup_actif: _pa,
+            popup_debut: _pd,
+            popup_fin: _pf,
+            popup_max_affichages: _pm,
+            ...withoutPopup
+          } = updateRow;
+          const retry = await supabase.from('posts').update(withoutPopup).eq('id', payload.id);
+          if (retry.error) {
+            return { error: `Mise à jour impossible : ${retry.error.message}` };
+          }
+        } else {
+          return {
+            error:
+              popupConflictMessage(error.message) ?? `Mise à jour impossible : ${error.message}`,
+          };
+        }
+      }
     }
 
     revalidateAdminPaths();
     revalidatePath('/actualites');
     revalidatePath('/');
+    revalidatePath('/', 'layout');
     revalidatePath(`/actualites/${current.slug}`);
     revalidatePath(`/actualites/${finalSlug}`);
     revalidatePath(`/admin/actualites/${payload.id}`);

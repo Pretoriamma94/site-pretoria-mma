@@ -11,10 +11,10 @@
 - Première connexion : même lien « Mot de passe oublié ou première connexion » pour choisir un mot de passe personnel.
 - Redirect URLs Supabase à autoriser : `http://localhost:3000/auth/callback` (+ URL prod).
 
-## Planning & tarifs 2026-2027 (en cours, local)
+## Planning & tarifs 2026-2027
 
 - **Baby JJB** : samedi 15h-16h, 200 €.
-- **Enfants** : mardi 17h-18h30 (Halles des Violettes) + samedi 16h-17h30 (Coubertin), 250 €.
+- **Enfants** : mardi 17h15-18h30 (Halles des Violettes) + samedi 16h-17h30 (Coubertin), 250 €.
 - **Adolescents** : mardi 18h30-20h MMA + jeudi 18h30-20h grappling (Halles des Violettes), 250 €.
 - **Adultes mixte** (homme et femme) : 300 €, accès à tous les cours adultes mixtes (lundi MMA, jeudi grappling, samedi sparring).
 - **Section femmes** : 200 €, un créneau samedi 17h30-18h30 MMA/Grappling.
@@ -39,7 +39,12 @@
 
 - **Inscriptions** : **Modifier** et **Détails** ouvrent la **fiche complète éditable** (identité, montant, consentements, pack family, paiement, documents). **Annuler** / **Enregistrer** restent visibles ; après enregistrement ou annulation, la fiche se ferme.
 
-## Pack family admin (2026-09-04)
+## Pack famille public PACK2 / PACK3 / PACK4 (2026-09-07)
+
+- L’inscription reste **1 personne = 1 dossier**. Le 1er membre (parent ou aîné) choisit PACK2/3/4 ; un **code foyer** permet d’ajouter les autres.
+- 1er membre = tarif catalogue ; chaque membre supplémentaire = **−50 €**. HelloAsso inchangé (saisir le code PACK sur la campagne existante).
+- Admin : badge du code + bouton **Appliquer le barème PACK**. Les dossiers déjà liés ne sont pas recalculés tout seuls.
+- Migration additive `20260907120000_pack_famille_codes.sql` (`pack_code`, `pack_foyer_code`) **appliquée** sur le remote le 2026-09-07. Repli `membre_2` conservé.
 
 - Le parcours d’inscription public reste inchangé (1 personne à la fois).
 - **Admin fiche inscription / adhérents** : case **Pack family**.
@@ -49,6 +54,16 @@
 - Badge **Pack family** (listes + fiches). Incompatible avec « membre du bureau ».
 - Recettes club : le tarif pack est sur le payeur (adulte ou enfant) ; les membres reliés à 0 € ne doublent pas le CA.
 - Migration `20260904170000_pack_family.sql` (`pack_family_parent_id`) **appliquée** sur le remote le 2026-09-04. Repli JSON dans `membre_2` conservé en secours.
+
+## Pop-up actualité (2026-09-07)
+
+- Pas d’outil séparé : l’admin coche **Afficher en pop-up** sur une actualité (création / modification), avec dates de début et de fin optionnelles (heure de Paris).
+- **Une seule** actualité à la fois (les autres se décochent ; index unique SQL). Affichage seulement si l’article est **publié** et dans la fenêtre de dates.
+- Site public : titre, image, résumé, bouton vers l’article, fermeture bien visible.
+- **Affichages par visiteur** : 1, 2 ou 3 visites (session navigateur). Fermer arrête tout de suite. Pas de réaffichage à chaque page.
+- **Pas affiché** dans l’admin, pendant l’inscription (`/inscription`, `/mon-inscription`) ni sur l’article lui-même.
+- S’arrête dès que la case est décochée, que l’article est dépublié, ou que la date de fin est passée.
+- Migrations additives `20260907140000_posts_popup.sql` + `20260907150000_posts_popup_max_affichages.sql` **appliquées** sur le remote le 2026-09-07.
 
 ## HelloAsso après validation (2026-09-05)
 
@@ -252,4 +267,4 @@ Alignés site + admin papier :
 5. Inscriptions : filtrer / rechercher ; **+ Inscription papier** ; **Enregistrer un paiement** (montant reçu)
 6. Paiements / Soldes : vérifier les restes dus
 7. `/contact` : envoyer un message → `/admin/contact` → marquer traité
-8. Actualités : créer / publier depuis `/admin/actualites`
+8. Actualités : créer / publier depuis `/admin/actualites` ; cocher **Afficher en pop-up** pour tester l’overlay hors `/admin` et `/inscription`

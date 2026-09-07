@@ -23,6 +23,15 @@ import {
   stepRgpdSchema,
   getAgeFromBirthDate,
 } from '@/lib/inscription/schema';
+import {
+  generateFoyerCode,
+  membre2WithPackPromo,
+  montantPackMembre,
+  normalizeFoyerCode,
+  packCodeFromTaille,
+  packFamilleSchema,
+} from '@/lib/inscription/pack-famille';
+import { finalizePackFamilyInscriptionAction, getPackFoyerPrefillAction } from '@/lib/inscription/pack-famille-actions';
 import { uploadInscriptionFile } from '@/lib/inscription/upload';
 import { supabase } from '@/lib/supabase/client';
 import type { Database, Json } from '@/types/database';
@@ -130,7 +139,32 @@ export async function submitInscription(params: {
       message: 'Choisissez la formule Adultes mixte (300 €) ou Section femmes (200 €).',
     };
   }
-  const total = getCoursPrix(filiere, values.dateNaissance, formuleEffective);
+  const catalogue = getCoursPrix(filiere, values.dateNaissance, formuleEffective);
+  const packParsed = packFamilleSchema.safeParse({
+    packRole: values.packRole ?? 'none',
+    packTaille: values.packTaille,
+    packFoyerCode: values.packFoyerCode,
+  });
+  if (!packParsed.success) {
+    return { ok: false, message: packParsed.error.issues[0]?.message ?? 'Pack famille incomplet.' };
+  }
+  const packRole = packParsed.data.packRole;
+  const packTaille = packParsed.data.packTaille;
+  let packCode =
+    packRole === 'none' ? null : packCodeFromTaille(packTaille ?? 2);
+  let packFoyerCode =
+    packRole === 'none'
+      ? null
+      : normalizeFoyerCode(packParsed.data.packFoyerCode ?? '') ||
+        (packRole === 'holder' ? generateFoyerCode() : '');
+  if (packRole === 'additional' && !packFoyerCode) {
+    return { ok: false, message: 'Saisissez le code foyer du premier membre.' };
+  }
+  if (packRole === 'additional' && packFoyerCode) {
+    const prefill = await getPackFoyerPrefillAction(packFoyerCode);
+    if (!prefill.ok) return { ok: false, message: prefill.message };
+  }
+  const total = montantPackMembre(catalogue, packRole === 'additional');
   const coursSelectionne = resolveCoursSelectionne(
     filiere,
     values.dateNaissance,
@@ -253,10 +287,15 @@ export async function submitInscription(params: {
       taille_tenue: null,
       responsable_legal: buildResponsableLegal(values, mineur),
       cours_selectionne: coursSelectionne,
-      inscription_familiale: false,
-      membre_2: { voie_inscription: VOIE_INSCRIPTION_EN_LIGNE },
-      type_tarif: 'individuel',
+      inscription_familiale: packRole !== 'none',
+      membre_2: membre2WithPackPromo(
+        { voie_inscription: VOIE_INSCRIPTION_EN_LIGNE },
+        { packCode, foyerCode: packFoyerCode },
+      ),
+      type_tarif: packRole === 'none' ? 'individuel' : 'familial',
       voie_inscription: VOIE_INSCRIPTION_EN_LIGNE,
+      pack_code: packCode,
+      pack_foyer_code: packFoyerCode,
       montant_total: total,
       mode_paiement: paiementResult.data.modePaiement,
       nombre_echeances: paiementResult.data.nombreEcheances,
@@ -314,6 +353,20 @@ export async function submitInscription(params: {
       };
     }
 
+    if (packRole !== 'none' && documentsToken) {
+      const finalized = await finalizePackFamilyInscriptionAction({
+        documentsToken,
+        packRole,
+        packTaille,
+        packFoyerCode: packFoyerCode ?? undefined,
+        packCode,
+      });
+      if (finalized.ok) {
+        if (finalized.packCode) packCode = finalized.packCode;
+        if (finalized.foyerCode) packFoyerCode = finalized.foyerCode;
+      }
+    }
+
     const missingCertificat = !certificatFile && !certificatDispense;
     const missingPhoto = !photoFile;
     const canSendEmail = Boolean(documentsToken) && Boolean(emailPrincipal);
@@ -328,6 +381,9 @@ export async function submitInscription(params: {
           missingPhoto,
           createdAt: new Date().toISOString(),
           modePaiement: paiementResult.data.modePaiement,
+          packCode: packCode ?? undefined,
+          packFoyerCode: packFoyerCode ?? undefined,
+          packRole: packRole === 'none' ? undefined : packRole,
         });
         emailSent = mail.sent;
       } catch {
@@ -345,6 +401,9 @@ export async function submitInscription(params: {
       docs: missingCertificat || missingPhoto ? 'manquants' : 'complets',
       ...(documentsToken ? { token: documentsToken } : {}),
       ...(canSendEmail ? { emailSent: emailSent ? '1' : '0' } : {}),
+      ...(packFoyerCode ? { foyer: packFoyerCode } : {}),
+      ...(packCode ? { pack: packCode } : {}),
+      ...(packRole !== 'none' ? { packRole } : {}),
     }).toString();
 
     return { ok: true, query };

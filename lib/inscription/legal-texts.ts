@@ -85,6 +85,6 @@ export const TEXTE_BABY_DEUX_PARENTS =
 export const TEXTE_BABY_PLUS_DE_7_ANS =
   'Si l’enfant a plus de 7 ans, passez sur la partie MMA.';
 
-/** Affiché au début de l’inscription publique — le pack n’est pas choisi en ligne. */
+/** Affiché au début de l’inscription publique — pack famille en ligne. */
 export const TEXTE_PACK_FAMILLE_INSCRIPTION =
-  'Des packs famille existent et donnent droit à une réduction. Pour en bénéficier, rapprochez-vous des membres de l’association.';
+  'Pack famille : le premier membre (parent ou aîné) choisit PACK2, PACK3 ou PACK4 à l’étape Paiement. Après validation, un code foyer permet d’ajouter les autres (fratrie ou parent + enfants). Chaque membre supplémentaire bénéficie de 50 € de réduction. En paiement en ligne, saisissez le même code (PACK2, PACK3 ou PACK4) sur HelloAsso.';
