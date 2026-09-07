@@ -79,7 +79,7 @@ Le site n’apparaît pas tout de suite dans Google : c’est normal. Pour accé
 2. Ajouter une propriété **Préfixe d’URL** : `https://pretoriamma94.fr`.
 3. Valider la propriété (méthode recommandée : **enregistrement DNS** chez le registrar, ou fichier HTML).
 4. Dans **Sitemaps**, soumettre : `https://pretoriamma94.fr/sitemap.xml`.
-5. Dans **Inspection d’URL**, coller `https://pretoriamma94.fr` → **Demander une indexation**.
+5. Dans **Inspection d’URL**, coller `https://pretoriamma94.fr` → **Demander une indexation**. Le favicon des résultats Google n’apparaît qu’après ce nouveau crawl (souvent plusieurs jours), même s’il est déjà visible dans l’onglet du navigateur.
 
 Fichiers déjà en place sur le site : `/robots.txt` et `/sitemap.xml` (pages publiques + actualités publiées ; admin et liens personnels exclus).
 
