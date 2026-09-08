@@ -8,6 +8,7 @@ import {
   getTarifLibelle,
   isMinor,
   resolveCoursSelectionne,
+  resolveFormuleAdulte,
 } from '@/lib/inscription/schema';
 import { montantPackMembre, packCodeFromTaille } from '@/lib/inscription/pack-famille';
 import {
@@ -30,10 +31,8 @@ export function StepRecap({ form, onGoToStep, onSubmit, isSubmitting, hasPhotoFi
   const filiere = watch('filiere');
   const dateNaissance = watch('dateNaissance');
   const sexe = watch('sexe');
-  const formuleAdulte = watch('formuleAdulte');
   const mineur = Boolean(dateNaissance && isMinor(dateNaissance)) || filiere === 'baby';
-  const formuleEffective =
-    filiere === 'mma' && !mineur && sexe === 'homme' ? 'mixte' : formuleAdulte;
+  const formuleEffective = !mineur ? resolveFormuleAdulte(sexe) : undefined;
   const catalogue = filiere ? getCoursPrix(filiere, dateNaissance, formuleEffective) : 0;
   const packRole = watch('packRole') ?? 'none';
   const total = montantPackMembre(catalogue, packRole === 'additional');

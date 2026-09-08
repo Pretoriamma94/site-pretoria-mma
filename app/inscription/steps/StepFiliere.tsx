@@ -11,9 +11,9 @@ type Props = {
 const DETAILS: Record<string, string[]> = {
   mma: [
     'À partir de 7 ans, sans limite d’âge',
-    'Adultes mixte (homme et femme) — 300 €, accès à tous les cours adultes mixtes',
-    'Section femmes — 200 €, un créneau (samedi 17h30-18h30)',
-    'Enfants et adolescents',
+    'Adultes mixte (hommes) — 300 €, accès à tous les cours adultes mixtes',
+    'Forfait femmes — 200 €, tous les cours mixtes + créneau femmes (samedi 17h30-18h30)',
+    'Enfants et adolescents — 250 €',
   ],
   baby: ['De 3 à 7 ans', 'Si l’enfant a plus de 7 ans, passez sur la partie MMA'],
 };

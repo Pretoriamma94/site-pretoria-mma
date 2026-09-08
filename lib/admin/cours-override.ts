@@ -23,8 +23,8 @@ function asAdminCours(coursId: string): AdminCoursId | null {
 
 /**
  * Catégories que l’admin peut affecter (dérogation).
- * - Adolescent → adultes mixte (ou section femmes si ce n’est pas un homme)
- * - Section femmes ↔ adultes mixte
+ * - Adolescent → adultes mixte (ou forfait femmes si ce n’est pas un homme)
+ * - Forfait femmes ↔ adultes mixte
  * - Retour vers ados seulement si l’adhérent est encore mineur
  */
 export function getAdminCoursChoices(

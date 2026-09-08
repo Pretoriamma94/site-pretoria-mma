@@ -196,21 +196,9 @@ export function InscriptionWizard() {
       const mineur =
         values.filiere === 'baby' ||
         Boolean(values.dateNaissance && isMinor(values.dateNaissance));
-      if (
-        values.filiere === 'mma' &&
-        !mineur &&
-        values.sexe === 'femme' &&
-        values.formuleAdulte !== 'mixte' &&
-        values.formuleAdulte !== 'femmes'
-      ) {
-        setError('formuleAdulte', {
-          type: 'manual',
-          message: 'Choisissez Adultes mixte ou Section femmes',
-        });
-        return;
-      }
-      if (values.filiere === 'mma' && !mineur && values.sexe === 'homme') {
-        setValue('formuleAdulte', 'mixte');
+      if (values.filiere === 'mma' && !mineur) {
+        if (values.sexe === 'femme') setValue('formuleAdulte', 'femmes');
+        if (values.sexe === 'homme') setValue('formuleAdulte', 'mixte');
       }
       const paiementResult = step3Schema.safeParse({
         modePaiement: values.modePaiement,

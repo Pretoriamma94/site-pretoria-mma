@@ -176,7 +176,7 @@ export default function CoursPage() {
               Planning des cours
             </h2>
             <p className="mt-2 text-sm text-zinc-300">
-              Planning officiel par groupe : Baby JJB, enfants, ados, section 100 % femmes et
+              Planning officiel par groupe : Baby JJB, enfants, ados, créneau femmes et
               adultes mixte.
             </p>
           </div>
@@ -189,7 +189,7 @@ export default function CoursPage() {
         <div className="mt-6 overflow-hidden rounded-2xl border border-gray-800 bg-gray-900">
           <Image
             src="/images/planning-hebdomadaire.jpg"
-            alt="Planning hebdomadaire Pretoria MMA : Baby JJB, enfants, ados, 100 % femmes et adultes mixte"
+            alt="Planning hebdomadaire Pretoria MMA : Baby JJB, enfants, ados, créneau femmes et adultes mixte"
             width={1600}
             height={1100}
             className="h-auto w-full"

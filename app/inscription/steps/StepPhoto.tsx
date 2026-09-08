@@ -36,7 +36,7 @@ export function StepPhoto({ form, photoFile, onPhotoFile }: Props) {
       </h2>
       <p className="mt-2 text-sm text-zinc-300">{TEXTE_PHOTO_CONSIGNE}</p>
       <p className="mt-2 text-xs text-zinc-400">
-        Tous les profils (adultes mixte, section femmes, enfants, Baby JJB). Si vous n’avez pas la
+        Tous les profils (adultes mixte, forfait femmes, enfants, Baby JJB). Si vous n’avez pas la
         photo aujourd’hui, vous pouvez poursuivre en vous engageant à la fournir sous 3 semaines.
       </p>
 

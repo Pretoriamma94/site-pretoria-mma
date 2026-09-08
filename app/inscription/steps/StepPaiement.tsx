@@ -7,6 +7,7 @@ import {
   getTarifLibelle,
   isMinor,
   montantParEcheance,
+  resolveFormuleAdulte,
 } from '@/lib/inscription/schema';
 import {
   PACK_OFFRES,
@@ -27,7 +28,6 @@ export function StepPaiement({ form }: Props) {
   const filiere = watch('filiere');
   const dateNaissance = watch('dateNaissance');
   const sexe = watch('sexe');
-  const formuleAdulte = watch('formuleAdulte');
   const modePaiement = watch('modePaiement');
   const nombreEcheances = watch('nombreEcheances');
   const packRole = watch('packRole') ?? 'none';
@@ -37,9 +37,8 @@ export function StepPaiement({ form }: Props) {
   if (!filiere) return null;
 
   const mineur = filiere === 'baby' || Boolean(dateNaissance && isMinor(dateNaissance));
-  const showFormuleFemmes = filiere === 'mma' && !mineur && sexe === 'femme';
-  const formuleEffective =
-    filiere === 'mma' && !mineur && sexe === 'homme' ? 'mixte' : formuleAdulte;
+  const formuleEffective = !mineur ? resolveFormuleAdulte(sexe) : undefined;
+  const showForfaitFemmes = filiere === 'mma' && !mineur && sexe === 'femme';
 
   const catalogue = getCoursPrix(filiere, dateNaissance, formuleEffective);
   const tarifLibelle = getTarifLibelle(filiere, dateNaissance, formuleEffective);
@@ -73,53 +72,14 @@ export function StepPaiement({ form }: Props) {
         validation de l&apos;inscription.
       </p>
 
-      {showFormuleFemmes && (
-        <fieldset className="mt-4">
-          <legend className="mb-3 text-sm font-medium text-white">Formule *</legend>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label
-              className={cn(
-                'flex cursor-pointer flex-col rounded-xl border p-4 text-sm',
-                formuleAdulte === 'mixte'
-                  ? 'border-red-600 bg-red-950/20 text-white'
-                  : 'border-zinc-700 text-zinc-300',
-              )}
-            >
-              <input
-                type="radio"
-                className="sr-only"
-                checked={formuleAdulte === 'mixte'}
-                onChange={() => setValue('formuleAdulte', 'mixte')}
-              />
-              <span className="font-semibold">Adultes mixte</span>
-              <span className="mt-1 text-xs text-zinc-400">
-                300 € — accès à tous les cours adultes mixtes
-              </span>
-            </label>
-            <label
-              className={cn(
-                'flex cursor-pointer flex-col rounded-xl border p-4 text-sm',
-                formuleAdulte === 'femmes'
-                  ? 'border-red-600 bg-red-950/20 text-white'
-                  : 'border-zinc-700 text-zinc-300',
-              )}
-            >
-              <input
-                type="radio"
-                className="sr-only"
-                checked={formuleAdulte === 'femmes'}
-                onChange={() => setValue('formuleAdulte', 'femmes')}
-              />
-              <span className="font-semibold">Section femmes</span>
-              <span className="mt-1 text-xs text-zinc-400">
-                200 € — un créneau, samedi 17h30-18h30
-              </span>
-            </label>
-          </div>
-          {errors.formuleAdulte && (
-            <p className="mt-2 text-sm text-red-400">{errors.formuleAdulte.message}</p>
-          )}
-        </fieldset>
+      {showForfaitFemmes && (
+        <div className="mt-4 rounded-xl border border-red-800/60 bg-red-950/25 p-4 text-sm text-zinc-200">
+          <p className="font-semibold text-white">Forfait femmes — 200 €</p>
+          <p className="mt-1.5 text-zinc-300">
+            Accès à tous les cours adultes mixtes, plus le créneau réservé aux femmes (samedi
+            17h30-18h30). Tarif plus avantageux que le forfait hommes (300 €).
+          </p>
+        </div>
       )}
 
       <fieldset className="mt-6">

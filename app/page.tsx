@@ -113,7 +113,7 @@ export default async function HomePage() {
             <div className="flex w-full max-w-xs flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center sm:gap-4">
               <Link
                 href="/inscription"
-                className="inline-flex min-h-11 items-center justify-center rounded-full bg-mma-red px-8 py-3 font-bold uppercase tracking-wide text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black md:hidden"
+                className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-white bg-transparent px-8 py-3 font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black md:hidden"
               >
                 S&apos;inscrire
               </Link>

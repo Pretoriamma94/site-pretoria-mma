@@ -431,8 +431,9 @@ export function EditProfileModal({
             {coursChoices.length > 1 ? (
               <p className="mt-1.5 text-[0.7rem] font-normal normal-case tracking-normal text-zinc-500">
                 Dérogation : un adolescent peut passer en cours adultes (gabarit / niveau). Une
-                femme peut rejoindre le mixte ou revenir en section femmes. Le tarif de la
-                nouvelle catégorie s&apos;applique ; le montant déjà payé est conservé.
+                femme adulte est en forfait femmes (200 €, mixte + créneau femmes) ; le passage
+                en adultes mixte applique le tarif hommes (300 €). Le tarif de la nouvelle
+                catégorie s&apos;applique ; le montant déjà payé est conservé.
               </p>
             ) : null}
             {tarifChange ? (

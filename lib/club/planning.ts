@@ -63,7 +63,7 @@ export const HORAIRES_COURS: HoraireCours[] = [
   {
     jour: 'SAMEDI',
     horaire: '17h30 - 18h30',
-    categorie: 'Section femmes',
+    categorie: 'Créneau femmes',
     discipline: 'MMA / Grappling',
     lieu: LIEU_COUBERTIN,
   },
@@ -98,7 +98,7 @@ export const TARIFS_INDIVIDUELS = [
   {
     title: 'Adultes mixte',
     price: '300€/an',
-    category: 'Homme et femme',
+    category: 'Hommes',
     details: [
       'Accès à tous les cours adultes mixtes',
       'Lundi 20h30-22h30 · MMA',
@@ -108,10 +108,15 @@ export const TARIFS_INDIVIDUELS = [
     badge: 'POPULAIRE',
   },
   {
-    title: 'Section femmes',
+    title: 'Forfait femmes',
     price: '200€/an',
-    category: 'Uniquement aux femmes',
-    details: ['Un créneau : samedi 17h30-18h30', 'MMA / Grappling', 'Gymnase Pierre de Coubertin'],
+    category: 'Femmes',
+    details: [
+      'Tous les cours adultes mixtes (même accès que les hommes)',
+      'Plus le créneau réservé aux femmes : samedi 17h30-18h30',
+      'Lundi MMA · Jeudi grappling · Samedi sparring',
+      'Gymnase Pierre de Coubertin',
+    ],
   },
 ] as const;
 
@@ -143,7 +148,7 @@ export const COURS_ACCUEIL = [
     title: 'Adultes mixte',
     icon: '🔥',
     badge: 'Populaire',
-    description: 'Homme et femme — accès à tous les cours adultes mixtes',
+    description: 'Hommes — accès à tous les cours adultes mixtes',
     horaires: [
       'Lundi 20h30-22h30 · MMA',
       'Jeudi 20h-22h30 · Grappling',
@@ -153,11 +158,17 @@ export const COURS_ACCUEIL = [
     prix: '300€/an',
   },
   {
-    title: 'Section femmes',
+    title: 'Forfait femmes',
     icon: '🥊',
-    badge: 'Nouveau',
-    description: 'Créneau ouvert uniquement aux femmes',
-    horaires: ['Samedi 17h30-18h30 · MMA / Grappling'],
+    badge: '200 €',
+    description:
+      'Tous les cours adultes mixtes, plus un créneau réservé aux femmes — moins cher que le forfait hommes',
+    horaires: [
+      'Lundi 20h30-22h30 · MMA mixte',
+      'Jeudi 20h-22h30 · Grappling mixte',
+      'Samedi 17h30-18h30 · Créneau femmes',
+      'Samedi 18h30-22h · Sparring',
+    ],
     lieu: LIEU_COUBERTIN,
     prix: '200€/an',
   },

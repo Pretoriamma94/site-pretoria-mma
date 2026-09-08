@@ -36,7 +36,7 @@ export const editProfileSchema = z.object({
   }),
   ville: optionalTrimmed,
 
-  /** Dérogation admin : ado → adulte, section femmes ↔ mixte. */
+  /** Dérogation admin : ado → adulte, forfait femmes ↔ mixte. */
   coursSelectionne: z
     .enum(['baby', 'mma_enfants', 'mma_ados', 'mma_mixte', 'mma_femmes'])
     .optional(),

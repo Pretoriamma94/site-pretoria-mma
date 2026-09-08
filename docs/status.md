@@ -16,9 +16,9 @@
 - **Baby JJB** : samedi 15h-16h, 200 €.
 - **Enfants** : mardi 17h15-18h30 (Halles des Violettes) + samedi 16h-17h30 (Coubertin), 250 €.
 - **Adolescents** : mardi 18h30-20h MMA + jeudi 18h30-20h grappling (Halles des Violettes), 250 €.
-- **Adultes mixte** (homme et femme) : 300 €, accès à tous les cours adultes mixtes (lundi MMA, jeudi grappling, samedi sparring).
-- **Section femmes** : 200 €, un créneau samedi 17h30-18h30 MMA/Grappling.
-- Inscription : les femmes adultes choisissent mixte 300 € ou section femmes 200 € à l’étape paiement.
+- **Adultes mixte** (hommes) : 300 €, accès à tous les cours adultes mixtes (lundi MMA, jeudi grappling, samedi sparring).
+- **Forfait femmes** : 200 €, accès à tous les cours adultes mixtes **plus** le créneau réservé aux femmes (samedi 17h30-18h30 MMA/Grappling).
+- Inscription : les femmes adultes sont automatiquement en forfait femmes (200 €) ; plus de choix mixte 300 € vs section 200 €.
 - **Fiche admin** : les réponses d’inscription (informations, autorisation parentale / droit à l’image, lu et approuvé) sont visibles sur la fiche adhérent et la fiche inscription ; un **Non** (refus) s’affiche en rouge.
 - **Questionnaire de santé (renouvellement)** : seules les attestations sont conservées (pas les réponses individuelles) — « toutes réponses NON » (certificat non requis) ou « au moins un OUI » (engagement certificat). Texte + date + identité du déclarant sur les fiches admin.
 - **Scan QS papier (inscription manuelle)** : alerte rouge **uniquement** si l’inscription est papier **et** le certificat n’est pas requis (toutes réponses NON). Pas de scan pour les inscriptions en ligne, ni quand un certificat médical est demandé. Pastille bleue **Inscription manuelle** sur les listes / fiches.
@@ -188,7 +188,7 @@ Alignés site + admin papier :
 - Les admins peuvent **corriger / mettre à jour** un profil depuis **Inscriptions** et **Adhérents**.
 - Modal partagé `EditProfileModal` + action `updateInscriptionProfileAction` (Zod `editProfileSchema`).
 - Champs éditables : identité (nom, prénom, date de naissance, sexe), contact (email, téléphone), adresse, mensurations / taille de tenue, responsable légal (mineur), consentements (RGPD, règlement, charte, assurance), **droit à l'image** (photos site & réseaux), autorisations mineur (pratique, soins, transport, sortie seule).
-- **Catégorie de cours (dérogation)** : un adolescent peut être placé en **adultes mixte** (ou section femmes) ; une femme peut passer **section femmes ↔ mixte** (et revenir en ados si encore mineure). Le **tarif de la nouvelle catégorie** s’applique, le déjà payé est conservé.
+- **Catégorie de cours (dérogation)** : un adolescent peut être placé en **adultes mixte** (ou forfait femmes) ; une femme peut passer **forfait femmes ↔ mixte** (et revenir en ados si encore mineure). Le **tarif de la nouvelle catégorie** s’applique, le déjà payé est conservé.
 - Recalcule `dossier_status` après modification des consentements.
 - Bouton **Modifier** dans la fiche détail (les deux écrans) ; la liste se met à jour immédiatement.
 

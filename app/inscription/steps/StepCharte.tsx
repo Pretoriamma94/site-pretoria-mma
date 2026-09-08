@@ -24,7 +24,7 @@ export function StepCharte({ form }: Props) {
         Charte du club
       </h2>
       <p className="mt-2 text-sm text-zinc-400">
-        Lecture et validation obligatoires pour tous les profils (adultes mixte, section femmes,
+        Lecture et validation obligatoires pour tous les profils (adultes mixte, forfait femmes,
         enfants, Baby JJB) avant le paiement.
       </p>
 

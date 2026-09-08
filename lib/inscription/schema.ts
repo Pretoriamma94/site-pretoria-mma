@@ -71,10 +71,19 @@ export const COURS_OPTIONS = [
   { id: 'mma_enfants', label: 'MMA Enfants', prix: 250, emoji: '🥊', ageMin: 7, ageMax: 11 },
   { id: 'mma_ados', label: 'MMA Adolescents', prix: 250, emoji: '💪', ageMin: 12, ageMax: 17 },
   { id: 'mma_mixte', label: 'Adultes mixte', prix: 300, emoji: '🔥', ageMin: 18, ageMax: 120 },
-  { id: 'mma_femmes', label: 'Section femmes', prix: 200, emoji: '🥊', ageMin: 18, ageMax: 120 },
+  { id: 'mma_femmes', label: 'Forfait femmes', prix: 200, emoji: '🥊', ageMin: 18, ageMax: 120 },
 ] as const;
 
 export type FormuleAdulte = 'mixte' | 'femmes';
+
+/** Hommes = mixte 300 € ; femmes = forfait 200 € (mixte + créneau femmes). */
+export function resolveFormuleAdulte(
+  sexe?: 'homme' | 'femme' | '' | null,
+): FormuleAdulte | undefined {
+  if (sexe === 'femme') return 'femmes';
+  if (sexe === 'homme') return 'mixte';
+  return undefined;
+}
 
 const LEGACY_COURS_LABELS: Record<string, string> = {
   mma: 'MMA',
@@ -115,7 +124,7 @@ export function matchesCoursFilter(coursId: string, filter: string): boolean {
   return coursFilterBucket(coursId) === filter;
 }
 
-/** Tarif saison 2026-2027 : Baby 200 € · Enfants/Ados 250 € · Section femmes 200 € · Adultes mixte 300 €. */
+/** Tarif saison 2026-2027 : Baby 200 € · Enfants/Ados 250 € · Forfait femmes 200 € · Adultes mixte 300 €. */
 export function getCoursPrix(
   filiere: 'mma' | 'baby',
   dateNaissance?: string,
@@ -137,7 +146,7 @@ export function getTarifLibelle(
     const age = Math.floor(getAgeFromBirthDate(dateNaissance));
     return age < 12 ? 'MMA — Enfants' : 'MMA — Adolescents';
   }
-  if (formuleAdulte === 'femmes') return 'MMA — Section femmes';
+  if (formuleAdulte === 'femmes') return 'MMA — Forfait femmes';
   return 'MMA — Adultes mixte';
 }
 

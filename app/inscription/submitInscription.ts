@@ -17,6 +17,7 @@ import {
   getCoursPrix,
   isMinor,
   resolveCoursSelectionne,
+  resolveFormuleAdulte,
   splitAdresseVoie,
   step3Schema,
   stepAutorisationsSchema,
@@ -131,14 +132,7 @@ export async function submitInscription(params: {
 
   const mineur = filiere === 'baby' || isMinor(values.dateNaissance);
   const typeProfil: 'adulte' | 'mineur' = mineur ? 'mineur' : 'adulte';
-  const formuleEffective =
-    !mineur && values.sexe === 'homme' ? 'mixte' : values.formuleAdulte;
-  if (!mineur && values.sexe === 'femme' && formuleEffective !== 'mixte' && formuleEffective !== 'femmes') {
-    return {
-      ok: false,
-      message: 'Choisissez la formule Adultes mixte (300 €) ou Section femmes (200 €).',
-    };
-  }
+  const formuleEffective = !mineur ? resolveFormuleAdulte(values.sexe) : undefined;
   const catalogue = getCoursPrix(filiere, values.dateNaissance, formuleEffective);
   const packParsed = packFamilleSchema.safeParse({
     packRole: values.packRole ?? 'none',
