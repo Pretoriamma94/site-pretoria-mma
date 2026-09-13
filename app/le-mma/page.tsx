@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function LeMmaPage() {
@@ -94,6 +95,9 @@ export default function LeMmaPage() {
                 et adaptons l&apos;intensité en fonction du niveau. Les sparrings sont encadrés et
                 jamais obligatoires.
               </p>
+              <Link href="/equipement" className="mt-5 inline-flex rounded-full bg-mma-red px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700">
+                Voir les équipements obligatoires
+              </Link>
             </CardContent>
           </Card>
         </section>

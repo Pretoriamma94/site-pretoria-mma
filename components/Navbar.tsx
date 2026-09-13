@@ -14,6 +14,7 @@ const navLinks = [
   { href: '/le-mma', label: 'Le MMA' },
   { href: '/le-club', label: 'Le club' },
   { href: '/cours', label: 'Cours' },
+  { href: '/equipement', label: 'Équipement' },
   { href: '/actualites', label: 'Actualités' },
   { href: '/contact', label: 'Contact' },
 ];
@@ -45,7 +46,7 @@ export function Navbar() {
           </Link>
         </div>
 
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-2 xl:hidden">
           {!pathname.startsWith('/inscription') ? (
             <Link
               href="/inscription"
@@ -65,7 +66,7 @@ export function Navbar() {
           </button>
         </div>
 
-        <div className="hidden items-center gap-5 lg:gap-6 md:flex">
+        <div className="hidden items-center gap-5 lg:gap-6 xl:flex">
           {navLinks.map((link) => {
             const active =
               pathname === link.href ||
@@ -97,7 +98,7 @@ export function Navbar() {
       </nav>
 
       {open && (
-        <div className="border-t border-zinc-800 bg-gray-900 md:hidden">
+        <div className="border-t border-zinc-800 bg-gray-900 xl:hidden">
           <div className="space-y-1 px-3 py-3">
             {navLinks.map((link) => {
               const active =

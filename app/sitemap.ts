@@ -7,6 +7,7 @@ const PUBLIC_PATHS = [
   '/le-mma',
   '/le-club',
   '/cours',
+  '/equipement',
   '/actualites',
   '/contact',
   '/inscription',
