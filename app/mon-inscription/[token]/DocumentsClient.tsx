@@ -28,8 +28,8 @@ const DOC_META: Record<DocKind, { label: string; hint: string; accept: string }>
     accept: '.jpg,.jpeg,.png,.pdf',
   },
   pass_pa2s: {
-    label: 'Preuve Pass PA2S (port)',
-    hint: 'Attestation justifiant le Pass PA2S. PDF, JPG ou PNG — max 5 Mo.',
+    label: 'Preuve Pass Sport',
+    hint: 'Attestation justifiant le Pass Sport. PDF, JPG ou PNG — max 5 Mo.',
     accept: '.pdf,.jpg,.jpeg,.png',
   },
 };

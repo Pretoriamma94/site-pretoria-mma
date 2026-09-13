@@ -281,7 +281,7 @@ export const manualInscriptionSchema = z
     if (data.passPa2s && !data.passPa2sPreuveRecue && !data.engagementPassPa2s) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Indiquez preuve Pass PA2S reçue ou engagement sous 3 semaines',
+        message: 'Indiquez preuve Pass Sport reçue ou engagement sous 3 semaines',
         path: ['engagementPassPa2s'],
       });
     }

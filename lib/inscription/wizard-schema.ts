@@ -307,7 +307,7 @@ export function validateStepPassPa2s(data: {
     return [
       {
         path: 'passPa2sCode',
-        message: `Code invalide. Le code Pass PA2S est ${PASS_PA2S_CODE}.`,
+        message: `Code invalide. Le code Pass Sport est ${PASS_PA2S_CODE}.`,
       },
     ];
   }
@@ -315,7 +315,7 @@ export function validateStepPassPa2s(data: {
   return [
     {
       path: 'engagementPassPa2s',
-      message: 'Joignez la preuve du Pass PA2S ou engagez-vous à la fournir sous 3 semaines.',
+      message: 'Joignez la preuve du Pass Sport ou engagez-vous à la fournir sous 3 semaines.',
     },
   ];
 }

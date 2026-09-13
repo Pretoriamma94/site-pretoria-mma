@@ -1,4 +1,4 @@
-/** Pass PA2S (port) — réduction 50 € sur présentation d’une preuve, ou engagement 3 semaines. */
+/** Pass Sport — réduction 50 € sur présentation d’une preuve, ou engagement 3 semaines. */
 
 export const REMISE_PASS_PA2S_EUR = 50;
 export const PASS_PA2S_CODE = 'PASSPORT';

@@ -314,7 +314,7 @@ export function ManualPaymentSection({
             onChange={(e) => onPassPa2sChange(e.target.checked)}
             className="mt-1"
           />
-          Pass PA2S (port) — réduction de {REMISE_PASS_PA2S_EUR} €
+          Pass Sport — réduction de {REMISE_PASS_PA2S_EUR} €
         </label>
         {form.passPa2s ? (
           <div className="space-y-2 pl-6">
@@ -336,7 +336,7 @@ export function ManualPaymentSection({
                 checked={form.engagementPassPa2s}
                 onChange={(v) => setField('engagementPassPa2s', v)}
               >
-                Engagement à fournir la preuve Pass PA2S sous 3 semaines *
+                Engagement à fournir la preuve Pass Sport sous 3 semaines *
               </ConsentCheckbox>
             ) : null}
           </div>

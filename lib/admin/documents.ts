@@ -124,8 +124,8 @@ export function getDocumentsChecklist(row: DocsSource): DocumentsChecklist {
   else if (certificat === 'missing') missingLabels.push('Certificat médical');
   if (photo === 'pending_3_weeks') missingLabels.push('Photo (sous 3 sem.)');
   else if (photo === 'missing') missingLabels.push('Photo');
-  if (passPa2s === 'pending_3_weeks') missingLabels.push('Pass PA2S (sous 3 sem.)');
-  else if (passPa2s === 'missing') missingLabels.push('Preuve Pass PA2S');
+  if (passPa2s === 'pending_3_weeks') missingLabels.push('Pass Sport (sous 3 sem.)');
+  else if (passPa2s === 'missing') missingLabels.push('Preuve Pass Sport');
   if (questionnaire === 'missing') missingLabels.push('Questionnaire de santé (scan)');
 
   return {
@@ -170,7 +170,7 @@ export function getAdminDocumentSlots(row: DocsSource): {
   if (isPassPa2sActif(row) || row.pass_pa2s_preuve_url) {
     slots.push({
       kind: 'pass_pa2s',
-      label: 'Preuve Pass PA2S',
+      label: 'Preuve Pass Sport',
       path: row.pass_pa2s_preuve_url ?? null,
     });
   }

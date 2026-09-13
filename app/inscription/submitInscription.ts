@@ -168,12 +168,12 @@ export async function submitInscription(params: {
   }
   const passActif = isPassPa2sCode(values.passPa2sCode ?? '');
   if ((values.passPa2sCode ?? '').trim() && !passActif) {
-    return { ok: false, message: 'Code Pass PA2S invalide. Le code est PASSPORT.' };
+    return { ok: false, message: 'Code Pass Sport invalide. Le code est PASSPORT.' };
   }
   if (passActif && !passPa2sFile && !values.engagementPassPa2s) {
     return {
       ok: false,
-      message: 'Joignez la preuve du Pass PA2S ou engagez-vous à la fournir sous 3 semaines.',
+      message: 'Joignez la preuve du Pass Sport ou engagez-vous à la fournir sous 3 semaines.',
     };
   }
   const total = appliquerRemisePassPa2s(

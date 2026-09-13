@@ -198,11 +198,11 @@ export function StepPaiement({ form, passPa2sFile, onPassPa2sFile }: Props) {
           <p className="mt-1 text-sm text-emerald-300">
             Tarif catalogue {catalogue} € − 50 € pack famille
             {packCode ? ` (${packCode})` : ''}
-            {passActif ? ' − 50 € Pass PA2S' : ''}
+            {passActif ? ' − 50 € Pass Sport' : ''}
           </p>
         ) : passActif ? (
           <p className="mt-1 text-sm text-emerald-300">
-            Tarif catalogue {catalogue} € − 50 € Pass PA2S
+            Tarif catalogue {catalogue} € − 50 € Pass Sport
           </p>
         ) : packRole === 'holder' && packCode ? (
           <p className="mt-1 text-sm text-zinc-400">

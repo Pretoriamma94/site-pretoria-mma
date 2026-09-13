@@ -68,10 +68,10 @@ export const TEXTE_ENGAGEMENT_PHOTO =
   'Je m’engage à fournir une photo d’identité dans les 3 semaines suivant mon inscription.';
 
 export const TEXTE_PASS_PA2S =
-  'Le Pass PA2S (port) donne droit à 50 € de réduction. Saisissez le code PASSPORT, puis joignez une preuve (attestation) ou engagez-vous à la transmettre sous 3 semaines.';
+  'Le Pass Sport donne droit à 50 € de réduction. Saisissez le code PASSPORT, puis joignez une preuve (attestation) ou engagez-vous à la transmettre sous 3 semaines.';
 
 export const TEXTE_ENGAGEMENT_PASS_PA2S =
-  'Je m’engage à fournir la preuve du Pass PA2S (port) dans les 3 semaines suivant mon inscription.';
+  'Je m’engage à fournir la preuve du Pass Sport dans les 3 semaines suivant mon inscription.';
 
 export const TEXTE_PHOTO_CONSIGNE =
   'Une simple photo prise avec le téléphone, sur fond blanc, suffit. Formats acceptés : PNG, JPG ou PDF — max 5 Mo.';

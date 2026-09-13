@@ -304,7 +304,7 @@ export interface Database {
           membre_bureau: boolean;
           /** papier = saisie admin ; en_ligne = wizard site. */
           voie_inscription: string | null;
-          /** Pass PA2S (port) : −50 €. */
+          /** Pass Sport : −50 €. */
           pass_pa2s: boolean;
           pass_pa2s_preuve_url: string | null;
           pass_pa2s_engagement_3_semaines: boolean;

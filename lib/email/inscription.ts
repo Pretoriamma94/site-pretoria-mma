@@ -55,7 +55,7 @@ function buildManquants(payload: InscriptionDocumentsMailPayload): string[] {
   const manquants: string[] = [];
   if (payload.missingCertificat) manquants.push('le certificat médical (moins de 3 mois)');
   if (payload.missingPhoto) manquants.push("une photo d'identité");
-  if (payload.missingPassPa2s) manquants.push('la preuve du Pass PA2S (port)');
+  if (payload.missingPassPa2s) manquants.push('la preuve du Pass Sport');
   return manquants;
 }
 

@@ -166,11 +166,11 @@ export function PassPa2sDelaiBanner({ row }: { row: PassPa2sDelaiSource }) {
   return (
     <DelaiBanner
       overdue={Boolean(countdown?.overdue)}
-      titleAlerte="Alerte — preuve Pass PA2S"
-      titleAttente="Engagement preuve Pass PA2S sous 3 semaines"
-      messageAlerte="Le délai de 3 semaines est dépassé. Aucune preuve Pass PA2S n’a été reçue"
-      messageEngagement="L’adhérent s’est engagé à fournir la preuve du Pass PA2S sous 3 semaines."
-      messageSansEngagement="Preuve Pass PA2S non reçue — délai de 3 semaines en cours."
+      titleAlerte="Alerte — preuve Pass Sport"
+      titleAttente="Engagement preuve Pass Sport sous 3 semaines"
+      messageAlerte="Le délai de 3 semaines est dépassé. Aucune preuve Pass Sport n’a été reçue"
+      messageEngagement="L’adhérent s’est engagé à fournir la preuve du Pass Sport sous 3 semaines."
+      messageSansEngagement="Preuve Pass Sport non reçue — délai de 3 semaines en cours."
       engaged={Boolean(row.pass_pa2s_engagement_3_semaines)}
       countdown={countdown}
     />

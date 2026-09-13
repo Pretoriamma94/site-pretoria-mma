@@ -191,7 +191,7 @@ export function StepRecap({
             ) : null}
             {passActif ? (
               <p className="text-emerald-300">
-                Pass PA2S −50 €
+                Pass Sport −50 €
                 {hasPassPa2sFile
                   ? ' — preuve jointe'
                   : watch('engagementPassPa2s')
@@ -210,7 +210,7 @@ export function StepRecap({
           <CardContent className="pt-6 text-sm text-zinc-300">
             <p className="font-medium text-white">Statut après validation : Pré-inscrit</p>
             <p className="mt-1 text-xs text-zinc-500">
-              Sans certificat, photo ou preuve Pass PA2S le jour J, l&apos;engagement sous 3 semaines est enregistré.
+              Sans certificat, photo ou preuve Pass Sport le jour J, l&apos;engagement sous 3 semaines est enregistré.
               {watch('modePaiement') === 'virement'
                 ? ' Le lien de paiement HelloAsso s’affichera ensuite, et sera envoyé par email.'
                 : ''}

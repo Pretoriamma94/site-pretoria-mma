@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import type { UseFormReturn } from 'react-hook-form';
 import { ConsentCheckbox } from '@/components/inscription/ConsentCheckbox';
 import { TEXTE_ENGAGEMENT_PASS_PA2S, TEXTE_PASS_PA2S } from '@/lib/inscription/legal-texts';
@@ -23,7 +24,18 @@ export function PassPa2sFields({ form, passPa2sFile, onPassPa2sFile }: Props) {
 
   return (
     <fieldset className="mt-6">
-      <legend className="mb-3 text-sm font-medium text-white">Pass PA2S (port)</legend>
+      <legend className="mb-3 flex items-center gap-3 text-sm font-medium text-white">
+        <span className="inline-flex rounded-lg bg-white px-2 py-1">
+          <Image
+            src="/images/pass-sport.jpg"
+            alt="Pass Sport"
+            width={120}
+            height={48}
+            className="h-8 w-auto"
+          />
+        </span>
+        Pass Sport
+      </legend>
       <p className="mb-3 text-sm text-zinc-400">{TEXTE_PASS_PA2S}</p>
       <label className="block text-sm text-zinc-300">
         Code (optionnel)
@@ -45,7 +57,7 @@ export function PassPa2sFields({ form, passPa2sFile, onPassPa2sFile }: Props) {
       </label>
       {typed && !actif ? (
         <p className="mt-2 text-sm text-red-400">
-          Code invalide. Le code Pass PA2S est {PASS_PA2S_CODE}.
+          Code invalide. Le code Pass Sport est {PASS_PA2S_CODE}.
         </p>
       ) : null}
       {errors.passPa2sCode ? (
@@ -57,7 +69,7 @@ export function PassPa2sFields({ form, passPa2sFile, onPassPa2sFile }: Props) {
             Code reconnu — {REMISE_PASS_PA2S_EUR} € de réduction appliqués.
           </p>
           <p className="text-xs text-zinc-400">
-            Joignez une preuve (attestation Pass PA2S) ou engagez-vous à la transmettre sous 3
+            Joignez une preuve (attestation Pass Sport) ou engagez-vous à la transmettre sous 3
             semaines. L’inscription n’est pas bloquée sans le document aujourd’hui.
           </p>
           <input
