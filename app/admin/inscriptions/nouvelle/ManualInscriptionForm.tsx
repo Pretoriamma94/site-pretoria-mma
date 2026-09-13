@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { isMinor, montantParEcheance } from '@/lib/inscription/schema';
 import { defaultMontantForCours } from '@/lib/admin/manual-inscription-schema';
+import { appliquerRemisePassPa2s } from '@/lib/inscription/pass-pa2s';
 import { createManualInscriptionAction } from '../../actions';
 import {
   MANUAL_FORM_INITIAL,
@@ -58,9 +59,26 @@ export function ManualInscriptionForm() {
     setForm((prev) => ({
       ...prev,
       cours: coursId,
-      montantTotal: coursId ? String(defaultMontantForCours(coursId)) : prev.montantTotal,
+      montantTotal: coursId
+        ? String(appliquerRemisePassPa2s(defaultMontantForCours(coursId), prev.passPa2s))
+        : prev.montantTotal,
       certificatMoinsDe3Ans: coursId === 'baby' ? null : prev.certificatMoinsDe3Ans,
     }));
+  };
+
+  const onPassPa2sChange = (next: boolean) => {
+    setForm((prev) => {
+      const base = prev.cours
+        ? defaultMontantForCours(prev.cours)
+        : Number(prev.montantTotal.replace(',', '.')) || 0;
+      return {
+        ...prev,
+        passPa2s: next,
+        passPa2sPreuveRecue: next ? prev.passPa2sPreuveRecue : false,
+        engagementPassPa2s: next ? prev.engagementPassPa2s : false,
+        montantTotal: String(appliquerRemisePassPa2s(base, next)),
+      };
+    });
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -89,6 +107,9 @@ export function ManualInscriptionForm() {
         photoRecue: form.photoRecue,
         engagementPhoto: form.engagementPhoto,
         engagementCertificat: form.engagementCertificat,
+        passPa2s: form.passPa2s,
+        passPa2sPreuveRecue: form.passPa2sPreuveRecue,
+        engagementPassPa2s: form.engagementPassPa2s,
         acceptePhotos: form.acceptePhotos,
         informeAssurance: form.informeAssurance,
         informeDroitAcces: form.informeDroitAcces,
@@ -166,6 +187,7 @@ export function ManualInscriptionForm() {
         previewStatus={previewStatus}
         total={total}
         paye={paye}
+        onPassPa2sChange={onPassPa2sChange}
       />
 
       {error && (

@@ -88,6 +88,7 @@ const COLUMNS: { header: string; value: (row: InscriptionExportRow) => string | 
   { header: 'Dossier', value: (r) => getDossierStatusLabel(r.dossier_status) },
   { header: 'Membre du bureau', value: (r) => formatBool(isMembreBureau(r)) },
   { header: 'Pack family', value: (r) => formatBool(isPackFamily(r)) },
+  { header: 'Pass PA2S', value: (r) => formatBool(r.pass_pa2s) },
   { header: 'Montant total', value: (r) => formatAmount(Number(r.montant_total) || 0) },
   { header: 'Payé', value: (r) => formatAmount(Number(r.montant_paye) || 0) },
   { header: 'Reste', value: (r) => formatAmount(resteAPayer(r)) },
@@ -114,6 +115,11 @@ const COLUMNS: { header: string; value: (row: InscriptionExportRow) => string | 
   {
     header: 'Photo d’identité',
     value: (r) => getDocStatusLabel(getDocumentsChecklist(r).photo),
+  },
+  {
+    header: 'Preuve Pass PA2S',
+    value: (r) =>
+      r.pass_pa2s ? getDocStatusLabel(getDocumentsChecklist(r).passPa2s) : '',
   },
   {
     header: 'Questionnaire (scan papier)',

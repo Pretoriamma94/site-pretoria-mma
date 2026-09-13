@@ -24,6 +24,9 @@ export type ManualFormState = {
   photoRecue: boolean;
   engagementPhoto: boolean;
   engagementCertificat: boolean;
+  passPa2s: boolean;
+  passPa2sPreuveRecue: boolean;
+  engagementPassPa2s: boolean;
   acceptePhotos: boolean | null;
   informeAssurance: boolean;
   informeDroitAcces: boolean;
@@ -66,6 +69,9 @@ export const MANUAL_FORM_INITIAL: ManualFormState = {
   photoRecue: false,
   engagementPhoto: false,
   engagementCertificat: false,
+  passPa2s: false,
+  passPa2sPreuveRecue: false,
+  engagementPassPa2s: false,
   acceptePhotos: null,
   informeAssurance: false,
   informeDroitAcces: false,

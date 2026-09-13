@@ -12,6 +12,7 @@ import {
 import { PhotoPublicationBadge } from '@/components/admin/PhotoPublicationBadge';
 import { MembreBureauBadge } from '@/components/admin/MembreBureauBadge';
 import { PackFamilyBadge } from '@/components/admin/PackFamilyBadge';
+import { PassPa2sBadge } from '@/components/admin/PassPa2sBadge';
 import { VoieInscriptionBadge } from '@/components/admin/InscriptionManuelleBadge';
 import { isMembreBureau } from '@/lib/admin/membre-bureau';
 import { isPackFamily, isPackFamilyChild } from '@/lib/admin/pack-family';
@@ -24,6 +25,7 @@ import { AttestationSanteFiche } from '@/components/admin/AttestationSanteFiche'
 import {
   CertificatDelaiBanner,
   PhotoDelaiBanner,
+  PassPa2sDelaiBanner,
 } from '@/components/admin/CertificatDelaiBanner';
 import { cn } from '@/lib/utils';
 import {
@@ -84,6 +86,9 @@ export type AdherentRow = {
   questionnaire_sante_url?: string | null;
   certificat_engagement_3_semaines: boolean | null;
   photo_engagement_3_semaines: boolean | null;
+  pass_pa2s?: boolean | null;
+  pass_pa2s_preuve_url?: string | null;
+  pass_pa2s_engagement_3_semaines?: boolean | null;
   created_at: string | null;
   type_tarif?: string | null;
   membre_bureau?: boolean | null;
@@ -444,6 +449,11 @@ export function AdherentsDirectory({
                         <PackFamilyBadge compact packCode={getPackCodeFromRow(row)} />
                       </span>
                     ) : null}
+                    {row.pass_pa2s ? (
+                      <span className="mt-1 block">
+                        <PassPa2sBadge compact />
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3.5 text-zinc-300">
                     {getCoursLabel(row.cours_selectionne)}
@@ -565,6 +575,11 @@ export function AdherentsDirectory({
                   {isPackFamily(selected) ? (
                     <div className="mt-2">
                       <PackFamilyBadge packCode={getPackCodeFromRow(selected)} />
+                    </div>
+                  ) : null}
+                  {selected.pass_pa2s ? (
+                    <div className="mt-2">
+                      <PassPa2sBadge />
                     </div>
                   ) : null}
                   <p className="mt-1 text-zinc-300">
@@ -728,6 +743,7 @@ export function AdherentsDirectory({
                 <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3">
                   <PhotoDelaiBanner row={selected} />
                   <CertificatDelaiBanner row={selected} />
+                  <PassPa2sDelaiBanner row={selected} />
                   <AttestationSanteFiche row={selected} />
                   <InscriptionDocumentDownloads
                     inscriptionId={selected.id}

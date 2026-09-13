@@ -304,6 +304,10 @@ export interface Database {
           membre_bureau: boolean;
           /** papier = saisie admin ; en_ligne = wizard site. */
           voie_inscription: string | null;
+          /** Pass PA2S (port) : −50 €. */
+          pass_pa2s: boolean;
+          pass_pa2s_preuve_url: string | null;
+          pass_pa2s_engagement_3_semaines: boolean;
           /** Jeton secret pour compléter les documents sans compte (/mon-inscription/[token]) */
           documents_token: string;
           created_at: string | null;
@@ -367,6 +371,9 @@ export interface Database {
           accepte_rgpd?: boolean;
           membre_bureau?: boolean;
           voie_inscription?: string | null;
+          pass_pa2s?: boolean;
+          pass_pa2s_preuve_url?: string | null;
+          pass_pa2s_engagement_3_semaines?: boolean;
           documents_token?: string;
           created_at?: string | null;
           updated_at?: string | null;

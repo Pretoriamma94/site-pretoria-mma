@@ -141,3 +141,38 @@ export function PhotoDelaiBanner({ row }: { row: PhotoDelaiSource }) {
     />
   );
 }
+
+export type PassPa2sDelaiSource = {
+  pass_pa2s?: boolean | null;
+  pass_pa2s_preuve_url?: string | null;
+  pass_pa2s_engagement_3_semaines?: boolean | null;
+  created_at?: string | null;
+};
+
+export function isPassPa2sEnAttente(row: PassPa2sDelaiSource): boolean {
+  return Boolean(row.pass_pa2s) && !row.pass_pa2s_preuve_url;
+}
+
+export function isPassPa2sAlerte3Semaines(row: PassPa2sDelaiSource): boolean {
+  if (!isPassPa2sEnAttente(row)) return false;
+  const countdown = getDocumentsCountdown(row.created_at);
+  return Boolean(countdown?.overdue);
+}
+
+export function PassPa2sDelaiBanner({ row }: { row: PassPa2sDelaiSource }) {
+  if (!isPassPa2sEnAttente(row)) return null;
+
+  const countdown = getDocumentsCountdown(row.created_at);
+  return (
+    <DelaiBanner
+      overdue={Boolean(countdown?.overdue)}
+      titleAlerte="Alerte — preuve Pass PA2S"
+      titleAttente="Engagement preuve Pass PA2S sous 3 semaines"
+      messageAlerte="Le délai de 3 semaines est dépassé. Aucune preuve Pass PA2S n’a été reçue"
+      messageEngagement="L’adhérent s’est engagé à fournir la preuve du Pass PA2S sous 3 semaines."
+      messageSansEngagement="Preuve Pass PA2S non reçue — délai de 3 semaines en cours."
+      engaged={Boolean(row.pass_pa2s_engagement_3_semaines)}
+      countdown={countdown}
+    />
+  );
+}

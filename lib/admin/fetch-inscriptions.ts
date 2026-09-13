@@ -53,9 +53,10 @@ function applyListFilters<T extends {
     next = next.neq('status', 'cancelled').or(
       [
         'certificat_engagement_3_semaines.eq.true',
-        'photo_engagement_3_semaines.eq.true',
-        'certificat_medical_url.is.null',
-        'photo_url.is.null',
+          'photo_engagement_3_semaines.eq.true',
+          'pass_pa2s_engagement_3_semaines.eq.true',
+          'certificat_medical_url.is.null',
+          'photo_url.is.null',
       ].join(','),
     );
   }

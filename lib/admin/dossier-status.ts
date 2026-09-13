@@ -51,6 +51,7 @@ export function isDossierComplet(row: DossierStatusSource): boolean {
   const docs = getDocumentsChecklist(row);
   if (docs.photo !== 'ok') return false;
   if (docs.questionnaire === 'missing') return false;
+  if (docs.passPa2s === 'missing' || docs.passPa2s === 'pending_3_weeks') return false;
   return true;
 }
 

@@ -68,7 +68,7 @@ export const FILIERE_OPTIONS = [
 
 export const COURS_OPTIONS = [
   { id: 'baby', label: 'Baby JJB (3-7 ans)', prix: 200, emoji: '🥋', ageMin: 3, ageMax: 7 },
-  { id: 'mma_enfants', label: 'MMA Enfants', prix: 250, emoji: '🥊', ageMin: 7, ageMax: 11 },
+  { id: 'mma_enfants', label: 'MMA Enfants', prix: 250, emoji: '🥊', ageMin: 6, ageMax: 11 },
   { id: 'mma_ados', label: 'MMA Adolescents', prix: 250, emoji: '💪', ageMin: 12, ageMax: 17 },
   { id: 'mma_mixte', label: 'Adultes mixte', prix: 300, emoji: '🔥', ageMin: 18, ageMax: 120 },
   { id: 'mma_femmes', label: 'Forfait femmes', prix: 200, emoji: '🥊', ageMin: 18, ageMax: 120 },
@@ -167,6 +167,28 @@ export function getAgeFromBirthDate(dateStr: string): number {
   const birth = new Date(dateStr);
   return (Date.now() - birth.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
 }
+
+/**
+ * Plus jeune génération acceptée en MMA pour la saison 2026-2027
+ * (nés en 2020, même s’ils n’ont pas encore 7 ans).
+ */
+export const MMA_ANNEE_NAISSANCE_MAX = 2020;
+
+export function getBirthYear(dateStr: string): number | null {
+  if (!dateStr) return null;
+  const birth = new Date(dateStr);
+  if (Number.isNaN(birth.getTime())) return null;
+  return birth.getFullYear();
+}
+
+/** MMA : nés en 2020 et avant (saison 2026-2027). Les plus jeunes restent en Baby JJB. */
+export function isEligibleMma(dateStr: string): boolean {
+  const year = getBirthYear(dateStr);
+  return year != null && year <= MMA_ANNEE_NAISSANCE_MAX;
+}
+
+export const MMA_ELIGIBILITE_ERREUR =
+  'Pour la saison 2026-2027, le MMA est ouvert aux enfants nés en 2020 et avant. Pour les plus jeunes, choisissez Baby JJB.';
 
 export function isMinor(dateStr: string): boolean {
   return getAgeFromBirthDate(dateStr) < 18;

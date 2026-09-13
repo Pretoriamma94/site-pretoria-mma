@@ -8,6 +8,8 @@ import {
 import { formatEuros } from '@/lib/admin/labels';
 import { cn } from '@/lib/utils';
 import { TEXTE_BABY_DEUX_PARENTS } from '@/lib/inscription/legal-texts';
+import { ConsentCheckbox } from '@/components/inscription/ConsentCheckbox';
+import { REMISE_PASS_PA2S_EUR } from '@/lib/inscription/pass-pa2s';
 import {
   MANUAL_FORM_INPUT_CLASS as inputClass,
   type ManualFormState,
@@ -291,7 +293,10 @@ export function ManualPaymentSection({
   previewStatus,
   total,
   paye,
-}: Pick<Props, 'form' | 'setField' | 'parEcheance' | 'previewStatus' | 'total' | 'paye'>) {
+  onPassPa2sChange,
+}: Pick<Props, 'form' | 'setField' | 'parEcheance' | 'previewStatus' | 'total' | 'paye'> & {
+  onPassPa2sChange: (next: boolean) => void;
+}) {
   return (
     <section className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">
       <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
@@ -301,6 +306,42 @@ export function ManualPaymentSection({
         Mêmes choix qu’en ligne : espèces, chèque ou HelloAsso, en 1, 2 ou 3 fois. Indiquez
         aussi l’éventuel montant déjà encaissé au club.
       </p>
+      <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+        <label className="flex items-start gap-2 text-sm text-zinc-300">
+          <input
+            type="checkbox"
+            checked={form.passPa2s}
+            onChange={(e) => onPassPa2sChange(e.target.checked)}
+            className="mt-1"
+          />
+          Pass PA2S (port) — réduction de {REMISE_PASS_PA2S_EUR} €
+        </label>
+        {form.passPa2s ? (
+          <div className="space-y-2 pl-6">
+            <label className="flex items-start gap-2 text-sm text-zinc-300">
+              <input
+                type="checkbox"
+                checked={form.passPa2sPreuveRecue}
+                onChange={(e) => {
+                  setField('passPa2sPreuveRecue', e.target.checked);
+                  if (e.target.checked) setField('engagementPassPa2s', false);
+                }}
+                className="mt-1"
+              />
+              Preuve reçue aujourd&apos;hui (à uploader ensuite dans la fiche)
+            </label>
+            {!form.passPa2sPreuveRecue ? (
+              <ConsentCheckbox
+                id="manualEngagementPassPa2s"
+                checked={form.engagementPassPa2s}
+                onChange={(v) => setField('engagementPassPa2s', v)}
+              >
+                Engagement à fournir la preuve Pass PA2S sous 3 semaines *
+              </ConsentCheckbox>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-xs text-zinc-400">
           Montant total (€) *

@@ -792,7 +792,7 @@ export async function recordPaymentAction(
   try {
     const supabase = createServerClient();
     const paymentInscriptionSelect =
-      'id, status, montant_total, montant_paye, date_paiement, date_naissance, responsable_legal, certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, certificat_engagement_3_semaines, photo_engagement_3_semaines, autorisation_engagement_3_semaines, membre_bureau, type_tarif, inscription_familiale, pack_family_parent_id, membre_2';
+      'id, status, montant_total, montant_paye, date_paiement, date_naissance, responsable_legal, certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, certificat_engagement_3_semaines, photo_engagement_3_semaines, autorisation_engagement_3_semaines, pass_pa2s, pass_pa2s_preuve_url, pass_pa2s_engagement_3_semaines, membre_bureau, type_tarif, inscription_familiale, pack_family_parent_id, membre_2';
     const { data: row, error: fetchError } = await retrySelectOnMissingColumn(
       (select) =>
         supabase
@@ -817,6 +817,9 @@ export async function recordPaymentAction(
             certificat_engagement_3_semaines: boolean | null;
             photo_engagement_3_semaines: boolean | null;
             autorisation_engagement_3_semaines: boolean | null;
+            pass_pa2s?: boolean | null;
+            pass_pa2s_preuve_url?: string | null;
+            pass_pa2s_engagement_3_semaines?: boolean | null;
             membre_bureau?: boolean | null;
             type_tarif?: string | null;
             inscription_familiale?: boolean | null;
@@ -1161,6 +1164,10 @@ export async function createManualInscriptionAction(
         accepte_charte: charteOk,
         photo_engagement_3_semaines: !data.photoRecue && Boolean(data.engagementPhoto),
         certificat_engagement_3_semaines: engagementCertificat,
+        pass_pa2s: Boolean(data.passPa2s),
+        pass_pa2s_preuve_url: null,
+        pass_pa2s_engagement_3_semaines:
+          Boolean(data.passPa2s) && !data.passPa2sPreuveRecue && Boolean(data.engagementPassPa2s),
         attestation_questionnaire_sante: certificatDispense,
         questionnaire_sante: (attestationSante ?? { voie: 'papier' }) as Json | null,
         autorisation_pratique_mineur: mineur ? charteOk : null,
@@ -1217,6 +1224,7 @@ export async function createManualInscriptionAction(
           token: documentsToken,
           missingCertificat: !attesteCertificat && !certificatDispense,
           missingPhoto: !data.photoRecue,
+          missingPassPa2s: Boolean(data.passPa2s) && !data.passPa2sPreuveRecue,
           createdAt: row.created_at ?? now,
           modePaiement: data.modePaiement,
         });
@@ -1374,6 +1382,9 @@ export async function updateInscriptionProfileAction(
             certificat_engagement_3_semaines: boolean | null;
             autorisation_engagement_3_semaines: boolean | null;
             photo_engagement_3_semaines: boolean | null;
+            pass_pa2s?: boolean | null;
+            pass_pa2s_preuve_url?: string | null;
+            pass_pa2s_engagement_3_semaines?: boolean | null;
             dossier_status: DossierStatus | null;
             cours_selectionne: string;
             montant_total: number;
@@ -1387,7 +1398,7 @@ export async function updateInscriptionProfileAction(
           } | null;
           error: { message: string } | null;
         }>,
-      'certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, certificat_engagement_3_semaines, autorisation_engagement_3_semaines, photo_engagement_3_semaines, dossier_status, cours_selectionne, montant_total, montant_paye, status, membre_bureau, type_tarif, inscription_familiale, pack_family_parent_id, membre_2',
+      'certificat_medical_url, photo_url, autorisation_parentale_url, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, certificat_engagement_3_semaines, autorisation_engagement_3_semaines, photo_engagement_3_semaines, pass_pa2s, pass_pa2s_preuve_url, pass_pa2s_engagement_3_semaines, dossier_status, cours_selectionne, montant_total, montant_paye, status, membre_bureau, type_tarif, inscription_familiale, pack_family_parent_id, membre_2',
     );
 
     if (fetchError || !current) {
@@ -1782,13 +1793,13 @@ export async function getInscriptionDocumentUrlAction(
   }
 }
 
-const DOC_KIND_SCHEMA = z.enum(['certificat', 'photo', 'questionnaire']);
+const DOC_KIND_SCHEMA = z.enum(['certificat', 'photo', 'questionnaire', 'pass_pa2s']);
 const MAX_DOC_BYTES = 5 * 1024 * 1024;
 
 export type UploadInscriptionDocumentResult =
   | {
       success: true;
-      kind: 'certificat' | 'photo' | 'questionnaire';
+      kind: 'certificat' | 'photo' | 'questionnaire' | 'pass_pa2s';
       path: string;
       status: string;
       certificat_medical_url: string | null;
@@ -1797,6 +1808,8 @@ export type UploadInscriptionDocumentResult =
       questionnaire_sante?: unknown;
       certificat_engagement_3_semaines: boolean;
       photo_engagement_3_semaines: boolean;
+      pass_pa2s_preuve_url: string | null;
+      pass_pa2s_engagement_3_semaines: boolean;
       atteste_certificat: boolean;
     }
   | { success: false; error: string };
@@ -1858,6 +1871,8 @@ export async function uploadAdminInscriptionDocumentAction(
       atteste_certificat?: boolean;
       photo_url?: string;
       photo_engagement_3_semaines?: boolean;
+      pass_pa2s_preuve_url?: string;
+      pass_pa2s_engagement_3_semaines?: boolean;
       questionnaire_sante_url?: string;
       questionnaire_sante?: unknown;
     };
@@ -1873,6 +1888,11 @@ export async function uploadAdminInscriptionDocumentAction(
       patch = {
         photo_url: path,
         photo_engagement_3_semaines: false,
+      };
+    } else if (kind === 'pass_pa2s') {
+      patch = {
+        pass_pa2s_preuve_url: path,
+        pass_pa2s_engagement_3_semaines: false,
       };
     } else {
       const { data: currentQs } = await retrySelectOnMissingColumn(
@@ -1909,7 +1929,7 @@ export async function uploadAdminInscriptionDocumentAction(
     }
 
     const docReturnSelect =
-      'status, montant_total, montant_paye, date_naissance, responsable_legal, certificat_medical_url, photo_url, autorisation_parentale_url, certificat_engagement_3_semaines, photo_engagement_3_semaines, autorisation_engagement_3_semaines, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, questionnaire_sante_url';
+      'status, montant_total, montant_paye, date_naissance, responsable_legal, certificat_medical_url, photo_url, autorisation_parentale_url, certificat_engagement_3_semaines, photo_engagement_3_semaines, autorisation_engagement_3_semaines, atteste_certificat, attestation_questionnaire_sante, questionnaire_sante, questionnaire_sante_url, pass_pa2s, pass_pa2s_preuve_url, pass_pa2s_engagement_3_semaines';
     const { data: row, error: updateError } = await retrySelectOnMissingColumn(
       (select) =>
         supabase
@@ -1933,6 +1953,9 @@ export async function uploadAdminInscriptionDocumentAction(
             attestation_questionnaire_sante?: boolean | null;
             questionnaire_sante?: unknown;
             questionnaire_sante_url?: string | null;
+            pass_pa2s?: boolean | null;
+            pass_pa2s_preuve_url?: string | null;
+            pass_pa2s_engagement_3_semaines?: boolean | null;
           } | null;
           error: { message: string } | null;
         }>,
@@ -1975,6 +1998,8 @@ export async function uploadAdminInscriptionDocumentAction(
       questionnaire_sante: row.questionnaire_sante,
       certificat_engagement_3_semaines: Boolean(row.certificat_engagement_3_semaines),
       photo_engagement_3_semaines: Boolean(row.photo_engagement_3_semaines),
+      pass_pa2s_preuve_url: row.pass_pa2s_preuve_url ?? null,
+      pass_pa2s_engagement_3_semaines: Boolean(row.pass_pa2s_engagement_3_semaines),
       atteste_certificat: Boolean(row.atteste_certificat),
     };
   } catch {
@@ -2174,7 +2199,7 @@ export async function resendInscriptionDocumentsEmailAction(
     const { data, error } = await supabase
       .from('inscriptions')
       .select(
-        'id, prenom, email, documents_token, certificat_medical_url, photo_url, responsable_legal, created_at, mode_paiement',
+        'id, prenom, email, documents_token, certificat_medical_url, photo_url, responsable_legal, created_at, mode_paiement, pass_pa2s, pass_pa2s_preuve_url, attestation_questionnaire_sante, questionnaire_sante',
       )
       .eq('id', idParsed.data)
       .maybeSingle();
@@ -2209,6 +2234,7 @@ export async function resendInscriptionDocumentsEmailAction(
     // rappel, sinon c'est une confirmation avec le lien de correction.
     const missingCertificat = !data.certificat_medical_url;
     const missingPhoto = !data.photo_url;
+    const missingPassPa2s = Boolean(data.pass_pa2s) && !data.pass_pa2s_preuve_url;
 
     const { sendInscriptionDocumentsEmail } = await import('@/lib/email/inscription');
     const result = await sendInscriptionDocumentsEmail({
@@ -2217,6 +2243,7 @@ export async function resendInscriptionDocumentsEmailAction(
       token: data.documents_token,
       missingCertificat,
       missingPhoto,
+      missingPassPa2s,
       createdAt: data.created_at,
       modePaiement:
         data.mode_paiement === 'cash' ||

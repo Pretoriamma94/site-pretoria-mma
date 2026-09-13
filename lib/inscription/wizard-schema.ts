@@ -1,11 +1,19 @@
 import { z } from 'zod';
-import { getAgeFromBirthDate, isMinor, phoneRegex, codePostalRegex } from '@/lib/inscription/schema';
+import {
+  getAgeFromBirthDate,
+  isEligibleMma,
+  isMinor,
+  MMA_ELIGIBILITE_ERREUR,
+  phoneRegex,
+  codePostalRegex,
+} from '@/lib/inscription/schema';
 import {
   QS_ADULTE_SECTIONS,
   QS_MINEUR_SECTIONS,
   questionnaireComplet,
   questionnaireHasOui,
 } from '@/lib/inscription/questionnaire-sante';
+import { isPassPa2sCode, PASS_PA2S_CODE } from '@/lib/inscription/pass-pa2s';
 
 export const stepFiliereSchema = z.object({
   filiere: z.enum(['mma', 'baby'], {
@@ -68,11 +76,10 @@ export const stepIdentiteSchema = z
     const age = Math.floor(getAgeFromBirthDate(data.dateNaissance));
 
     if (data.filiere === 'mma') {
-      if (data.dateNaissance && age < 7) {
+      if (data.dateNaissance && !isEligibleMma(data.dateNaissance)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message:
-            'Le MMA est réservé aux 7 ans et plus. Pour moins de 7 ans, choisissez Baby JJB.',
+          message: MMA_ELIGIBILITE_ERREUR,
           path: ['dateNaissance'],
         });
       }
@@ -285,6 +292,30 @@ export function validateStepPhoto(data: {
     {
       path: 'engagementPhoto',
       message: 'Joignez une photo ou engagez-vous à la fournir sous 3 semaines.',
+    },
+  ];
+}
+
+export function validateStepPassPa2s(data: {
+  passPa2sCode?: string;
+  engagementPassPa2s?: boolean;
+  hasPassPa2sFile: boolean;
+}): Array<{ path: 'passPa2sCode' | 'engagementPassPa2s'; message: string }> {
+  const code = (data.passPa2sCode ?? '').trim();
+  if (!code) return [];
+  if (!isPassPa2sCode(code)) {
+    return [
+      {
+        path: 'passPa2sCode',
+        message: `Code invalide. Le code Pass PA2S est ${PASS_PA2S_CODE}.`,
+      },
+    ];
+  }
+  if (data.hasPassPa2sFile || data.engagementPassPa2s === true) return [];
+  return [
+    {
+      path: 'engagementPassPa2s',
+      message: 'Joignez la preuve du Pass PA2S ou engagez-vous à la fournir sous 3 semaines.',
     },
   ];
 }

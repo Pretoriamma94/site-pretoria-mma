@@ -48,6 +48,7 @@ import { isMembreBureau } from '@/lib/admin/membre-bureau';
 import { isPackFamily, isPackFamilyChild } from '@/lib/admin/pack-family';
 import { getPackCodeFromRow } from '@/lib/inscription/pack-famille';
 import { PackFamilyBadge } from '@/components/admin/PackFamilyBadge';
+import { PassPa2sBadge } from '@/components/admin/PassPa2sBadge';
 import { PackFamilyPanel } from './PackFamilyPanel';
 import { RecuEmailButton } from './RecuEmailButton';
 import { isInscriptionManuelle } from '@/lib/admin/voie-inscription';
@@ -56,8 +57,10 @@ import { AttestationSanteFiche } from '@/components/admin/AttestationSanteFiche'
 import {
   CertificatDelaiBanner,
   PhotoDelaiBanner,
+  PassPa2sDelaiBanner,
   isCertificatAlerte3Semaines,
   isPhotoAlerte3Semaines,
+  isPassPa2sAlerte3Semaines,
 } from '@/components/admin/CertificatDelaiBanner';
 
 export type AdminInscription = {
@@ -92,6 +95,9 @@ export type AdminInscription = {
   certificat_engagement_3_semaines: boolean | null;
   autorisation_engagement_3_semaines: boolean | null;
   photo_engagement_3_semaines: boolean | null;
+  pass_pa2s?: boolean | null;
+  pass_pa2s_preuve_url?: string | null;
+  pass_pa2s_engagement_3_semaines?: boolean | null;
   autorise_photos: boolean | null;
   autorise_sortie_seul: boolean | null;
   autorise_voiture_privee: boolean | null;
@@ -381,6 +387,11 @@ export function AdminInscriptionsTable({
                         <PackFamilyBadge compact packCode={getPackCodeFromRow(row)} />
                       </div>
                     ) : null}
+                    {row.pass_pa2s ? (
+                      <div className="mt-1">
+                        <PassPa2sBadge compact />
+                      </div>
+                    ) : null}
                     <div className="mt-0.5 text-[0.7rem] text-zinc-300">
                       {getCoursLabel(row.cours_selectionne)}
                     </div>
@@ -416,8 +427,14 @@ export function AdminInscriptionsTable({
                           Alerte photo (3 sem. dépassées)
                         </p>
                       ) : null}
+                      {isPassPa2sAlerte3Semaines(row) ? (
+                        <p className="text-[0.65rem] font-semibold text-red-300">
+                          Alerte Pass PA2S (3 sem. dépassées)
+                        </p>
+                      ) : null}
                       {!isCertificatAlerte3Semaines(row) &&
                       !isPhotoAlerte3Semaines(row) &&
+                      !isPassPa2sAlerte3Semaines(row) &&
                       isDocumentsAlerte21Jours(row) ? (
                         <p className="text-[0.65rem] text-red-300">Docs &gt; 21 j</p>
                       ) : null}
@@ -616,6 +633,7 @@ export function AdminInscriptionsTable({
             <div className="mt-3 space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3">
               <PhotoDelaiBanner row={selected} />
               <CertificatDelaiBanner row={selected} />
+              <PassPa2sDelaiBanner row={selected} />
               <AttestationSanteFiche row={selected} />
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -633,6 +651,11 @@ export function AdminInscriptionsTable({
                     <PackFamilyBadge packCode={getPackCodeFromRow(selected)} />
                   </div>
                 ) : null}
+                {selected.pass_pa2s ? (
+                  <div className="mb-1">
+                    <PassPa2sBadge />
+                  </div>
+                ) : null}
                 <p>Cours : {getCoursLabel(selected.cours_selectionne)}</p>
                 <p>
                   Type tarif :{' '}
@@ -643,6 +666,7 @@ export function AdminInscriptionsTable({
                       : selected.type_tarif}
                 </p>
                 <p>Montant dû : {formatEuros(selected.montant_total)}</p>
+                {selected.pass_pa2s ? <p>Pass PA2S : −50 €</p> : null}
                 <PackFamilyPanel
                   key={selected.id}
                   row={selected}
@@ -771,7 +795,9 @@ export function AdminInscriptionsTable({
                 docsCheck.certificat === 'pending_3_weeks' ||
                 docsCheck.certificat === 'missing' ||
                 docsCheck.photo === 'pending_3_weeks' ||
-                docsCheck.photo === 'missing';
+                docsCheck.photo === 'missing' ||
+                docsCheck.passPa2s === 'pending_3_weeks' ||
+                docsCheck.passPa2s === 'missing';
               const countdown = needsCountdown
                 ? getDocumentsCountdown(selected.created_at)
                 : null;
@@ -836,6 +862,21 @@ export function AdminInscriptionsTable({
                         {pendingLabel(docsCheck.photo)}
                       </span>
                     </div>
+                    {docsCheck.passPa2s !== 'not_required' ? (
+                      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-3 py-2">
+                        <p className="text-[0.65rem] uppercase tracking-wide text-zinc-500">
+                          Preuve Pass PA2S (−50 €)
+                        </p>
+                        <span
+                          className={cn(
+                            'mt-1 inline-flex rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold',
+                            pendingClasses(docsCheck.passPa2s),
+                          )}
+                        >
+                          {pendingLabel(docsCheck.passPa2s)}
+                        </span>
+                      </div>
+                    ) : null}
                     {docsCheck.questionnaire !== 'not_required' ? (
                       <div
                         className={cn(

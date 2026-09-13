@@ -23,6 +23,8 @@ import {
   stepAutorisationsSchema,
   stepRgpdSchema,
   getAgeFromBirthDate,
+  isEligibleMma,
+  MMA_ELIGIBILITE_ERREUR,
 } from '@/lib/inscription/schema';
 import {
   generateFoyerCode,
@@ -33,6 +35,7 @@ import {
   packFamilleSchema,
 } from '@/lib/inscription/pack-famille';
 import { finalizePackFamilyInscriptionAction, getPackFoyerPrefillAction } from '@/lib/inscription/pack-famille-actions';
+import { appliquerRemisePassPa2s, isPassPa2sCode } from '@/lib/inscription/pass-pa2s';
 import { uploadInscriptionFile } from '@/lib/inscription/upload';
 import { supabase } from '@/lib/supabase/client';
 import type { Database, Json } from '@/types/database';
@@ -112,8 +115,9 @@ export async function submitInscription(params: {
   values: InscriptionFormValues;
   certificatFile: File | null;
   photoFile: File | null;
+  passPa2sFile: File | null;
 }): Promise<{ ok: true; query: string } | { ok: false; message: string }> {
-  const { values, certificatFile, photoFile } = params;
+  const { values, certificatFile, photoFile, passPa2sFile } = params;
   const filiere = values.filiere;
   if (!filiere) {
     return { ok: false, message: 'Veuillez choisir MMA ou Baby JJB.' };
@@ -128,6 +132,10 @@ export async function submitInscription(params: {
           'Le Baby JJB est réservé aux enfants jusqu’à 7 ans. Si l’enfant a plus de 7 ans, passez sur la partie MMA.',
       };
     }
+  }
+
+  if (filiere === 'mma' && values.dateNaissance && !isEligibleMma(values.dateNaissance)) {
+    return { ok: false, message: MMA_ELIGIBILITE_ERREUR };
   }
 
   const mineur = filiere === 'baby' || isMinor(values.dateNaissance);
@@ -158,7 +166,20 @@ export async function submitInscription(params: {
     const prefill = await getPackFoyerPrefillAction(packFoyerCode);
     if (!prefill.ok) return { ok: false, message: prefill.message };
   }
-  const total = montantPackMembre(catalogue, packRole === 'additional');
+  const passActif = isPassPa2sCode(values.passPa2sCode ?? '');
+  if ((values.passPa2sCode ?? '').trim() && !passActif) {
+    return { ok: false, message: 'Code Pass PA2S invalide. Le code est PASSPORT.' };
+  }
+  if (passActif && !passPa2sFile && !values.engagementPassPa2s) {
+    return {
+      ok: false,
+      message: 'Joignez la preuve du Pass PA2S ou engagez-vous à la fournir sous 3 semaines.',
+    };
+  }
+  const total = appliquerRemisePassPa2s(
+    montantPackMembre(catalogue, packRole === 'additional'),
+    passActif,
+  );
   const coursSelectionne = resolveCoursSelectionne(
     filiere,
     values.dateNaissance,
@@ -245,6 +266,7 @@ export async function submitInscription(params: {
   try {
     let certificatPath: string | null = null;
     let photoPath: string | null = null;
+    let passPa2sPath: string | null = null;
 
     if (certificatFile) {
       const up = await uploadInscriptionFile(certificatFile, 'certificat');
@@ -255,6 +277,11 @@ export async function submitInscription(params: {
       const up = await uploadInscriptionFile(photoFile, 'photo');
       if ('error' in up) return { ok: false, message: up.error };
       photoPath = up.path;
+    }
+    if (passActif && passPa2sFile) {
+      const up = await uploadInscriptionFile(passPa2sFile, 'pass_pa2s');
+      if ('error' in up) return { ok: false, message: up.error };
+      passPa2sPath = up.path;
     }
 
     const documentsToken =
@@ -318,6 +345,9 @@ export async function submitInscription(params: {
         !certificatFile && !certificatDispense && engagementCertificat,
       autorisation_engagement_3_semaines: false,
       photo_engagement_3_semaines: !photoFile && Boolean(values.engagementPhoto),
+      pass_pa2s: passActif,
+      pass_pa2s_preuve_url: passPa2sPath,
+      pass_pa2s_engagement_3_semaines: passActif && !passPa2sFile && Boolean(values.engagementPassPa2s),
       autorise_photos: values.acceptePhotos ?? false,
       ...(documentsToken ? { documents_token: documentsToken } : {}),
     };
@@ -363,6 +393,7 @@ export async function submitInscription(params: {
 
     const missingCertificat = !certificatFile && !certificatDispense;
     const missingPhoto = !photoFile;
+    const missingPassPa2s = passActif && !passPa2sFile;
     const canSendEmail = Boolean(documentsToken) && Boolean(emailPrincipal);
     let emailSent = false;
     if (canSendEmail) {
@@ -373,6 +404,7 @@ export async function submitInscription(params: {
           token: documentsToken,
           missingCertificat,
           missingPhoto,
+          missingPassPa2s,
           createdAt: new Date().toISOString(),
           modePaiement: paiementResult.data.modePaiement,
           packCode: packCode ?? undefined,
@@ -392,7 +424,7 @@ export async function submitInscription(params: {
       montant: String(total),
       mode: paiementResult.data.modePaiement,
       echeances: String(paiementResult.data.nombreEcheances),
-      docs: missingCertificat || missingPhoto ? 'manquants' : 'complets',
+      docs: missingCertificat || missingPhoto || missingPassPa2s ? 'manquants' : 'complets',
       ...(documentsToken ? { token: documentsToken } : {}),
       ...(canSendEmail ? { emailSent: emailSent ? '1' : '0' } : {}),
       ...(packFoyerCode ? { foyer: packFoyerCode } : {}),

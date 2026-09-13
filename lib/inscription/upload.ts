@@ -18,7 +18,7 @@ function sanitizeFileName(name: string): string {
  */
 export async function uploadInscriptionFile(
   file: File,
-  kind: 'certificat' | 'photo',
+  kind: 'certificat' | 'photo' | 'pass_pa2s',
 ): Promise<{ path: string } | { error: string }> {
   if (file.size > MAX_BYTES) {
     return { error: 'Fichier trop volumineux (max 5 Mo).' };

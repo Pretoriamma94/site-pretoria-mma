@@ -86,7 +86,7 @@ export const TARIFS_INDIVIDUELS = [
   {
     title: 'Enfants',
     price: '250€/an',
-    category: 'MMA',
+    category: 'Nés en 2020 et avant',
     details: ['Mardi 17h15-18h30 · Halles des Violettes', 'Samedi 16h-17h30 · Gymnase Pierre de Coubertin'],
   },
   {
@@ -133,7 +133,7 @@ export const COURS_ACCUEIL = [
   {
     title: 'Enfants',
     icon: '🥊',
-    description: 'MMA adapté aux enfants',
+    description: 'MMA adapté aux enfants nés en 2020 et avant',
     horaires: ['Mardi 17h15-18h30 (Halles des Violettes)', 'Samedi 16h-17h30 (Gymnase Pierre de Coubertin)'],
     prix: '250€/an',
   },

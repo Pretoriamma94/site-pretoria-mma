@@ -54,6 +54,7 @@ export default async function AdminHomePage() {
             [
               'certificat_engagement_3_semaines.eq.true',
               'photo_engagement_3_semaines.eq.true',
+              'pass_pa2s_engagement_3_semaines.eq.true',
               'certificat_medical_url.is.null',
               'photo_url.is.null',
             ].join(','),

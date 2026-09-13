@@ -13,6 +13,7 @@ export type InscriptionDocumentsMailPayload = {
   token: string;
   missingCertificat: boolean;
   missingPhoto: boolean;
+  missingPassPa2s?: boolean;
   /** Date de création de l'inscription — sert à calculer la date limite exacte. */
   createdAt?: string | null;
   modePaiement?: 'cash' | 'cheque' | 'virement' | null;
@@ -54,6 +55,7 @@ function buildManquants(payload: InscriptionDocumentsMailPayload): string[] {
   const manquants: string[] = [];
   if (payload.missingCertificat) manquants.push('le certificat médical (moins de 3 mois)');
   if (payload.missingPhoto) manquants.push("une photo d'identité");
+  if (payload.missingPassPa2s) manquants.push('la preuve du Pass PA2S (port)');
   return manquants;
 }
 

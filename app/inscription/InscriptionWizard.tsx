@@ -30,6 +30,7 @@ import {
   stepInformationsSchema,
   validateStepCertificat,
   validateStepPhoto,
+  validateStepPassPa2s,
   stepCharteSchema,
 } from '@/lib/inscription/wizard-schema';
 import { cn } from '@/lib/utils';
@@ -49,6 +50,7 @@ export function InscriptionWizard() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [certificatFile, setCertificatFile] = useState<File | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [passPa2sFile, setPassPa2sFile] = useState<File | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -217,7 +219,26 @@ export function InscriptionWizard() {
         applyZodErrors(packResult.error.flatten().fieldErrors, setError);
         return;
       }
-      clearErrors(['modePaiement', 'nombreEcheances', 'formuleAdulte', 'packTaille', 'packFoyerCode']);
+      const passIssues = validateStepPassPa2s({
+        passPa2sCode: values.passPa2sCode,
+        engagementPassPa2s: values.engagementPassPa2s,
+        hasPassPa2sFile: Boolean(passPa2sFile),
+      });
+      if (passIssues.length > 0) {
+        passIssues.forEach((issue) => {
+          setError(issue.path, { type: 'manual', message: issue.message });
+        });
+        return;
+      }
+      clearErrors([
+        'modePaiement',
+        'nombreEcheances',
+        'formuleAdulte',
+        'packTaille',
+        'packFoyerCode',
+        'passPa2sCode',
+        'engagementPassPa2s',
+      ]);
     }
 
     setStep((s) => Math.min(s + 1, INSCRIPTION_STEPS.length - 1));
@@ -230,6 +251,7 @@ export function InscriptionWizard() {
       values: getValues(),
       certificatFile,
       photoFile,
+      passPa2sFile,
     });
     if (!result.ok) {
       setToast({ type: 'error', message: result.message });
@@ -306,7 +328,13 @@ export function InscriptionWizard() {
           </>
         )}
         {step === 7 && <StepCharte form={form} />}
-        {step === 8 && <StepPaiement form={form} />}
+        {step === 8 && (
+          <StepPaiement
+            form={form}
+            passPa2sFile={passPa2sFile}
+            onPassPa2sFile={setPassPa2sFile}
+          />
+        )}
         {step === 9 && (
           <StepRecap
             form={form}
@@ -314,6 +342,7 @@ export function InscriptionWizard() {
             onSubmit={handleSubmitInscription}
             isSubmitting={isSubmitting}
             hasPhotoFile={Boolean(photoFile)}
+            hasPassPa2sFile={Boolean(passPa2sFile)}
           />
         )}
       </div>

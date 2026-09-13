@@ -72,7 +72,9 @@ function hasDocsNeedingCountdown(check: ReturnType<typeof getDocumentsChecklist>
     check.photo === 'pending_3_weeks' ||
     check.photo === 'missing' ||
     check.certificat === 'pending_3_weeks' ||
-    check.certificat === 'missing'
+    check.certificat === 'missing' ||
+    check.passPa2s === 'pending_3_weeks' ||
+    check.passPa2s === 'missing'
   );
 }
 
@@ -88,6 +90,7 @@ export function InscriptionDocsCell({ row }: DocsProps) {
     { key: 'cert', label: 'Certificat', status: check.certificat },
     { key: 'photo', label: 'Photo', status: check.photo },
     { key: 'qs', label: 'Questionnaire', status: check.questionnaire },
+    { key: 'pa2s', label: 'Pass PA2S', status: check.passPa2s },
   ];
   if (check.autorisation !== 'not_required') {
     items.push({ key: 'aut', label: 'Autorisation', status: check.autorisation });
@@ -291,6 +294,9 @@ export function InscriptionsLegend() {
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2 w-2 rounded-full bg-sky-300" /> Pack family (parts réparties)
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2 w-2 rounded-full bg-amber-300" /> Pass PA2S (−50 €)
       </span>
     </div>
   );

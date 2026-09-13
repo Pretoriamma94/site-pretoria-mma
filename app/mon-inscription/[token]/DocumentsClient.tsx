@@ -6,18 +6,17 @@ import { uploadInscriptionFile } from '@/lib/inscription/upload';
 import { submitInscriptionDocumentAction } from '../actions';
 import { cn } from '@/lib/utils';
 
-type DocKind = 'certificat' | 'photo';
+type DocKind = 'certificat' | 'photo' | 'pass_pa2s';
 
 type Props = {
   token: string;
   certificatRecu: boolean;
   photoRecue: boolean;
+  passPa2sRequis: boolean;
+  passPa2sRecu: boolean;
 };
 
-const DOC_META: Record<
-  DocKind,
-  { label: string; hint: string; accept: string }
-> = {
+const DOC_META: Record<DocKind, { label: string; hint: string; accept: string }> = {
   certificat: {
     label: 'Certificat médical (moins de 3 mois)',
     hint: 'Atteste l\u2019absence de contre-indication à la pratique du MMA / JJB. PDF, JPG ou PNG — max 5 Mo.',
@@ -28,16 +27,32 @@ const DOC_META: Record<
     hint: 'Photo récente de l\u2019adhérent. JPG, PNG (PDF accepté) — max 5 Mo.',
     accept: '.jpg,.jpeg,.png,.pdf',
   },
+  pass_pa2s: {
+    label: 'Preuve Pass PA2S (port)',
+    hint: 'Attestation justifiant le Pass PA2S. PDF, JPG ou PNG — max 5 Mo.',
+    accept: '.pdf,.jpg,.jpeg,.png',
+  },
 };
 
-export function DocumentsClient({ token, certificatRecu, photoRecue }: Props) {
+export function DocumentsClient({
+  token,
+  certificatRecu,
+  photoRecue,
+  passPa2sRequis,
+  passPa2sRecu,
+}: Props) {
+  const kinds: DocKind[] = passPa2sRequis
+    ? ['certificat', 'photo', 'pass_pa2s']
+    : ['certificat', 'photo'];
   const [recu, setRecu] = useState<Record<DocKind, boolean>>({
     certificat: certificatRecu,
     photo: photoRecue,
+    pass_pa2s: passPa2sRecu,
   });
   const [files, setFiles] = useState<Record<DocKind, File | null>>({
     certificat: null,
     photo: null,
+    pass_pa2s: null,
   });
   const [busy, setBusy] = useState<DocKind | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,9 +60,10 @@ export function DocumentsClient({ token, certificatRecu, photoRecue }: Props) {
   const [editing, setEditing] = useState<Record<DocKind, boolean>>({
     certificat: false,
     photo: false,
+    pass_pa2s: false,
   });
 
-  const allDone = recu.certificat && recu.photo;
+  const allDone = kinds.every((kind) => recu[kind]);
 
   const handleSubmit = async (kind: DocKind) => {
     const file = files[kind];
@@ -69,7 +85,11 @@ export function DocumentsClient({ token, certificatRecu, photoRecue }: Props) {
         setError(result.error);
         return;
       }
-      setRecu({ certificat: result.certificatRecu, photo: result.photoRecue });
+      setRecu({
+        certificat: result.certificatRecu,
+        photo: result.photoRecue,
+        pass_pa2s: result.passPa2sRecu,
+      });
       setFiles((prev) => ({ ...prev, [kind]: null }));
       setEditing((prev) => ({ ...prev, [kind]: false }));
       setFinalized(result.finalized);
@@ -97,7 +117,7 @@ export function DocumentsClient({ token, certificatRecu, photoRecue }: Props) {
         </div>
       ) : null}
 
-      {(['certificat', 'photo'] as const).map((kind) => {
+      {kinds.map((kind) => {
         const meta = DOC_META[kind];
         const done = recu[kind];
         const isEditing = editing[kind];

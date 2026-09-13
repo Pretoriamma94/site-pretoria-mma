@@ -11,6 +11,7 @@ import {
   resolveFormuleAdulte,
 } from '@/lib/inscription/schema';
 import { montantPackMembre, packCodeFromTaille } from '@/lib/inscription/pack-famille';
+import { appliquerRemisePassPa2s, isPassPa2sCode } from '@/lib/inscription/pass-pa2s';
 import {
   TEXTE_ATTESTATION_QS_NON,
   TEXTE_ATTESTATION_QS_OUI,
@@ -24,9 +25,17 @@ type Props = {
   onSubmit: () => void;
   isSubmitting: boolean;
   hasPhotoFile?: boolean;
+  hasPassPa2sFile?: boolean;
 };
 
-export function StepRecap({ form, onGoToStep, onSubmit, isSubmitting, hasPhotoFile }: Props) {
+export function StepRecap({
+  form,
+  onGoToStep,
+  onSubmit,
+  isSubmitting,
+  hasPhotoFile,
+  hasPassPa2sFile,
+}: Props) {
   const { watch } = form;
   const filiere = watch('filiere');
   const dateNaissance = watch('dateNaissance');
@@ -35,7 +44,11 @@ export function StepRecap({ form, onGoToStep, onSubmit, isSubmitting, hasPhotoFi
   const formuleEffective = !mineur ? resolveFormuleAdulte(sexe) : undefined;
   const catalogue = filiere ? getCoursPrix(filiere, dateNaissance, formuleEffective) : 0;
   const packRole = watch('packRole') ?? 'none';
-  const total = montantPackMembre(catalogue, packRole === 'additional');
+  const passActif = isPassPa2sCode(watch('passPa2sCode') ?? '');
+  const total = appliquerRemisePassPa2s(
+    montantPackMembre(catalogue, packRole === 'additional'),
+    passActif,
+  );
   const packCode = packRole === 'none' ? null : packCodeFromTaille(watch('packTaille') ?? 2);
   const foyerCode = watch('packFoyerCode');
   const tarifLibelle = filiere ? getTarifLibelle(filiere, dateNaissance, formuleEffective) : '';
@@ -176,6 +189,16 @@ export function StepRecap({ form, onGoToStep, onSubmit, isSubmitting, hasPhotoFi
                 Pack famille {packCode} — membre supplémentaire (−50 €). Code foyer : {foyerCode || '—'}
               </p>
             ) : null}
+            {passActif ? (
+              <p className="text-emerald-300">
+                Pass PA2S −50 €
+                {hasPassPa2sFile
+                  ? ' — preuve jointe'
+                  : watch('engagementPassPa2s')
+                    ? ' — preuve à fournir sous 3 semaines'
+                    : ''}
+              </p>
+            ) : null}
             <p>
               {watch('modePaiement') === 'virement'
                 ? `${modeLabel ?? 'Paiement en ligne'} — lien HelloAsso après validation`
@@ -187,7 +210,7 @@ export function StepRecap({ form, onGoToStep, onSubmit, isSubmitting, hasPhotoFi
           <CardContent className="pt-6 text-sm text-zinc-300">
             <p className="font-medium text-white">Statut après validation : Pré-inscrit</p>
             <p className="mt-1 text-xs text-zinc-500">
-              Sans certificat ou photo le jour J, l&apos;engagement sous 3 semaines est enregistré.
+              Sans certificat, photo ou preuve Pass PA2S le jour J, l&apos;engagement sous 3 semaines est enregistré.
               {watch('modePaiement') === 'virement'
                 ? ' Le lien de paiement HelloAsso s’affichera ensuite, et sera envoyé par email.'
                 : ''}

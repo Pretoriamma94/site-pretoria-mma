@@ -19,6 +19,7 @@ type DossierSource = DocsSource & {
 export function isDocumentsComplets(row: DocsSource): boolean {
   if (!row.certificat_medical_url && !isCertificatDispenseParQuestionnaire(row)) return false;
   if (!row.photo_url) return false;
+  if (row.pass_pa2s && !row.pass_pa2s_preuve_url) return false;
   const docs = getDocumentsChecklist(row);
   if (docs.questionnaire === 'missing') return false;
   return true;

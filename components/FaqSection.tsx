@@ -26,7 +26,7 @@ const faqItems: FaqItem[] = [
   {
     question: 'À partir de quel âge peut-on s\u2019inscrire au club ?',
     answer:
-      'Dès 3 ans avec le Baby JJB, puis des groupes Enfants et Adolescents, un cours Adultes mixte et un forfait femmes (tous les cours mixtes plus un créneau réservé). Il n\u2019y a pas d\u2019âge maximum : chacun progresse selon ses objectifs, loisir ou compétition.',
+      'Dès 3 ans avec le Baby JJB. Pour la saison 2026-2027, le MMA Enfants est ouvert aux enfants nés en 2020 et avant, puis Adolescents, Adultes mixte et forfait femmes. Il n\u2019y a pas d\u2019âge maximum : chacun progresse selon ses objectifs, loisir ou compétition.',
   },
   {
     question: 'Faut-il déjà avoir de l\u2019expérience ou un équipement pour commencer ?',

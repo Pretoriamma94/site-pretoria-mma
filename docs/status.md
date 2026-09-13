@@ -14,7 +14,7 @@
 ## Planning & tarifs 2026-2027
 
 - **Baby JJB** : samedi 15h-16h, 200 €.
-- **Enfants** : mardi 17h15-18h30 (Halles des Violettes) + samedi 16h-17h30 (Coubertin), 250 €.
+- **Enfants** : nés en **2020 et avant** (saison 2026-2027), mardi 17h15-18h30 (Halles des Violettes) + samedi 16h-17h30 (Coubertin), 250 €.
 - **Adolescents** : mardi 18h30-20h MMA + jeudi 18h30-20h grappling (Halles des Violettes), 250 €.
 - **Adultes mixte** (hommes) : 300 €, accès à tous les cours adultes mixtes (lundi MMA, jeudi grappling, samedi sparring).
 - **Forfait femmes** : 200 €, accès à tous les cours adultes mixtes **plus** le créneau réservé aux femmes (samedi 17h30-18h30 MMA/Grappling).
@@ -25,6 +25,7 @@
 - **Baby JJB / santé** : toujours le questionnaire mineur (1re inscription et renouvellement, pas de question « certificat de moins de 3 ans »). Un OUI → certificat obligatoire (upload ou engagement 3 semaines) ; toutes réponses NON → certificat non requis. Même attestation et mêmes bannières sur les fiches admin que pour un mineur MMA.
 - **Certificat sous 3 semaines** : sans fichier, case d’engagement obligatoire pour poursuivre ; admin = décompte J-n puis **alerte** si le délai est dépassé.
 - **Photo d’identité** : étape après Santé / avant RGPD-paiement, tous profils (PNG, JPG, PDF ; photo téléphone fond blanc). Sans fichier, engagement 3 semaines + décompte / alerte admin.
+- **Pass PA2S (port)** : code promo **PASSPORT** à l’étape Paiement. **−50 €** (cumulable avec le pack famille supplémentaire). Preuve (PDF/JPG/PNG) ou engagement 3 semaines — l’inscription n’est pas bloquée sans le document. Admin : badge **Pass PA2S −50 €**, bannière de délai, upload de la preuve. Migration `20260913190000_pass_pa2s.sql` à appliquer sur le remote.
 - **Rappel des obligations** : case **Lu et approuvé** obligatoire à l’étape Autorisations pour tous les profils (MMA adulte, MMA mineur, Baby JJB) avant de poursuivre.
 - **Charte du club** : étape obligatoire avant le paiement (tous profils, y compris Baby JJB) — lecture / téléchargement du PDF + 3 cases (lu, règles, engagement).
 

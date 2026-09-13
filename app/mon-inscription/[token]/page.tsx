@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
+import { retrySelectOnMissingColumn } from '@/lib/admin/inscription-fields';
 import { DocumentsClient } from './DocumentsClient';
 
 // Page privée (lien personnel) : ne jamais indexer, toujours à jour.
@@ -23,11 +24,25 @@ export default async function MonInscriptionPage({
   }
 
   const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('inscriptions')
-    .select('prenom, nom, certificat_medical_url, photo_url')
-    .eq('documents_token', token)
-    .maybeSingle();
+  const { data, error } = await retrySelectOnMissingColumn(
+    (select) =>
+      supabase
+        .from('inscriptions')
+        .select(select)
+        .eq('documents_token', token)
+        .maybeSingle() as unknown as Promise<{
+        data: {
+          prenom: string;
+          nom: string;
+          certificat_medical_url: string | null;
+          photo_url: string | null;
+          pass_pa2s?: boolean | null;
+          pass_pa2s_preuve_url?: string | null;
+        } | null;
+        error: { message: string } | null;
+      }>,
+    'prenom, nom, certificat_medical_url, photo_url, pass_pa2s, pass_pa2s_preuve_url',
+  );
 
   if (error || !data) {
     notFound();
@@ -48,6 +63,8 @@ export default async function MonInscriptionPage({
         token={token}
         certificatRecu={Boolean(data.certificat_medical_url)}
         photoRecue={Boolean(data.photo_url)}
+        passPa2sRequis={Boolean(data.pass_pa2s)}
+        passPa2sRecu={Boolean(data.pass_pa2s_preuve_url)}
       />
     </div>
   );

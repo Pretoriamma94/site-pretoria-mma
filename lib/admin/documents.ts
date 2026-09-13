@@ -13,6 +13,7 @@ export type DocumentsChecklist = {
   autorisation: DocItemStatus;
   /** Scan du questionnaire papier (inscription manuelle). */
   questionnaire: DocItemStatus;
+  passPa2s: DocItemStatus;
   /** Libellés courts pour la liste admin */
   missingLabels: string[];
   hasMissing: boolean;
@@ -34,6 +35,9 @@ export type DocsSource = {
   certificat_engagement_3_semaines: boolean | null;
   autorisation_engagement_3_semaines?: boolean | null;
   photo_engagement_3_semaines?: boolean | null;
+  pass_pa2s?: boolean | null;
+  pass_pa2s_preuve_url?: string | null;
+  pass_pa2s_engagement_3_semaines?: boolean | null;
 };
 
 /** Scan QS papier attendu : inscription manuelle + certificat non requis (toutes réponses NON). */
@@ -75,6 +79,14 @@ export function isPhotoRecue(row: DocsSource): boolean {
   return Boolean(row.photo_url);
 }
 
+export function isPassPa2sActif(row: { pass_pa2s?: boolean | null }): boolean {
+  return Boolean(row.pass_pa2s);
+}
+
+export function isPassPa2sPreuveRecue(row: { pass_pa2s_preuve_url?: string | null }): boolean {
+  return Boolean(row.pass_pa2s_preuve_url);
+}
+
 export function isAutorisationRecue(_row: DocsSource): boolean {
   /** Plus de PDF d’autorisation : remplacé par les Oui/Non numériques. */
   return true;
@@ -96,6 +108,9 @@ export function getDocumentsChecklist(row: DocsSource): DocumentsChecklist {
       ? 'not_required'
       : statusFor(false, row.certificat_engagement_3_semaines);
   const photo = statusFor(isPhotoRecue(row), row.photo_engagement_3_semaines);
+  const passPa2s: DocItemStatus = !isPassPa2sActif(row)
+    ? 'not_required'
+    : statusFor(isPassPa2sPreuveRecue(row), row.pass_pa2s_engagement_3_semaines);
   /** Autorisation parentale = formulaire numérique (plus de fichier requis). */
   const autorisation: DocItemStatus = 'not_required';
   const questionnaire: DocItemStatus = !needsQuestionnaireScanPapier(row)
@@ -109,6 +124,8 @@ export function getDocumentsChecklist(row: DocsSource): DocumentsChecklist {
   else if (certificat === 'missing') missingLabels.push('Certificat médical');
   if (photo === 'pending_3_weeks') missingLabels.push('Photo (sous 3 sem.)');
   else if (photo === 'missing') missingLabels.push('Photo');
+  if (passPa2s === 'pending_3_weeks') missingLabels.push('Pass PA2S (sous 3 sem.)');
+  else if (passPa2s === 'missing') missingLabels.push('Preuve Pass PA2S');
   if (questionnaire === 'missing') missingLabels.push('Questionnaire de santé (scan)');
 
   return {
@@ -116,18 +133,19 @@ export function getDocumentsChecklist(row: DocsSource): DocumentsChecklist {
     photo,
     autorisation,
     questionnaire,
+    passPa2s,
     missingLabels,
     hasMissing: missingLabels.length > 0,
   };
 }
 
 export function getAdminDocumentSlots(row: DocsSource): {
-  kind: 'certificat' | 'photo' | 'questionnaire';
+  kind: 'certificat' | 'photo' | 'questionnaire' | 'pass_pa2s';
   label: string;
   path: string | null;
 }[] {
   const slots: {
-    kind: 'certificat' | 'photo' | 'questionnaire';
+    kind: 'certificat' | 'photo' | 'questionnaire' | 'pass_pa2s';
     label: string;
     path: string | null;
   }[] = [
@@ -147,6 +165,13 @@ export function getAdminDocumentSlots(row: DocsSource): {
       kind: 'questionnaire',
       label: 'Questionnaire de santé (scan papier)',
       path: getQuestionnaireSanteFichierUrl(row),
+    });
+  }
+  if (isPassPa2sActif(row) || row.pass_pa2s_preuve_url) {
+    slots.push({
+      kind: 'pass_pa2s',
+      label: 'Preuve Pass PA2S',
+      path: row.pass_pa2s_preuve_url ?? null,
     });
   }
   return slots;

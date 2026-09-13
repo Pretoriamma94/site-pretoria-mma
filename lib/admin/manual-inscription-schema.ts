@@ -2,7 +2,9 @@ import { z } from 'zod';
 import {
   codePostalRegex,
   getAgeFromBirthDate,
+  isEligibleMma,
   isMinor,
+  MMA_ELIGIBILITE_ERREUR,
   phoneRegex,
   COURS_OPTIONS,
   getCoursPrix,
@@ -44,6 +46,9 @@ export const manualInscriptionSchema = z
     photoRecue: z.boolean().optional().default(false),
     engagementPhoto: z.boolean().optional().default(false),
     engagementCertificat: z.boolean().optional().default(false),
+    passPa2s: z.boolean().optional().default(false),
+    passPa2sPreuveRecue: z.boolean().optional().default(false),
+    engagementPassPa2s: z.boolean().optional().default(false),
     acceptePhotos: z.boolean().nullable(),
     informeAssurance: z.boolean(),
     informeDroitAcces: z.boolean(),
@@ -128,10 +133,10 @@ export const manualInscriptionSchema = z
         });
       }
     } else {
-      if (age < 7) {
+      if (!isEligibleMma(data.dateNaissance)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'Le MMA est réservé aux 7 ans et plus. Pour moins de 7 ans, choisissez Baby JJB.',
+          message: MMA_ELIGIBILITE_ERREUR,
           path: ['dateNaissance'],
         });
       }
@@ -270,6 +275,14 @@ export const manualInscriptionSchema = z
         code: z.ZodIssueCode.custom,
         message: 'Indiquez photo reçue ou engagement sous 3 semaines',
         path: ['engagementPhoto'],
+      });
+    }
+
+    if (data.passPa2s && !data.passPa2sPreuveRecue && !data.engagementPassPa2s) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Indiquez preuve Pass PA2S reçue ou engagement sous 3 semaines',
+        path: ['engagementPassPa2s'],
       });
     }
   })

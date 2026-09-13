@@ -6,7 +6,7 @@ import {
   uploadAdminInscriptionDocumentAction,
 } from './actions';
 
-type DocKind = 'certificat' | 'photo' | 'questionnaire';
+type DocKind = 'certificat' | 'photo' | 'questionnaire' | 'pass_pa2s';
 
 type DocSlot = {
   kind: DocKind;
@@ -22,6 +22,8 @@ type UploadResultFields = {
   questionnaire_sante?: unknown;
   certificat_engagement_3_semaines: boolean;
   photo_engagement_3_semaines: boolean;
+  pass_pa2s_preuve_url?: string | null;
+  pass_pa2s_engagement_3_semaines?: boolean;
   atteste_certificat: boolean;
 };
 
@@ -44,6 +46,7 @@ export function InscriptionDocumentDownloads({
     certificat: null,
     photo: null,
     questionnaire: null,
+    pass_pa2s: null,
   });
 
   const openDocument = async (label: string, path: string) => {
@@ -86,6 +89,8 @@ export function InscriptionDocumentDownloads({
         questionnaire_sante: result.questionnaire_sante,
         certificat_engagement_3_semaines: result.certificat_engagement_3_semaines,
         photo_engagement_3_semaines: result.photo_engagement_3_semaines,
+        pass_pa2s_preuve_url: result.pass_pa2s_preuve_url,
+        pass_pa2s_engagement_3_semaines: result.pass_pa2s_engagement_3_semaines,
         atteste_certificat: result.atteste_certificat,
       });
       setMessage(`${documents.find((d) => d.kind === kind)?.label ?? 'Document'} enregistré.`);
