@@ -270,6 +270,7 @@ export default async function AdminPaiementsPage({
                   </td>
                   <td className="px-4 py-3 text-zinc-300">
                     <div>{getModePaiementLabel(row.mode_paiement)}</div>
+                    {row.pass_pa2s ? <p className="mt-1 text-xs text-emerald-300">Pass Sport : aide de 50 €. Cotisation entière ; aide à enregistrer dans les paiements lors de sa réception.</p> : null}
                     <div className="text-[0.7rem] text-zinc-500">
                       {row.nombre_echeances
                         ? `${row.nombre_echeances} fois${

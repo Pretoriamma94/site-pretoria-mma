@@ -44,6 +44,8 @@ export function PassPa2sFields({ form, passPa2sFile, onPassPa2sFile }: Props) {
     }
   };
 
+  if (!eligible) return null;
+
   return (
     <fieldset className="mt-6 rounded-xl border border-amber-700/60 bg-amber-950/15 p-4">
       <legend className="mb-3 flex items-center gap-3 px-1 text-sm font-medium text-white">

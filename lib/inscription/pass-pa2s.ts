@@ -8,10 +8,9 @@ export const PASS_PA2S_CODE = 'PASSPORT';
 
 export function isEligiblePassSport(
   dateNaissance?: string | null,
-  filiere?: string | null,
-  typeProfil?: string | null,
+  _filiere?: string | null,
+  _typeProfil?: string | null,
 ): boolean {
-  if (filiere === 'baby' || typeProfil === 'mineur') return true;
   if (!dateNaissance) return false;
   return isMinor(dateNaissance);
 }
