@@ -35,7 +35,7 @@ import {
   packFamilleSchema,
 } from '@/lib/inscription/pack-famille';
 import { finalizePackFamilyInscriptionAction, getPackFoyerPrefillAction } from '@/lib/inscription/pack-famille-actions';
-import { appliquerRemisePassPa2s, isPassPa2sCode } from '@/lib/inscription/pass-pa2s';
+import { isEligiblePassSport } from '@/lib/inscription/pass-pa2s';
 import { uploadInscriptionFile } from '@/lib/inscription/upload';
 import { supabase } from '@/lib/supabase/client';
 import type { Database, Json } from '@/types/database';
@@ -166,9 +166,13 @@ export async function submitInscription(params: {
     const prefill = await getPackFoyerPrefillAction(packFoyerCode);
     if (!prefill.ok) return { ok: false, message: prefill.message };
   }
-  const passActif = isPassPa2sCode(values.passPa2sCode ?? '');
-  if ((values.passPa2sCode ?? '').trim() && !passActif) {
-    return { ok: false, message: 'Code Pass Sport invalide. Le code est PASSPORT.' };
+  const passActif =
+    isEligiblePassSport(values.dateNaissance, filiere, typeProfil) && Boolean(values.passPa2s);
+  if (values.passPa2s && !isEligiblePassSport(values.dateNaissance, filiere, typeProfil)) {
+    return {
+      ok: false,
+      message: 'Le Pass Sport est réservé aux moins de 18 ans.',
+    };
   }
   if (passActif && !passPa2sFile && !values.engagementPassPa2s) {
     return {
@@ -176,10 +180,7 @@ export async function submitInscription(params: {
       message: 'Joignez la preuve du Pass Sport ou engagez-vous à la fournir sous 3 semaines.',
     };
   }
-  const total = appliquerRemisePassPa2s(
-    montantPackMembre(catalogue, packRole === 'additional'),
-    passActif,
-  );
+  const total = montantPackMembre(catalogue, packRole === 'additional');
   const coursSelectionne = resolveCoursSelectionne(
     filiere,
     values.dateNaissance,
@@ -405,6 +406,7 @@ export async function submitInscription(params: {
           missingCertificat,
           missingPhoto,
           missingPassPa2s,
+          passPa2s: passActif,
           createdAt: new Date().toISOString(),
           modePaiement: paiementResult.data.modePaiement,
           packCode: packCode ?? undefined,
@@ -430,6 +432,7 @@ export async function submitInscription(params: {
       ...(packFoyerCode ? { foyer: packFoyerCode } : {}),
       ...(packCode ? { pack: packCode } : {}),
       ...(packRole !== 'none' ? { packRole } : {}),
+      ...(passActif ? { pass: '1' } : {}),
     }).toString();
 
     return { ok: true, query };

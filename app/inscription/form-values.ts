@@ -49,7 +49,7 @@ export type InscriptionFormValues = {
   packRole?: 'none' | 'holder' | 'additional';
   packTaille?: 2 | 3 | 4;
   packFoyerCode?: string;
-  passPa2sCode?: string;
+  passPa2s?: boolean;
   engagementPassPa2s?: boolean;
 };
 
@@ -83,7 +83,7 @@ export const inscriptionDefaultValues: InscriptionFormValues = {
   charteEngagementRespect: false,
   packRole: 'none',
   packFoyerCode: '',
-  passPa2sCode: '',
+  passPa2s: false,
   engagementPassPa2s: false,
 };
 

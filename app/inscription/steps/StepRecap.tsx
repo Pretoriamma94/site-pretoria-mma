@@ -11,7 +11,7 @@ import {
   resolveFormuleAdulte,
 } from '@/lib/inscription/schema';
 import { montantPackMembre, packCodeFromTaille } from '@/lib/inscription/pack-famille';
-import { appliquerRemisePassPa2s, isPassPa2sCode } from '@/lib/inscription/pass-pa2s';
+import { consignePassSportPaiement } from '@/lib/inscription/pass-pa2s';
 import {
   TEXTE_ATTESTATION_QS_NON,
   TEXTE_ATTESTATION_QS_OUI,
@@ -44,11 +44,8 @@ export function StepRecap({
   const formuleEffective = !mineur ? resolveFormuleAdulte(sexe) : undefined;
   const catalogue = filiere ? getCoursPrix(filiere, dateNaissance, formuleEffective) : 0;
   const packRole = watch('packRole') ?? 'none';
-  const passActif = isPassPa2sCode(watch('passPa2sCode') ?? '');
-  const total = appliquerRemisePassPa2s(
-    montantPackMembre(catalogue, packRole === 'additional'),
-    passActif,
-  );
+  const passActif = Boolean(watch('passPa2s'));
+  const total = montantPackMembre(catalogue, packRole === 'additional');
   const packCode = packRole === 'none' ? null : packCodeFromTaille(watch('packTaille') ?? 2);
   const foyerCode = watch('packFoyerCode');
   const tarifLibelle = filiere ? getTarifLibelle(filiere, dateNaissance, formuleEffective) : '';
@@ -190,13 +187,14 @@ export function StepRecap({
               </p>
             ) : null}
             {passActif ? (
-              <p className="text-emerald-300">
-                Pass Sport −50 €
+              <p>
+                Pass Sport (aide de l’État, cotisation inchangée)
                 {hasPassPa2sFile
                   ? ' — preuve jointe'
                   : watch('engagementPassPa2s')
                     ? ' — preuve à fournir sous 3 semaines'
                     : ''}
+                . {consignePassSportPaiement(watch('modePaiement'))}
               </p>
             ) : null}
             <p>

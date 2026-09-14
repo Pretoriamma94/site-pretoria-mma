@@ -296,7 +296,7 @@ export function InscriptionsLegend() {
         <span className="h-2 w-2 rounded-full bg-sky-300" /> Pack family (parts réparties)
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full bg-amber-300" /> Pass Sport (−50 €)
+        <span className="h-2 w-2 rounded-full bg-amber-300" /> Pass Sport
       </span>
     </div>
   );

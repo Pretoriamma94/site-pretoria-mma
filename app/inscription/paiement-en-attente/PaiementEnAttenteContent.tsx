@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EnveloppePaiementNotice } from '@/components/inscription/EnveloppePaiementNotice';
 import { HelloAssoPaiementBlock } from '@/components/inscription/HelloAssoPaiementBlock';
+import { consignePassSportPaiement } from '@/lib/inscription/pass-pa2s';
 import {
   MODE_PAIEMENT_OPTIONS,
   montantParEcheance,
@@ -39,6 +40,7 @@ export function PaiementEnAttenteContent() {
   const foyerCode = searchParams.get('foyer') ?? '';
   const packCode = searchParams.get('pack') ?? '';
   const packRole = searchParams.get('packRole') ?? '';
+  const passPa2s = searchParams.get('pass') === '1';
 
   const hasParams = Boolean(nom || prenom || cours || montant);
 
@@ -142,6 +144,16 @@ export function PaiementEnAttenteContent() {
                     <p className="mt-1">
                       {montant !== null ? `${Math.round(montant)}€` : '— À définir'}
                     </p>
+                    {passPa2s ? (
+                      <p className="mt-1 text-sm text-zinc-400">
+                        Pass Sport déclaré — cotisation inchangée.{' '}
+                        {consignePassSportPaiement(
+                          modeParam === 'cash' || modeParam === 'cheque' || modeParam === 'virement'
+                            ? modeParam
+                            : null,
+                        )}
+                      </p>
+                    ) : null}
                   </div>
                   {(modeLabel || echeances != null) && (
                     <div>
@@ -208,7 +220,7 @@ export function PaiementEnAttenteContent() {
 
             {isPaiementEnLigne ? (
               <section className="mt-8">
-                <HelloAssoPaiementBlock packCode={packCode || null} />
+                <HelloAssoPaiementBlock packCode={packCode || null} passPa2s={passPa2s} />
               </section>
             ) : null}
 

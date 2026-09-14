@@ -1164,10 +1164,10 @@ export async function createManualInscriptionAction(
         accepte_charte: charteOk,
         photo_engagement_3_semaines: !data.photoRecue && Boolean(data.engagementPhoto),
         certificat_engagement_3_semaines: engagementCertificat,
-        pass_pa2s: Boolean(data.passPa2s),
+        pass_pa2s: mineur && Boolean(data.passPa2s),
         pass_pa2s_preuve_url: null,
         pass_pa2s_engagement_3_semaines:
-          Boolean(data.passPa2s) && !data.passPa2sPreuveRecue && Boolean(data.engagementPassPa2s),
+          mineur && Boolean(data.passPa2s) && !data.passPa2sPreuveRecue && Boolean(data.engagementPassPa2s),
         attestation_questionnaire_sante: certificatDispense,
         questionnaire_sante: (attestationSante ?? { voie: 'papier' }) as Json | null,
         autorisation_pratique_mineur: mineur ? charteOk : null,
@@ -1225,6 +1225,7 @@ export async function createManualInscriptionAction(
           missingCertificat: !attesteCertificat && !certificatDispense,
           missingPhoto: !data.photoRecue,
           missingPassPa2s: Boolean(data.passPa2s) && !data.passPa2sPreuveRecue,
+          passPa2s: Boolean(data.passPa2s),
           createdAt: row.created_at ?? now,
           modePaiement: data.modePaiement,
         });

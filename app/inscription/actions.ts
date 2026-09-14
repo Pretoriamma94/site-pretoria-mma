@@ -10,6 +10,7 @@ const notifySchema = z.object({
   missingCertificat: z.boolean(),
   missingPhoto: z.boolean(),
   missingPassPa2s: z.boolean().optional().default(false),
+  passPa2s: z.boolean().optional().default(false),
   createdAt: z.string().optional(),
   modePaiement: z.enum(['cash', 'cheque', 'virement']).optional(),
   packCode: z.enum(['PACK2', 'PACK3', 'PACK4']).optional(),
@@ -33,6 +34,7 @@ export async function notifyInscriptionCreatedAction(input: {
   missingCertificat: boolean;
   missingPhoto: boolean;
   missingPassPa2s?: boolean;
+  passPa2s?: boolean;
   createdAt?: string;
   modePaiement?: 'cash' | 'cheque' | 'virement';
   packCode?: 'PACK2' | 'PACK3' | 'PACK4';

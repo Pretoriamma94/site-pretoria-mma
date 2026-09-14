@@ -666,7 +666,7 @@ export function AdminInscriptionsTable({
                       : selected.type_tarif}
                 </p>
                 <p>Montant dû : {formatEuros(selected.montant_total)}</p>
-                {selected.pass_pa2s ? <p>Pass Sport : −50 €</p> : null}
+                {selected.pass_pa2s ? <p>Pass Sport (aide de l’État, cotisation inchangée)</p> : null}
                 <PackFamilyPanel
                   key={selected.id}
                   row={selected}
@@ -865,7 +865,7 @@ export function AdminInscriptionsTable({
                     {docsCheck.passPa2s !== 'not_required' ? (
                       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-3 py-2">
                         <p className="text-[0.65rem] uppercase tracking-wide text-zinc-500">
-                          Preuve Pass Sport (−50 €)
+                          Preuve Pass Sport
                         </p>
                         <span
                           className={cn(

@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { ASSOCIATION_EMAIL, ASSOCIATION_NOM } from '@/lib/inscription/legal-texts';
 import { HELLOASSO_ADHESION_URL } from '@/lib/inscription/helloasso';
+import { consignePassSportPaiement } from '@/lib/inscription/pass-pa2s';
 import { getSiteUrl } from '@/lib/site-url';
 import {
   DOCUMENTS_DELAI_JOURS,
@@ -14,6 +15,7 @@ export type InscriptionDocumentsMailPayload = {
   missingCertificat: boolean;
   missingPhoto: boolean;
   missingPassPa2s?: boolean;
+  passPa2s?: boolean;
   /** Date de création de l'inscription — sert à calculer la date limite exacte. */
   createdAt?: string | null;
   modePaiement?: 'cash' | 'cheque' | 'virement' | null;
@@ -87,6 +89,16 @@ function packFamilleHtml(payload: InscriptionDocumentsMailPayload): string {
 
 function paiementEnLigne(payload: InscriptionDocumentsMailPayload): boolean {
   return payload.modePaiement === 'virement';
+}
+
+function passSportText(payload: InscriptionDocumentsMailPayload): string[] {
+  if (!payload.passPa2s) return [];
+  return [`${consignePassSportPaiement(payload.modePaiement)} La cotisation du club reste inchangée.`];
+}
+
+function passSportHtml(payload: InscriptionDocumentsMailPayload): string {
+  if (!payload.passPa2s) return '';
+  return `<p>${escapeHtml(consignePassSportPaiement(payload.modePaiement))} La cotisation du club reste inchangée.</p>`;
 }
 
 function paiementText(payload: InscriptionDocumentsMailPayload): string[] {
@@ -171,8 +183,9 @@ export async function sendInscriptionDocumentsEmail(
     `Votre inscription au club ${ASSOCIATION_NOM} est bien enregistrée.`,
     ``,
     ...packFamilleText(payload),
+    ...passSportText(payload),
   ];
-  if (packFamilleText(payload).length > 0) {
+  if (packFamilleText(payload).length > 0 || passSportText(payload).length > 0) {
     textLines.push(``);
   }
 
@@ -231,6 +244,7 @@ export async function sendInscriptionDocumentsEmail(
         <p>Bonjour ${escapeHtml(prenom)},</p>
         <p>Votre <strong>inscription</strong> au club <strong>${escapeHtml(ASSOCIATION_NOM)}</strong> est bien enregistrée.</p>
         ${packFamilleHtml(payload)}
+        ${passSportHtml(payload)}
         ${paiementEnLigne(payload) ? paiementHtml(payload) : ''}
         ${corpsHtml}
         <p><a href="${lien}" style="display:inline-block;background:#DC2626;color:#ffffff;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:bold;">${escapeHtml(ctaLabel)}</a></p>

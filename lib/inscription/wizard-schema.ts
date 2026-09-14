@@ -13,7 +13,6 @@ import {
   questionnaireComplet,
   questionnaireHasOui,
 } from '@/lib/inscription/questionnaire-sante';
-import { isPassPa2sCode, PASS_PA2S_CODE } from '@/lib/inscription/pass-pa2s';
 
 export const stepFiliereSchema = z.object({
   filiere: z.enum(['mma', 'baby'], {
@@ -297,20 +296,12 @@ export function validateStepPhoto(data: {
 }
 
 export function validateStepPassPa2s(data: {
-  passPa2sCode?: string;
+  passPa2s?: boolean;
   engagementPassPa2s?: boolean;
   hasPassPa2sFile: boolean;
-}): Array<{ path: 'passPa2sCode' | 'engagementPassPa2s'; message: string }> {
-  const code = (data.passPa2sCode ?? '').trim();
-  if (!code) return [];
-  if (!isPassPa2sCode(code)) {
-    return [
-      {
-        path: 'passPa2sCode',
-        message: `Code invalide. Le code Pass Sport est ${PASS_PA2S_CODE}.`,
-      },
-    ];
-  }
+  eligible: boolean;
+}): Array<{ path: 'passPa2s' | 'engagementPassPa2s'; message: string }> {
+  if (!data.eligible || !data.passPa2s) return [];
   if (data.hasPassPa2sFile || data.engagementPassPa2s === true) return [];
   return [
     {

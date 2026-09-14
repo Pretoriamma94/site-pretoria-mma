@@ -4,12 +4,14 @@ import {
   HELLOASSO_ADHESION_URL,
   openHelloAssoPaiementTab,
 } from '@/lib/inscription/helloasso';
+import { PASS_PA2S_CODE } from '@/lib/inscription/pass-pa2s';
 
 type Props = {
   packCode?: string | null;
+  passPa2s?: boolean;
 };
 
-export function HelloAssoPaiementBlock({ packCode }: Props) {
+export function HelloAssoPaiementBlock({ packCode, passPa2s = false }: Props) {
   return (
     <div className="rounded-xl border border-red-800/60 bg-red-950/20 p-4 text-sm text-zinc-200">
       <p className="font-medium text-white">Dernière étape : régler en ligne</p>
@@ -20,6 +22,12 @@ export function HelloAssoPaiementBlock({ packCode }: Props) {
       {packCode ? (
         <p className="mt-2 font-medium text-white">
           Saisissez le code promo {packCode} sur HelloAsso pour la réduction pack famille.
+        </p>
+      ) : null}
+      {passPa2s ? (
+        <p className="mt-2 font-medium text-white">
+          Pass Sport : saisissez le code promo {PASS_PA2S_CODE} sur HelloAsso. La cotisation du club
+          reste inchangée.
         </p>
       ) : null}
       <p className="mt-2 text-zinc-300">

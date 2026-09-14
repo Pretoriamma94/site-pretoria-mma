@@ -16,9 +16,9 @@ import {
   normalizeFoyerCode,
   packCodeFromTaille,
 } from '@/lib/inscription/pack-famille';
-import { appliquerRemisePassPa2s, isPassPa2sCode } from '@/lib/inscription/pass-pa2s';
 import { PassPa2sFields } from './PassPa2sFields';
 import type { InscriptionFormValues } from '@/app/inscription/form-values';
+import { PASS_PA2S_CODE } from '@/lib/inscription/pass-pa2s';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -46,11 +46,8 @@ export function StepPaiement({ form, passPa2sFile, onPassPa2sFile }: Props) {
 
   const catalogue = getCoursPrix(filiere, dateNaissance, formuleEffective);
   const tarifLibelle = getTarifLibelle(filiere, dateNaissance, formuleEffective);
-  const passActif = isPassPa2sCode(watch('passPa2sCode') ?? '');
-  const total = appliquerRemisePassPa2s(
-    montantPackMembre(catalogue, packRole === 'additional'),
-    passActif,
-  );
+  const passActif = Boolean(watch('passPa2s'));
+  const total = montantPackMembre(catalogue, packRole === 'additional');
   const packCode = packRole === 'none' ? null : packCodeFromTaille(packTaille ?? 2);
   const echeancesValides =
     nombreEcheances === 1 || nombreEcheances === 2 || nombreEcheances === 3
@@ -89,6 +86,12 @@ export function StepPaiement({ form, passPa2sFile, onPassPa2sFile }: Props) {
           </p>
         </div>
       )}
+
+      <PassPa2sFields
+        form={form}
+        passPa2sFile={passPa2sFile}
+        onPassPa2sFile={onPassPa2sFile}
+      />
 
       <fieldset className="mt-6">
         <legend className="mb-3 text-sm font-medium text-white">Pack famille</legend>
@@ -185,12 +188,6 @@ export function StepPaiement({ form, passPa2sFile, onPassPa2sFile }: Props) {
         ) : null}
       </fieldset>
 
-      <PassPa2sFields
-        form={form}
-        passPa2sFile={passPa2sFile}
-        onPassPa2sFile={onPassPa2sFile}
-      />
-
       <div className="mt-4 rounded-xl border border-zinc-700 bg-zinc-950/50 p-4">
         <p className="font-medium text-white">{tarifLibelle}</p>
         <p className="mt-1 text-2xl font-semibold text-white">{total} €</p>
@@ -198,15 +195,15 @@ export function StepPaiement({ form, passPa2sFile, onPassPa2sFile }: Props) {
           <p className="mt-1 text-sm text-emerald-300">
             Tarif catalogue {catalogue} € − 50 € pack famille
             {packCode ? ` (${packCode})` : ''}
-            {passActif ? ' − 50 € Pass Sport' : ''}
-          </p>
-        ) : passActif ? (
-          <p className="mt-1 text-sm text-emerald-300">
-            Tarif catalogue {catalogue} € − 50 € Pass Sport
           </p>
         ) : packRole === 'holder' && packCode ? (
           <p className="mt-1 text-sm text-zinc-400">
             Tarif plein pour le premier membre. Code HelloAsso à saisir : {packCode}.
+          </p>
+        ) : null}
+        {passActif ? (
+          <p className="mt-1 text-sm text-zinc-400">
+            Pass Sport déclaré — cotisation inchangée (aide de l&apos;État).
           </p>
         ) : null}
       </div>
@@ -253,6 +250,12 @@ export function StepPaiement({ form, passPa2sFile, onPassPa2sFile }: Props) {
                 Sur HelloAsso, saisissez le code promo {packCode}.
               </p>
             ) : null}
+            {passActif ? (
+              <p className="mt-2 font-medium text-white">
+                Pass Sport : saisissez le code promo {PASS_PA2S_CODE} sur HelloAsso. La cotisation
+                affichée reste inchangée.
+              </p>
+            ) : null}
             <p className="mt-2 text-zinc-400">
               Votre inscription sera déjà enregistrée : pas besoin de revenir sur le site après le
               paiement.
@@ -297,7 +300,15 @@ export function StepPaiement({ form, passPa2sFile, onPassPa2sFile }: Props) {
               </p>
             )}
             {(modePaiement === 'cash' || modePaiement === 'cheque') && (
-              <EnveloppePaiementNotice />
+              <>
+                <EnveloppePaiementNotice />
+                {passActif ? (
+                  <p className="text-sm text-zinc-300">
+                    Pass Sport : rapprochez-vous du club (espèces ou chèque). La cotisation affichée
+                    reste inchangée.
+                  </p>
+                ) : null}
+              </>
             )}
           </>
         )}

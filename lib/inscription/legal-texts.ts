@@ -68,7 +68,12 @@ export const TEXTE_ENGAGEMENT_PHOTO =
   'Je m’engage à fournir une photo d’identité dans les 3 semaines suivant mon inscription.';
 
 export const TEXTE_PASS_PA2S =
-  'Le Pass Sport donne droit à 50 € de réduction. Saisissez le code PASSPORT, puis joignez une preuve (attestation) ou engagez-vous à la transmettre sous 3 semaines.';
+  'Le Pass Sport est une aide de l’État (50 €) réservée aux moins de 18 ans. Il n’est pas déduit de la cotisation du club : le montant reste inchangé. En paiement en ligne, saisissez le code PASSPORT sur HelloAsso. En espèces ou par chèque, rapprochez-vous du club.';
+
+export const TEXTE_CASE_PASS_PA2S = 'L’adhérent bénéficie du Pass Sport';
+
+export const TEXTE_PASS_PA2S_ADULTE =
+  'Le Pass Sport est réservé aux moins de 18 ans. Il n’est pas proposé pour une inscription adulte.';
 
 export const TEXTE_ENGAGEMENT_PASS_PA2S =
   'Je m’engage à fournir la preuve du Pass Sport dans les 3 semaines suivant mon inscription.';

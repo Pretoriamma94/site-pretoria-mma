@@ -278,6 +278,14 @@ export const manualInscriptionSchema = z
       });
     }
 
+    if (data.passPa2s && !mineur) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Le Pass Sport est réservé aux moins de 18 ans',
+        path: ['passPa2s'],
+      });
+    }
+
     if (data.passPa2s && !data.passPa2sPreuveRecue && !data.engagementPassPa2s) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

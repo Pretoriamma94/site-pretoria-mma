@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { isMinor, montantParEcheance } from '@/lib/inscription/schema';
 import { defaultMontantForCours } from '@/lib/admin/manual-inscription-schema';
-import { appliquerRemisePassPa2s } from '@/lib/inscription/pass-pa2s';
 import { createManualInscriptionAction } from '../../actions';
 import {
   MANUAL_FORM_INITIAL,
@@ -52,33 +51,46 @@ export function ManualInscriptionForm() {
   }, [paye, total]);
 
   const setField = <K extends keyof ManualFormState>(key: K, value: ManualFormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === 'dateNaissance' || key === 'cours') {
+        const baby = next.cours === 'baby';
+        const mineur = baby || (next.dateNaissance ? isMinor(next.dateNaissance) : false);
+        if (!mineur) {
+          next.passPa2s = false;
+          next.passPa2sPreuveRecue = false;
+          next.engagementPassPa2s = false;
+        }
+      }
+      return next;
+    });
   };
 
   const onCoursChange = (coursId: ManualFormState['cours']) => {
-    setForm((prev) => ({
-      ...prev,
-      cours: coursId,
-      montantTotal: coursId
-        ? String(appliquerRemisePassPa2s(defaultMontantForCours(coursId), prev.passPa2s))
-        : prev.montantTotal,
-      certificatMoinsDe3Ans: coursId === 'baby' ? null : prev.certificatMoinsDe3Ans,
-    }));
+    setForm((prev) => {
+      const nextCours = coursId;
+      const baby = nextCours === 'baby';
+      const mineur = baby || (prev.dateNaissance ? isMinor(prev.dateNaissance) : false);
+      return {
+        ...prev,
+        cours: nextCours,
+        montantTotal: nextCours ? String(defaultMontantForCours(nextCours)) : prev.montantTotal,
+        certificatMoinsDe3Ans: nextCours === 'baby' ? null : prev.certificatMoinsDe3Ans,
+        passPa2s: mineur ? prev.passPa2s : false,
+        passPa2sPreuveRecue: mineur ? prev.passPa2sPreuveRecue : false,
+        engagementPassPa2s: mineur ? prev.engagementPassPa2s : false,
+      };
+    });
   };
 
   const onPassPa2sChange = (next: boolean) => {
-    setForm((prev) => {
-      const base = prev.cours
-        ? defaultMontantForCours(prev.cours)
-        : Number(prev.montantTotal.replace(',', '.')) || 0;
-      return {
-        ...prev,
-        passPa2s: next,
-        passPa2sPreuveRecue: next ? prev.passPa2sPreuveRecue : false,
-        engagementPassPa2s: next ? prev.engagementPassPa2s : false,
-        montantTotal: String(appliquerRemisePassPa2s(base, next)),
-      };
-    });
+    if (next && !isMineur) return;
+    setForm((prev) => ({
+      ...prev,
+      passPa2s: next,
+      passPa2sPreuveRecue: next ? prev.passPa2sPreuveRecue : false,
+      engagementPassPa2s: next ? prev.engagementPassPa2s : false,
+    }));
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -187,6 +199,7 @@ export function ManualInscriptionForm() {
         previewStatus={previewStatus}
         total={total}
         paye={paye}
+        isMineur={isMineur}
         onPassPa2sChange={onPassPa2sChange}
       />
 

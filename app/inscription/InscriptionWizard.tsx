@@ -33,6 +33,7 @@ import {
   validateStepPassPa2s,
   stepCharteSchema,
 } from '@/lib/inscription/wizard-schema';
+import { isEligiblePassSport } from '@/lib/inscription/pass-pa2s';
 import { cn } from '@/lib/utils';
 
 function applyZodErrors(
@@ -63,6 +64,13 @@ export function InscriptionWizard() {
   const filiere = watch('filiere');
   const dateNaissance = watch('dateNaissance');
   const isMineur = filiere === 'baby' || Boolean(dateNaissance && isMinor(dateNaissance));
+
+  useEffect(() => {
+    if (isEligiblePassSport(dateNaissance, filiere, getValues('typeProfil'))) return;
+    setValue('passPa2s', false);
+    setValue('engagementPassPa2s', false);
+    setPassPa2sFile(null);
+  }, [dateNaissance, filiere, setValue]);
 
   useEffect(() => {
     const famille = normalizeFoyerCode(searchParams.get('famille') ?? '');
@@ -220,9 +228,10 @@ export function InscriptionWizard() {
         return;
       }
       const passIssues = validateStepPassPa2s({
-        passPa2sCode: values.passPa2sCode,
+        passPa2s: values.passPa2s,
         engagementPassPa2s: values.engagementPassPa2s,
         hasPassPa2sFile: Boolean(passPa2sFile),
+        eligible: isEligiblePassSport(values.dateNaissance, values.filiere, values.typeProfil),
       });
       if (passIssues.length > 0) {
         passIssues.forEach((issue) => {
@@ -236,7 +245,7 @@ export function InscriptionWizard() {
         'formuleAdulte',
         'packTaille',
         'packFoyerCode',
-        'passPa2sCode',
+        'passPa2s',
         'engagementPassPa2s',
       ]);
     }

@@ -9,7 +9,7 @@ import { formatEuros } from '@/lib/admin/labels';
 import { cn } from '@/lib/utils';
 import { TEXTE_BABY_DEUX_PARENTS } from '@/lib/inscription/legal-texts';
 import { ConsentCheckbox } from '@/components/inscription/ConsentCheckbox';
-import { REMISE_PASS_PA2S_EUR } from '@/lib/inscription/pass-pa2s';
+import { PASS_PA2S_CODE } from '@/lib/inscription/pass-pa2s';
 import {
   MANUAL_FORM_INPUT_CLASS as inputClass,
   type ManualFormState,
@@ -26,6 +26,7 @@ type Props = {
   previewStatus: string;
   total: number;
   paye: number;
+  isMineur?: boolean;
 };
 
 export function ManualCoursSection({
@@ -293,8 +294,12 @@ export function ManualPaymentSection({
   previewStatus,
   total,
   paye,
+  isMineur = false,
   onPassPa2sChange,
-}: Pick<Props, 'form' | 'setField' | 'parEcheance' | 'previewStatus' | 'total' | 'paye'> & {
+}: Pick<
+  Props,
+  'form' | 'setField' | 'parEcheance' | 'previewStatus' | 'total' | 'paye' | 'isMineur'
+> & {
   onPassPa2sChange: (next: boolean) => void;
 }) {
   return (
@@ -306,42 +311,55 @@ export function ManualPaymentSection({
         Mêmes choix qu’en ligne : espèces, chèque ou HelloAsso, en 1, 2 ou 3 fois. Indiquez
         aussi l’éventuel montant déjà encaissé au club.
       </p>
-      <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-        <label className="flex items-start gap-2 text-sm text-zinc-300">
-          <input
-            type="checkbox"
-            checked={form.passPa2s}
-            onChange={(e) => onPassPa2sChange(e.target.checked)}
-            className="mt-1"
-          />
-          Pass Sport — réduction de {REMISE_PASS_PA2S_EUR} €
-        </label>
-        {form.passPa2s ? (
-          <div className="space-y-2 pl-6">
-            <label className="flex items-start gap-2 text-sm text-zinc-300">
-              <input
-                type="checkbox"
-                checked={form.passPa2sPreuveRecue}
-                onChange={(e) => {
-                  setField('passPa2sPreuveRecue', e.target.checked);
-                  if (e.target.checked) setField('engagementPassPa2s', false);
-                }}
-                className="mt-1"
-              />
-              Preuve reçue aujourd&apos;hui (à uploader ensuite dans la fiche)
-            </label>
-            {!form.passPa2sPreuveRecue ? (
-              <ConsentCheckbox
-                id="manualEngagementPassPa2s"
-                checked={form.engagementPassPa2s}
-                onChange={(v) => setField('engagementPassPa2s', v)}
-              >
-                Engagement à fournir la preuve Pass Sport sous 3 semaines *
-              </ConsentCheckbox>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      {isMineur ? (
+        <div className="space-y-2 rounded-xl border border-amber-800/50 bg-amber-950/20 p-3">
+          <label className="flex items-start gap-2 text-sm text-zinc-300">
+            <input
+              type="checkbox"
+              checked={form.passPa2s}
+              onChange={(e) => onPassPa2sChange(e.target.checked)}
+              className="mt-1"
+            />
+            Pass Sport (aide de l’État, −18 ans) — ne modifie pas le montant
+          </label>
+          {form.passPa2s ? (
+            <div className="space-y-2 pl-6">
+              <p className="text-xs text-zinc-500">
+                Paiement en ligne : code {PASS_PA2S_CODE} sur HelloAsso. Espèces ou chèque : se
+                rapprocher du club. La cotisation reste à encaisser en totalité.
+              </p>
+              <label className="flex items-start gap-2 text-sm text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={form.passPa2sPreuveRecue}
+                  onChange={(e) => {
+                    setField('passPa2sPreuveRecue', e.target.checked);
+                    if (e.target.checked) setField('engagementPassPa2s', false);
+                  }}
+                  className="mt-1"
+                />
+                Preuve reçue aujourd&apos;hui (à uploader ensuite dans la fiche)
+              </label>
+              {!form.passPa2sPreuveRecue ? (
+                <ConsentCheckbox
+                  id="manualEngagementPassPa2s"
+                  checked={form.engagementPassPa2s}
+                  onChange={(v) => setField('engagementPassPa2s', v)}
+                >
+                  Engagement à fournir la preuve Pass Sport sous 3 semaines *
+                </ConsentCheckbox>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+          <p className="text-sm font-medium text-zinc-200">Pass Sport</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            Réservé aux moins de 18 ans. Non proposé pour une inscription adulte.
+          </p>
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-xs text-zinc-400">
           Montant total (€) *
