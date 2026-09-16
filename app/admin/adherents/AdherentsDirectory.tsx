@@ -18,6 +18,7 @@ import { isMembreBureau } from '@/lib/admin/membre-bureau';
 import { isPackFamily, isPackFamilyChild } from '@/lib/admin/pack-family';
 import { getPackCodeFromRow } from '@/lib/inscription/pack-famille';
 import { PackFamilyPanel } from '../PackFamilyPanel';
+import { AttestationButtons } from '../AttestationButtons';
 import { RecuEmailButton } from '../RecuEmailButton';
 import { isInscriptionManuelle } from '@/lib/admin/voie-inscription';
 import { AutorisationsFiche } from '@/components/admin/AutorisationsFiche';
@@ -703,6 +704,7 @@ export function AdherentsDirectory({
                       </li>
                     )}
                   </ul>
+                  {selected.status !== 'cancelled' && <AttestationButtons key={selected.id} id={selected.id} />}
                   {selected.status !== 'cancelled' &&
                   !isMembreBureau(selected) &&
                   Number(selected.montant_total) > 0 &&

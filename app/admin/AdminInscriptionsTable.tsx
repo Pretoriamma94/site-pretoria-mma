@@ -29,6 +29,7 @@ import {
 import { getDocumentsCountdown } from '@/lib/admin/document-deadline';
 import { deleteInscriptionAction, setVoieInscriptionAction, updateInscriptionStatusAction } from './actions';
 import type { InscriptionPaiementRow } from './actions';
+import { AttestationButtons } from './AttestationButtons';
 import { PaymentFormModal } from './PaymentFormModal';
 import { InscriptionDocumentDownloads } from './InscriptionDocumentDownloads';
 import { DocumentsLinkBox } from './DocumentsLinkBox';
@@ -666,6 +667,7 @@ export function AdminInscriptionsTable({
                       : selected.type_tarif}
                 </p>
                 <p>Montant dû : {formatEuros(selected.montant_total)}</p>
+                {selected.status !== 'cancelled' && <AttestationButtons key={selected.id} id={selected.id} />}
                 {selected.pass_pa2s ? <p>Pass Sport (aide de l’État, cotisation inchangée)</p> : null}
                 <PackFamilyPanel
                   key={selected.id}
