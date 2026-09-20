@@ -9,7 +9,7 @@ import {
 } from '@/lib/admin/pack-family';
 import { isPaiementSolde } from '@/lib/admin/dossier';
 import { retrySelectOnMissingColumn } from '@/lib/admin/inscription-fields';
-import { sendRecuCotisationEmail } from '@/lib/email/recu-cotisation';
+import { type RecuCotisationPayload, sendRecuCotisationEmail } from '@/lib/email/recu-cotisation';
 import { buildRecuCotisationPdf } from '@/lib/admin/recu-pdf';
 
 function destinataireEmail(row: {
@@ -37,12 +37,11 @@ export type SendRecuResult =
   | { sent: false; skipped?: boolean; error?: string };
 
 /**
- * Envoie le reçu de cotisation (email + PDF) si la cotisation est soldée.
- * Non bloquant pour l’admin : l’échec d’envoi n’annule pas le paiement.
+ * Prépare les mêmes données et vérifications pour le téléchargement et l’envoi du reçu.
  */
-export async function sendRecuCotisationForInscription(
+export async function prepareRecuCotisationForInscription(
   inscriptionId: string,
-): Promise<SendRecuResult> {
+): Promise<{ payload: RecuCotisationPayload } | { sent: false; skipped?: boolean; error?: string }> {
   const supabase = createServerClient();
   const { data: row, error } = await retrySelectOnMissingColumn(
     (select) =>
@@ -63,11 +62,12 @@ export async function sendRecuCotisationForInscription(
           inscription_familiale?: boolean | null;
           pack_family_parent_id?: string | null;
           membre_2?: unknown;
+          mode_paiement: string | null;
           date_paiement: string | null;
         } | null;
         error: { message: string } | null;
       }>,
-    'id, prenom, nom, email, annee_scolaire, cours_selectionne, montant_total, montant_paye, status, responsable_legal, membre_bureau, type_tarif, inscription_familiale, pack_family_parent_id, membre_2, date_paiement',
+    'id, prenom, nom, email, annee_scolaire, cours_selectionne, montant_total, montant_paye, status, responsable_legal, membre_bureau, type_tarif, inscription_familiale, pack_family_parent_id, membre_2, mode_paiement, date_paiement',
   );
 
   if (error || !row) {
@@ -98,16 +98,15 @@ export async function sendRecuCotisationForInscription(
   }
 
   const email = destinataireEmail(row);
-  if (!email) {
-    return { sent: false, error: 'Aucun email sur cette inscription.' };
-  }
 
-  const { data: paiements } = await supabase
+  const { data: paiements, error: paiementError } = await supabase
     .from('inscription_paiements')
     .select('montant, mode_paiement, date_reception, created_at')
     .eq('inscription_id', inscriptionId)
     .order('date_reception', { ascending: true })
     .order('created_at', { ascending: true });
+
+  if (paiementError) return { sent: false, error: 'Impossible de vérifier les paiements. Réessayez.' };
 
   const lignes =
     (paiements ?? []).length > 0
@@ -116,6 +115,12 @@ export async function sendRecuCotisationForInscription(
           modeLabel: getModePaiementLabel(p.mode_paiement),
           montantLabel: formatEuros(Number(p.montant)),
         }))
+      : paye > 0 && row.mode_paiement
+        ? [{
+            dateLabel: dateFr(row.date_paiement),
+            modeLabel: getModePaiementLabel(row.mode_paiement),
+            montantLabel: formatEuros(paye),
+          }]
       : packChildShare
         ? [
             {
@@ -144,6 +149,14 @@ export async function sendRecuCotisationForInscription(
     packShareNote,
   };
 
+  return { payload };
+}
+
+export async function sendRecuCotisationForInscription(inscriptionId: string): Promise<SendRecuResult> {
+  const result = await prepareRecuCotisationForInscription(inscriptionId);
+  if (!('payload' in result)) return result;
+  const { payload } = result;
+  if (!payload.email) return { sent: false, error: 'Aucun email sur cette inscription.' };
   let pdfBytes: Uint8Array | undefined;
   try {
     pdfBytes = await buildRecuCotisationPdf(payload);

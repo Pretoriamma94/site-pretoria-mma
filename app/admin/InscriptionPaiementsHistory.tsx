@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { EditPaymentForm } from './EditPaymentForm';
 import {
   formatEuros,
   formatModesPaiement,
@@ -38,6 +39,7 @@ export function InscriptionPaiementsHistory({
   const [paiements, setPaiements] = useState<InscriptionPaiementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -128,10 +130,11 @@ export function InscriptionPaiementsHistory({
                   {formatEuros(p.montant)}
                 </p>
                 <p className="text-[0.65rem] text-zinc-400">
-                  Reçu le {formatDateReception(p.date_reception)}
+                  {p.legacy ? "Paiement enregistré sur la fiche · " : ""}Reçu le {formatDateReception(p.date_reception)}
                   {p.note ? ` · ${p.note}` : ''}
                 </p>
               </div>
+              {!compact && <button type="button" disabled={editingId !== null} onClick={() => setEditingId(p.id)} className="rounded-full border border-zinc-600 px-3 py-1 text-[0.65rem] font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50">Modifier</button>}
               {p.preuve_url ? (
                 <button
                   type="button"
@@ -144,6 +147,7 @@ export function InscriptionPaiementsHistory({
               ) : (
                 <span className="text-[0.65rem] text-zinc-600">Sans preuve</span>
               )}
+              {editingId === p.id && <EditPaymentForm payment={p} onCancel={() => setEditingId(null)} />}
             </li>
           ))}
         </ul>

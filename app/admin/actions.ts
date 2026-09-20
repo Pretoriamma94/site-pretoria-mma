@@ -588,6 +588,7 @@ export type UpdateInscriptionStatusResult =
   | { success: false; error: string };
 
 export type InscriptionPaiementRow = {
+  legacy?: boolean;
   id: string;
   inscription_id: string;
   montant: number;
@@ -1000,6 +1001,20 @@ export async function listInscriptionPaiementsAction(
       return { success: false, error: error.message };
     }
 
+    if (!data?.length) {
+      const { data: legacy, error: legacyError } = await supabase.from('inscriptions')
+        .select('id,montant_paye,mode_paiement,date_paiement,created_at,status')
+        .eq('id', inscriptionId).single();
+      if (legacyError) return { success: false, error: 'Impossible de lire le paiement enregistré sur la fiche.' };
+      if (legacy && legacy.status !== 'cancelled' && Number(legacy.montant_paye) > 0 && legacy.mode_paiement && legacy.date_paiement) {
+        return { success: true, paiements: [{
+          id: legacy.id, inscription_id: legacy.id, legacy: true,
+          montant: Number(legacy.montant_paye), mode_paiement: legacy.mode_paiement,
+          date_reception: legacy.date_paiement.slice(0, 10), numero_echeance: null,
+          preuve_url: null, note: null, created_at: legacy.created_at ?? legacy.date_paiement,
+        }] };
+      }
+    }
     return {
       success: true,
       paiements: (data ?? []).map((p) => ({
@@ -2270,3 +2285,4 @@ export async function resendInscriptionDocumentsEmailAction(
     };
   }
 }
+

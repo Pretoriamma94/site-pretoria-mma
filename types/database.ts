@@ -439,7 +439,10 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      correct_inscription_payment: {
+        Args: { p_id: string; p_expected: Json; p_values: Json };
+        Returns: undefined;
+      };
     };
     Enums: {
       niveau_type:

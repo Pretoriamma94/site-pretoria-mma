@@ -41,7 +41,7 @@ function normalizeFromEmail(raw: string | undefined): string {
   return cleaned || `${ASSOCIATION_NOM} <onboarding@resend.dev>`;
 }
 
-function recuPdfFilename(payload: RecuCotisationPayload): string {
+export function recuPdfFilename(payload: RecuCotisationPayload): string {
   const saison = payload.anneeScolaire.replace(/\//g, '-');
   return `recu-${payload.prenom}-${payload.nom}-${saison}.pdf`
     .normalize('NFD')
