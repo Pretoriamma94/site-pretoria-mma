@@ -1,3 +1,4 @@
+import { ContactPhones } from '@/components/ContactPhones';
 import Link from 'next/link';
 import { SocialLinks } from '@/components/SocialLinks';
 
@@ -48,12 +49,8 @@ export function Footer() {
 
         <div className="space-y-3">
           <p className="font-semibold text-zinc-200">Contact</p>
+          <ContactPhones />
           <p>
-            Tél :{' '}
-            <a href="tel:+33619845786" className="hover:text-mma-red">
-              06 19 84 57 86
-            </a>
-            <br />
             Email :{' '}
             <a href="mailto:pretoriamma94@gmail.com" className="hover:text-mma-red">
               pretoriamma94@gmail.com

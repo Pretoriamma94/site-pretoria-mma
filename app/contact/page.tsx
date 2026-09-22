@@ -1,3 +1,4 @@
+import { ContactPhones } from '@/components/ContactPhones';
 import { ContactForm } from '@/components/ContactForm';
 
 export default function ContactPage() {
@@ -34,12 +35,8 @@ export default function ContactPage() {
               <br />
               94510 La Queue-en-Brie
             </p>
+            <ContactPhones />
             <p className="mt-2 text-zinc-300">
-              Tél :{' '}
-              <a href="tel:+33619845786" className="text-white underline-offset-2 hover:underline">
-                06 19 84 57 86
-              </a>
-              <br />
               Email :{' '}
               <a
                 href="mailto:pretoriamma94@gmail.com"
