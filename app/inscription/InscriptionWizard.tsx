@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,21 @@ function applyZodErrors(
 
 export function InscriptionWizard() {
   const [step, setStep] = useState(0);
+  const stepPanelRef = useRef<HTMLDivElement>(null);
+  const previousStepRef = useRef(step);
+
+  useEffect(() => {
+    if (previousStepRef.current === step) return;
+    previousStepRef.current = step;
+    // Repositionner après le rendu : la nouvelle étape peut être bien plus courte.
+    const frame = requestAnimationFrame(() => {
+      const panel = stepPanelRef.current;
+      if (!panel) return;
+      panel.focus({ preventScroll: true });
+      panel.scrollIntoView({ behavior: 'instant', block: 'start' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [step]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [certificatFile, setCertificatFile] = useState<File | null>(null);
@@ -299,7 +314,13 @@ export function InscriptionWizard() {
         </p>
       </div>
 
-      <div className="mt-8 space-y-6 rounded-2xl border border-zinc-800 bg-gray-900 p-6">
+      <div
+        ref={stepPanelRef}
+        tabIndex={-1}
+        role="region"
+        aria-label={`Étape ${step + 1} sur ${INSCRIPTION_STEPS.length} : ${INSCRIPTION_STEPS[step]}`}
+        className="mt-8 scroll-mt-32 space-y-6 rounded-2xl border border-zinc-800 bg-gray-900 p-6 focus:outline-none"
+      >
         {step === 0 && <StepFiliere form={form} />}
         {step === 1 && <StepIdentite form={form} />}
         {step === 2 && <StepInformations form={form} />}
