@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { prepareAdminDocument } from '@/lib/admin/prepare-document-upload';
 import { useRouter } from 'next/navigation';
 import { removeMemberPhoto } from './member-followup-actions';
+import { MemberObservations } from './MemberObservations';
 import { MemberReminderButtons } from './MemberReminderButtons';
 import {
   getInscriptionDocumentUrlAction,
@@ -143,6 +144,7 @@ export function InscriptionDocumentDownloads({
 
   return (
     <div className="mt-3 space-y-3">
+      <MemberObservations key={inscriptionId} id={inscriptionId} />
       <p className="text-[0.65rem] uppercase tracking-wide text-zinc-500">
         Documents (en ligne + papier scanné) — même stockage Supabase
       </p>

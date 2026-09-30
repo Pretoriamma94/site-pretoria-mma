@@ -408,6 +408,12 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['inscription_paiements']['Insert']>;
         Relationships: [];
       };
+      member_observations: {
+        Row: { inscription_id: string; content: string; updated_at: string };
+        Insert: { inscription_id: string; content: string; updated_at?: string };
+        Update: Partial<Database['public']['Tables']['member_observations']['Insert']>;
+        Relationships: [];
+      };
       member_reminders: {
         Row: {
           id: string; inscription_id: string; kind: 'documents' | 'payment';
