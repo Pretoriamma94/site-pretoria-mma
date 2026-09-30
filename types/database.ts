@@ -408,6 +408,22 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['inscription_paiements']['Insert']>;
         Relationships: [];
       };
+      member_reminders: {
+        Row: {
+          id: string; inscription_id: string; kind: 'documents' | 'payment';
+          recipient: string; cc: string; subject: string; body: string; payload_hash: string;
+          source: 'email' | 'manual'; declared_on: string | null;
+          status: 'pending' | 'sent' | 'failed'; created_at: string; sent_at: string | null; provider_id: string | null;
+        };
+        Insert: {
+          id: string; inscription_id: string; kind: 'documents' | 'payment';
+          recipient: string; cc: string; subject: string; body: string; payload_hash: string;
+          source?: 'email' | 'manual'; declared_on?: string | null;
+          status?: 'pending' | 'sent' | 'failed'; created_at?: string; sent_at?: string | null; provider_id?: string | null;
+        };
+        Update: Partial<Database['public']['Tables']['member_reminders']['Insert']>;
+        Relationships: [];
+      };
       club_depenses: {
         Row: {
           id: string;

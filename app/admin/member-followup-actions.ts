@@ -41,12 +41,33 @@ export async function sendMemberReminder(id: string, kind: ReminderKind, expecte
     if (!content.success) throw new Error('Renseignez un objet (200 caractères maximum) et un message (20 000 caractères maximum).');
     const key = process.env.RESEND_API_KEY?.trim();
     if (!key) throw new Error('Envoi indisponible : le service email n’est pas configuré sur cet environnement.');
-    const { error } = await new Resend(key).emails.send({
+    const db = createServerClient();
+    const payloadHash = fingerprint({ id, kind, to: preview.to, cc: preview.cc, ...content.data });
+    const { error: reserveError } = await db.from('member_reminders').insert({
+      id: requestId, inscription_id: id, kind, recipient: preview.to, cc: preview.cc,
+      subject: content.data.subject, body: content.data.text, payload_hash: payloadHash,
+    });
+    if (reserveError) {
+      if (reserveError.code !== '23505') throw new Error('Historique indisponible. Aucun mail envoyé.');
+      const { data: previous, error: readError } = await db.from('member_reminders').select('*').eq('id', requestId).single();
+      if (readError || !previous || previous.payload_hash !== payloadHash) throw new Error('Cette demande ne correspond pas à la relance enregistrée.');
+      if (previous.status === 'sent') return { success: true as const };
+      throw new Error('Une tentative existe déjà. Consultez son état dans l’historique et votre copie email avant de préparer un nouvel envoi.');
+    }
+    const { data: receipt, error } = await new Resend(key).emails.send({
       from: process.env.CONTACT_FROM_EMAIL?.trim().replace(/^["']|["']$/g, '') || 'Pretoria MMA <onboarding@resend.dev>',
       to: [preview.to], cc: preview.to === preview.cc ? undefined : [preview.cc],
       replyTo: preview.cc, subject: content.data.subject, text: content.data.text,
     }, { idempotencyKey: `member-reminder/${id}/${kind}/${requestId}` });
-    if (error) throw new Error('Le service email a refusé l’envoi. Vérifiez sa configuration avant de réessayer.');
+    if (error) {
+      await db.from('member_reminders').update({ status: 'failed' }).eq('id', requestId);
+      throw new Error('Le service email a refusé l’envoi. Consultez l’historique avant de préparer une nouvelle relance.');
+    }
+    if (!receipt?.id) throw new Error('Envoi non confirmé. Vérifiez votre copie email avant toute nouvelle relance.');
+    const { error: historyError } = await db.from('member_reminders').update({
+      status: 'sent', sent_at: new Date().toISOString(), provider_id: receipt.id,
+    }).eq('id', requestId);
+    if (historyError) throw new Error('Mail accepté par le service, mais confirmation non enregistrée dans l’historique. Ne renvoyez pas ce mail ; vérifiez votre copie.');
     return { success: true as const };
   } catch (error) { return { success: false as const, error: message(error) }; }
 }
@@ -83,5 +104,18 @@ export async function removeMemberPhoto(id: string, expectedPath: string) {
       certificat_engagement_3_semaines: Boolean(updated.certificat_engagement_3_semaines),
       atteste_certificat: Boolean(updated.atteste_certificat),
     }, warning: cleanupFailed ? 'Photo retirée de la fiche. Le nettoyage du fichier stocké n’a pas abouti.' : undefined };
+  } catch (error) { return { success: false as const, error: message(error) }; }
+}
+
+
+export async function listMemberReminders(id: string) {
+  try {
+    await requireAdmin();
+    z.string().uuid().parse(id);
+    const { data, error } = await createServerClient().from('member_reminders')
+      .select('id, kind, recipient, cc, subject, body, status, created_at, sent_at, source, declared_on')
+      .eq('inscription_id', id).order('created_at', { ascending: false });
+    if (error) throw new Error('Historique indisponible. Impossible de vérifier les relances précédentes.');
+    return { success: true as const, rows: data ?? [] };
   } catch (error) { return { success: false as const, error: message(error) }; }
 }

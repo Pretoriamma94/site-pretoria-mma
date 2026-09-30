@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { MemberReminderHistory } from './MemberReminderHistory';
 import { previewMemberReminder, sendMemberReminder } from './member-followup-actions';
 import type { ReminderKind, ReminderPreview } from '@/lib/admin/reminder-content';
 
 export function MemberReminderButtons({ inscriptionId }: { inscriptionId: string }) {
   const [preview, setPreview] = useState<(ReminderPreview & { fingerprint: string; kind: ReminderKind; requestId: string }) | null>(null);
+  const [historyRefresh, setHistoryRefresh] = useState(0);
   const [busy, setBusy] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [message, setMessage] = useState('');
@@ -26,11 +28,12 @@ export function MemberReminderButtons({ inscriptionId }: { inscriptionId: string
       if (result.success) { setMessage(`Relance envoyée, copie à ${preview.cc}.`); setPreview(null); }
       else setMessage(result.error);
     } catch { setMessage('Envoi non confirmé. Réessayez depuis cet aperçu pour éviter un doublon.'); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setHistoryRefresh(n => n + 1); }
   }
   const button = 'rounded-lg border border-zinc-600 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-800 disabled:opacity-50';
   return <section className="mt-4 space-y-3 rounded-xl border border-zinc-700 p-3" aria-label="Relances par email">
     <p className="font-semibold">Relances par email</p>
+    <MemberReminderHistory key={`${inscriptionId}-${historyRefresh}`} id={inscriptionId} refresh={historyRefresh} />
     <div className="flex flex-wrap gap-2">
       <button type="button" className={button} disabled={busy} onClick={() => void prepare('documents')}>Relancer les documents manquants</button>
       <button type="button" className={button} disabled={busy} onClick={() => void prepare('payment')}>Relancer une cotisation en retard</button>
