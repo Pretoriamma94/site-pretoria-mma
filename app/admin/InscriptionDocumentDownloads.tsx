@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { prepareAdminDocument } from '@/lib/admin/prepare-document-upload';
 import { useRouter } from 'next/navigation';
 import { removeMemberPhoto } from './member-followup-actions';
 import { MemberReminderButtons } from './MemberReminderButtons';
@@ -110,10 +111,11 @@ export function InscriptionDocumentDownloads({
     setMessage(null);
     setUploadingKind(kind);
     try {
+      const preparedFile = await prepareAdminDocument(file);
       const formData = new FormData();
       formData.set('inscription_id', inscriptionId);
       formData.set('kind', kind);
-      formData.set('file', file);
+      formData.set('file', preparedFile);
       const result = await uploadAdminInscriptionDocumentAction(formData);
       if (!result.success) {
         setError(result.error);
@@ -132,8 +134,8 @@ export function InscriptionDocumentDownloads({
         atteste_certificat: result.atteste_certificat,
       });
       setMessage(`${documents.find((d) => d.kind === kind)?.label ?? 'Document'} enregistré.`);
-    } catch {
-      setError('Upload impossible. Réessayez.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Envoi impossible. Vérifiez la connexion et réessayez.');
     } finally {
       setUploadingKind(null);
     }
@@ -144,6 +146,7 @@ export function InscriptionDocumentDownloads({
       <p className="text-[0.65rem] uppercase tracking-wide text-zinc-500">
         Documents (en ligne + papier scanné) — même stockage Supabase
       </p>
+      <p className="text-xs text-zinc-400">Photos volumineuses réduites automatiquement avant envoi. PDF : 3 Mo maximum.</p>
       <div className="space-y-2">
         {documents.map((doc) => (
           <div
@@ -188,7 +191,7 @@ export function InscriptionDocumentDownloads({
                 inputRefs.current[doc.kind] = el;
               }}
               type="file"
-              accept=".pdf,.jpg,.jpeg,.png"
+              accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
