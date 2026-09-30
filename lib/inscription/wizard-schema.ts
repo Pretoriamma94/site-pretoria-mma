@@ -1,3 +1,4 @@
+import { isBornBeforeBabyCutoff, BABY_ANNEE_ERREUR } from '@/lib/inscription/baby-eligibility';
 import { z } from 'zod';
 import {
   getAgeFromBirthDate,
@@ -128,7 +129,10 @@ export const stepIdentiteSchema = z
         path: ['dateNaissance'],
       });
     }
-    if (data.dateNaissance && age > 7) {
+    if (isBornBeforeBabyCutoff(data.dateNaissance)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: BABY_ANNEE_ERREUR, path: ['dateNaissance'] });
+    }
+    if (data.dateNaissance && age > 7 && !isBornBeforeBabyCutoff(data.dateNaissance)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:

@@ -430,10 +430,10 @@ export function EditProfileModal({
             </label>
             {coursChoices.length > 1 ? (
               <p className="mt-1.5 text-[0.7rem] font-normal normal-case tracking-normal text-zinc-500">
-                Dérogation : un adolescent peut passer en cours adultes (gabarit / niveau). Une
-                femme adulte est en forfait femmes (200 €, mixte + créneau femmes) ; le passage
-                en adultes mixte applique le tarif hommes (300 €). Le tarif de la nouvelle
-                catégorie s&apos;applique ; le montant déjà payé est conservé.
+                Vous pouvez changer la catégorie, notamment de Baby JJB à MMA Enfant.
+                Le tarif de la nouvelle catégorie s&apos;applique et les paiements déjà
+                enregistrés sont conservés. Les tarifs pack famille et les exonérations
+                restent inchangés. Le retour en Baby JJB respecte la limite de naissance de 2020.
               </p>
             ) : null}
             {tarifChange ? (

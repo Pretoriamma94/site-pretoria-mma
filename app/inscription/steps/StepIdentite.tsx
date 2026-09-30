@@ -1,3 +1,4 @@
+import { isBornBeforeBabyCutoff, BABY_ANNEE_ERREUR } from '@/lib/inscription/baby-eligibility';
 import type { UseFormReturn } from 'react-hook-form';
 import { getAgeFromBirthDate, isMinor } from '@/lib/inscription/schema';
 import { TEXTE_BABY_DEUX_PARENTS, TEXTE_BABY_PLUS_DE_7_ANS } from '@/lib/inscription/legal-texts';
@@ -24,7 +25,8 @@ export function StepIdentite({ form }: Props) {
   const isMma = filiere === 'mma';
   const showResponsable = isMma && Boolean(dateNaissance) && isMinor(dateNaissance);
   const ageBaby = dateNaissance ? Math.floor(getAgeFromBirthDate(dateNaissance)) : null;
-  const babyTropAge = filiere === 'baby' && ageBaby != null && ageBaby > 7;
+  const babyAvant2020 = filiere === 'baby' && isBornBeforeBabyCutoff(dateNaissance || '');
+  const babyTropAge = babyAvant2020 || (filiere === 'baby' && ageBaby != null && ageBaby > 7);
 
   return (
     <>
@@ -66,11 +68,11 @@ export function StepIdentite({ form }: Props) {
 
       <div className="mt-4">
         <InscriptionField label="Date de naissance *" error={errors.dateNaissance?.message}>
-          <input type="date" {...register('dateNaissance')} className={inscriptionInputClass} />
+          <input type="date" min={filiere === 'baby' ? '2020-01-01' : undefined} {...register('dateNaissance')} className={inscriptionInputClass} />
         </InscriptionField>
         {babyTropAge ? (
           <div className="mt-2 rounded-xl border border-red-700/80 bg-red-950/40 p-3 text-sm text-red-100">
-            <p className="font-medium">{TEXTE_BABY_PLUS_DE_7_ANS} *</p>
+            <p className="font-medium">{babyAvant2020 ? BABY_ANNEE_ERREUR : TEXTE_BABY_PLUS_DE_7_ANS} *</p>
             <button
               type="button"
               className="mt-2 text-sm font-semibold text-white underline hover:text-red-200"

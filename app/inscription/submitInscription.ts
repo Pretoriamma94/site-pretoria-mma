@@ -1,3 +1,4 @@
+import { isBornBeforeBabyCutoff, BABY_ANNEE_ERREUR } from '@/lib/inscription/baby-eligibility';
 import { notifyInscriptionCreatedAction } from '@/app/inscription/actions';
 import type { InscriptionFormValues } from '@/app/inscription/form-values';
 import { missingDbColumn } from '@/lib/admin/inscription-fields';
@@ -121,6 +122,10 @@ export async function submitInscription(params: {
   const filiere = values.filiere;
   if (!filiere) {
     return { ok: false, message: 'Veuillez choisir MMA ou Baby JJB.' };
+  }
+
+  if (filiere === 'baby' && isBornBeforeBabyCutoff(values.dateNaissance)) {
+    return { ok: false, message: BABY_ANNEE_ERREUR };
   }
 
   if (filiere === 'baby' && values.dateNaissance) {

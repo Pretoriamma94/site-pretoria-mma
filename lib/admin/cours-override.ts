@@ -1,5 +1,7 @@
+import { isBornBeforeBabyCutoff } from '@/lib/inscription/baby-eligibility';
 import {
   COURS_OPTIONS,
+  getAgeFromBirthDate,
   coursFilterBucket,
   isMinor,
 } from '@/lib/inscription/schema';
@@ -39,7 +41,14 @@ export function getAdminCoursChoices(
   const femaleOk = sexe !== 'homme';
   const stillMinor = Boolean(dateNaissance && isMinor(dateNaissance));
 
+  if (current === 'baby') choices.add('mma_enfants');
+  if (current === 'mma_enfants') {
+    if (stillMinor) choices.add('mma_ados');
+    const age = dateNaissance ? Math.floor(getAgeFromBirthDate(dateNaissance)) : NaN;
+    if (dateNaissance && !isBornBeforeBabyCutoff(dateNaissance) && age >= 3 && age <= 7) choices.add('baby');
+  }
   if (current === 'mma_ados') {
+    if (stillMinor) choices.add('mma_enfants');
     choices.add('mma_mixte');
     if (femaleOk) choices.add('mma_femmes');
   }
