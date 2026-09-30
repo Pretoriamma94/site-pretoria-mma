@@ -1,6 +1,9 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { removeMemberPhoto } from './member-followup-actions';
+import { MemberReminderButtons } from './MemberReminderButtons';
 import {
   getInscriptionDocumentUrlAction,
   uploadAdminInscriptionDocumentAction,
@@ -38,6 +41,8 @@ export function InscriptionDocumentDownloads({
   documents,
   onUploaded,
 }: Props) {
+  const router = useRouter();
+  const [removing, setRemoving] = useState(false);
   const [loadingLabel, setLoadingLabel] = useState<string | null>(null);
   const [uploadingKind, setUploadingKind] = useState<DocKind | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +54,20 @@ export function InscriptionDocumentDownloads({
     pass_pa2s: null,
   });
 
-  const openDocument = async (label: string, path: string) => {
+  const removePhoto = async (path: string) => {
+    if (!window.confirm('Supprimer cette photo non conforme ? Une nouvelle photo sera demandée dans le dossier. Aucun mail ne sera envoyé automatiquement.')) return;
+    setRemoving(true); setError(null); setMessage(null);
+    try {
+      const result = await removeMemberPhoto(inscriptionId, path);
+      if (!result.success) { setError(result.error); return; }
+      onUploaded(result.fields);
+      setMessage(result.warning || 'Photo supprimée. Le dossier attend une nouvelle photo.');
+      router.refresh();
+    } catch { setError('Suppression impossible. Réessayez.'); }
+    finally { setRemoving(false); }
+  };
+
+  const openDocument = async (label: string, path: string, kind: DocKind) => {
     setError(null);
     setMessage(null);
     setLoadingLabel(label);
@@ -59,7 +77,27 @@ export function InscriptionDocumentDownloads({
         setError(result.error);
         return;
       }
-      window.open(result.url, '_blank', 'noopener,noreferrer');
+      if (kind === 'photo') {
+        const response = await fetch(result.url);
+        if (!response.ok) throw new Error('Téléchargement impossible');
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const extension = path.match(/\.(jpe?g|png|webp|heic|pdf)$/i)?.[1]?.toLowerCase()
+          || ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' } as Record<string, string>)[blob.type]
+          || 'bin';
+        link.href = objectUrl;
+        link.download = `photo-adherent-${inscriptionId}.${extension}`;
+        document.body.appendChild(link);
+        try { link.click(); } finally {
+          link.remove();
+          // Allow the browser to finish starting the download before freeing the URL.
+          window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+        }
+        setMessage('Téléchargement de la photo lancé.');
+      } else {
+        window.open(result.url, '_blank', 'noopener,noreferrer');
+      }
     } catch {
       setError('Impossible d’ouvrir le document.');
     } finally {
@@ -128,17 +166,23 @@ export function InscriptionDocumentDownloads({
             {doc.path ? (
               <button
                 type="button"
-                disabled={loadingLabel === doc.label}
-                onClick={() => openDocument(doc.label, doc.path!)}
+                disabled={loadingLabel !== null}
+                onClick={() => openDocument(doc.label, doc.path!, doc.kind)}
                 className="rounded-full border border-zinc-600 px-3 py-1 text-[0.7rem] font-semibold text-zinc-100 hover:bg-zinc-800 disabled:opacity-60"
               >
-                {loadingLabel === doc.label ? 'Ouverture…' : 'Voir / Télécharger'}
+                {loadingLabel === doc.label ? 'Chargement…' : doc.kind === 'photo' ? 'Télécharger la photo' : 'Voir / Télécharger'}
               </button>
             ) : (
               <span className={doc.kind === 'questionnaire' ? 'text-[0.7rem] font-semibold text-red-300' : 'text-[0.7rem] text-zinc-500'}>
                 {doc.kind === 'questionnaire' ? 'Scan manquant' : 'Pas encore de fichier'}
               </span>
             )}
+            {doc.kind === 'photo' && doc.path && <button type="button"
+              disabled={removing || uploadingKind !== null}
+              onClick={() => void removePhoto(doc.path!)}
+              className="rounded-full border border-red-700 px-3 py-1 text-[0.7rem] text-red-200 disabled:opacity-50">
+              {removing ? 'Suppression…' : 'Supprimer la photo non conforme'}
+            </button>}
             <input
               ref={(el) => {
                 inputRefs.current[doc.kind] = el;
@@ -154,7 +198,7 @@ export function InscriptionDocumentDownloads({
             />
             <button
               type="button"
-              disabled={uploadingKind === doc.kind}
+              disabled={removing || uploadingKind !== null}
               onClick={() => inputRefs.current[doc.kind]?.click()}
               className="rounded-full border border-mma-red/70 bg-mma-red/20 px-3 py-1 text-[0.7rem] font-semibold text-red-100 hover:bg-mma-red/30 disabled:opacity-60"
             >
@@ -170,6 +214,7 @@ export function InscriptionDocumentDownloads({
           </div>
         ))}
       </div>
+      <MemberReminderButtons key={inscriptionId} inscriptionId={inscriptionId} />
       {message && <p className="text-emerald-300">{message}</p>}
       {error && <p className="text-red-300">{error}</p>}
     </div>
