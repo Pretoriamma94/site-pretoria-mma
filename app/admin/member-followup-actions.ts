@@ -28,18 +28,23 @@ export async function previewMemberReminder(id: string, kind: ReminderKind) {
   catch (error) { return { success: false as const, error: message(error) }; }
 }
 
-export async function sendMemberReminder(id: string, kind: ReminderKind, expected: string, requestId: string, overdueConfirmed: boolean) {
+export async function sendMemberReminder(id: string, kind: ReminderKind, expected: string, requestId: string, overdueConfirmed: boolean, draft?: { subject: string; text: string }) {
   try {
     const preview = await loadReminder(id, kind);
     z.string().uuid().parse(requestId);
     if (kind === 'payment' && overdueConfirmed !== true) throw new Error('Confirmez le retard de paiement avant l’envoi.');
     if (preview.fingerprint !== expected) throw new Error('La fiche a changé. Fermez cet aperçu puis préparez à nouveau la relance.');
+    const content = z.object({
+      subject: z.string().trim().min(1, 'Objet obligatoire.').max(200).refine(value => !/[\r\n]/.test(value), 'Objet invalide.'),
+      text: z.string().trim().min(1, 'Message obligatoire.').max(20000),
+    }).safeParse(draft ?? { subject: preview.subject, text: preview.text });
+    if (!content.success) throw new Error('Renseignez un objet (200 caractères maximum) et un message (20 000 caractères maximum).');
     const key = process.env.RESEND_API_KEY?.trim();
     if (!key) throw new Error('Envoi indisponible : le service email n’est pas configuré sur cet environnement.');
     const { error } = await new Resend(key).emails.send({
       from: process.env.CONTACT_FROM_EMAIL?.trim().replace(/^["']|["']$/g, '') || 'Pretoria MMA <onboarding@resend.dev>',
       to: [preview.to], cc: preview.to === preview.cc ? undefined : [preview.cc],
-      replyTo: preview.cc, subject: preview.subject, text: preview.text,
+      replyTo: preview.cc, subject: content.data.subject, text: content.data.text,
     }, { idempotencyKey: `member-reminder/${id}/${kind}/${requestId}` });
     if (error) throw new Error('Le service email a refusé l’envoi. Vérifiez sa configuration avant de réessayer.');
     return { success: true as const };

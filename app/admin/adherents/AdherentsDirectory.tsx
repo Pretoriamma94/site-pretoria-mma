@@ -34,7 +34,9 @@ import {
   getModePaiementLabel,
   resteAPayer,
 } from '@/lib/admin/labels';
-import { getAdminDocumentSlots } from '@/lib/admin/documents';
+import { isPaymentReminderOverdue } from '@/lib/admin/payment-reminder';
+import { getDocumentsCountdown } from '@/lib/admin/document-deadline';
+import { getDocumentsChecklist, getAdminDocumentSlots } from '@/lib/admin/documents';
 import { downloadAdherentsCsv } from '@/lib/admin/export-adherents';
 import { getInscriptionDocumentUrlAction } from '../actions';
 import { EditProfileModal } from '../EditProfileModal';
@@ -216,6 +218,7 @@ export function AdherentsDirectory({
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [alertFilter, setAlertFilter] = useState('all');
   const [packError, setPackError] = useState<string | null>(null);
 
   const countsByCategorie = useMemo(() => {
@@ -227,6 +230,14 @@ export function AdherentsDirectory({
     }
     return counts;
   }, [rows]);
+
+  const alertsFor = (row: AdherentRow) => {
+    const active = row.status !== 'cancelled';
+    const documents = active && getDocumentsChecklist(row).hasMissing;
+    const overdue = documents && Boolean(getDocumentsCountdown(row.created_at)?.overdue);
+    const balance = active && !isPackFamilyChild(row) ? resteAPayer(row) : 0;
+    return { documents, overdue, balance, paymentOverdue: isPaymentReminderOverdue(row) };
+  };
 
   const visibleRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -242,8 +253,12 @@ export function AdherentsDirectory({
     if (categorie !== 'all') {
       list = list.filter((r) => matchesCoursFilter(r.cours_selectionne, categorie));
     }
-    return list;
-  }, [rows, categorie, search]);
+    return list.filter(row => {
+      const alert = alertsFor(row);
+      return alertFilter === 'all' || (alertFilter === 'documents' && alert.documents)
+        || (alertFilter === 'overdue' && alert.overdue) || (alertFilter === 'payment' && alert.paymentOverdue);
+    });
+  }, [rows, categorie, search, alertFilter]);
 
   const summary = useMemo(() => {
     if (visibleRows.length === 0) return 'Aucun adhérent.';
@@ -324,6 +339,22 @@ export function AdherentsDirectory({
           </div>
         </div>
 
+        <div className="my-3 rounded-xl border border-amber-700/60 bg-amber-950/20 p-3">
+          <p className="font-semibold text-amber-100">Alertes et relances</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {[
+              ['all', 'Tous', rows.length],
+              ['documents', 'Documents manquants', rows.filter(r => alertsFor(r).documents).length],
+              ['overdue', 'Documents en retard (+21 jours)', rows.filter(r => alertsFor(r).overdue).length],
+              ['payment', 'Cotisations en retard', rows.filter(r => alertsFor(r).paymentOverdue).length],
+            ].map(([value, label, count]) => <button key={value} type="button" aria-pressed={alertFilter === value}
+              onClick={() => setAlertFilter(String(value))}
+              className={cn('rounded-lg border px-3 py-2 text-xs', alertFilter === value ? 'border-amber-400 bg-amber-900/40 text-amber-100' : 'border-zinc-600 text-zinc-200')}>
+              {label} ({count})
+            </button>)}
+          </div>
+          <p className="mt-2 text-xs text-zinc-300">Cotisation en retard : aucun paiement enregistré 30 jours après l’inscription. Ouvrez une fiche pour préparer et modifier une relance.</p>
+        </div>
         <form
           className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-3 sm:p-4"
           onSubmit={(e) => {
@@ -413,6 +444,7 @@ export function AdherentsDirectory({
           <thead className="border-b border-zinc-800 bg-zinc-950/80 text-[0.7rem] uppercase tracking-[0.12em] text-zinc-400">
             <tr>
               <th className="px-4 py-3">Adhérent</th>
+              <th className="px-4 py-3">Alertes / Relancer</th>
               <th className="px-4 py-3">Catégorie</th>
               <th className="px-4 py-3">Photos</th>
               <th className="px-4 py-3">Né(e) le</th>
@@ -423,6 +455,7 @@ export function AdherentsDirectory({
           </thead>
           <tbody className="divide-y divide-zinc-900">
             {visibleRows.map((row) => {
+              const alert = alertsFor(row);
               const photosRefusees = row.autorise_photos === false;
               return (
                 <tr
@@ -456,6 +489,15 @@ export function AdherentsDirectory({
                       </span>
                     ) : null}
                   </td>
+                  <td className="px-4 py-3.5">
+                    {alert.documents && <span className={cn('block text-xs', alert.overdue ? 'font-semibold text-red-300' : 'text-amber-200')}>
+                      {alert.overdue ? 'Documents en retard' : 'Documents manquants'}
+                      <span className="mt-1 block font-normal">{getDocumentsChecklist(row).missingLabels.join(' · ')}</span>
+                    </span>}
+                    {alert.paymentOverdue && <span className="mt-1 block text-amber-200">Cotisation en retard : {formatEuros(alert.balance)}</span>}
+                    {(alert.documents || alert.paymentOverdue) ? <button type="button" className="mt-2 rounded border border-amber-700 px-2 py-1 text-amber-100"
+                      onClick={e => { e.stopPropagation(); void openFiche(row); }}>Ouvrir / Relancer</button> : <span className="text-zinc-500">—</span>}
+                  </td>
                   <td className="px-4 py-3.5 text-zinc-300">
                     {getCoursLabel(row.cours_selectionne)}
                   </td>
@@ -482,7 +524,7 @@ export function AdherentsDirectory({
             })}
             {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-zinc-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-sm text-zinc-400">
                   Aucun adhérent pour ces filtres.
                 </td>
               </tr>

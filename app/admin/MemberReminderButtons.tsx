@@ -22,7 +22,7 @@ export function MemberReminderButtons({ inscriptionId }: { inscriptionId: string
     if (!preview) return;
     setBusy(true); setMessage('');
     try {
-      const result = await sendMemberReminder(inscriptionId, preview.kind, preview.fingerprint, preview.requestId, confirmed);
+      const result = await sendMemberReminder(inscriptionId, preview.kind, preview.fingerprint, preview.requestId, confirmed, { subject: preview.subject, text: preview.text });
       if (result.success) { setMessage(`Relance envoyée, copie à ${preview.cc}.`); setPreview(null); }
       else setMessage(result.error);
     } catch { setMessage('Envoi non confirmé. Réessayez depuis cet aperçu pour éviter un doublon.'); }
@@ -37,11 +37,17 @@ export function MemberReminderButtons({ inscriptionId }: { inscriptionId: string
     </div>
     {preview && <div className="space-y-3">
       <p className="text-sm">À : {preview.to}<br />Copie : {preview.cc}</p>
-      <p className="font-semibold">{preview.subject}</p>
-      <p className="whitespace-pre-wrap text-sm text-zinc-200">{preview.text}</p>
+      <label className="block text-sm">Objet
+        <input className="mt-1 w-full rounded-lg border border-zinc-600 bg-zinc-900 p-2 text-white" value={preview.subject} maxLength={200} disabled={busy}
+          onChange={e => setPreview({ ...preview, subject: e.target.value, requestId: crypto.randomUUID() })} />
+      </label>
+      <label className="block text-sm">Message — modifiable avant envoi
+        <textarea className="mt-1 w-full rounded-lg border border-zinc-600 bg-zinc-900 p-2 text-white" rows={14} value={preview.text} maxLength={20000} disabled={busy}
+          onChange={e => setPreview({ ...preview, text: e.target.value, requestId: crypto.randomUUID() })} />
+      </label>
       {preview.kind === 'payment' && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={confirmed} disabled={busy} onChange={e => setConfirmed(e.target.checked)} />Je confirme qu’un paiement est en retard, compte tenu de l’échéancier convenu.</label>}
       <div className="flex gap-2">
-        <button type="button" className={button} disabled={busy || (preview.kind === 'payment' && !confirmed)} onClick={() => void send()}>{busy ? 'Envoi…' : 'Envoyer la relance et la copie'}</button>
+        <button type="button" className={button} disabled={busy || !preview.subject.trim() || !preview.text.trim() || (preview.kind === 'payment' && !confirmed)} onClick={() => void send()}>{busy ? 'Envoi…' : 'Envoyer la relance et la copie'}</button>
         <button type="button" className={button} disabled={busy} onClick={() => setPreview(null)}>Annuler</button>
       </div>
     </div>}
