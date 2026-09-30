@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -156,3 +157,21 @@ export default async function LeClubPage() {
     </div>
   );
 }
+export const metadata: Metadata = {
+  "title": "Club de MMA à La Queue-en-Brie (94) | Pretoria MMA",
+  "description": "Découvrez Pretoria MMA, son équipe et son club de MMA à La Queue-en-Brie dans le Val-de-Marne (94).",
+  "alternates": {
+    "canonical": "/le-club"
+  },
+  "openGraph": {
+    "title": "Club de MMA à La Queue-en-Brie (94) | Pretoria MMA",
+    "description": "Découvrez Pretoria MMA, son équipe et son club de MMA à La Queue-en-Brie dans le Val-de-Marne (94).",
+    "url": "/le-club",
+    "images": [
+      {
+        "url": "/images/logo.png",
+        "alt": "Pretoria MMA"
+      }
+    ]
+  }
+};

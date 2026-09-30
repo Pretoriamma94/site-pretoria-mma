@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { createServerClient } from '@/lib/supabase/server';
@@ -14,6 +15,18 @@ import {
   UsersRound,
   ChevronDown,
 } from 'lucide-react';
+
+export const metadata: Metadata = {
+  title: 'MMA 94 : club à La Queue-en-Brie | Pretoria MMA',
+  description: 'Pratiquez le MMA dans le Val-de-Marne (94) avec Pretoria MMA à La Queue-en-Brie : cours enfants, ados et adultes, débutants bienvenus. Premier cours offert.',
+  alternates: { canonical: '/' },
+  openGraph: {
+    title: 'MMA 94 : Pretoria MMA à La Queue-en-Brie',
+    description: 'Un club de MMA dans le Val-de-Marne pour les enfants, adolescents et adultes. Découvrez les cours et venez essayer.',
+    url: '/',
+    images: [{ url: '/images/logo.png', alt: 'Pretoria MMA' }],
+  },
+};
 
 async function getLatestPosts() {
   try {
@@ -104,7 +117,7 @@ export default async function HomePage() {
             PRETORIA MMA
           </h1>
           <p className="mb-3 text-xl text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)] md:text-2xl">
-            Le Club de MMA à La Queue-en-Brie (94)
+            Votre club de MMA dans le Val-de-Marne (94), à La Queue-en-Brie
           </p>
           <p className="mb-8 max-w-2xl text-base leading-relaxed text-zinc-100 drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)] md:text-lg">
             Progressez en Arts Martiaux Mixtes, quel que soit votre niveau — dès 3 ans
@@ -168,6 +181,24 @@ export default async function HomePage() {
           ))}
         </ul>
       </div>
+
+      <section className="mx-auto max-w-6xl px-4 pt-12 md:px-6" aria-labelledby="mma-94">
+        <h2 id="mma-94" className="font-display text-3xl uppercase tracking-wide text-white md:text-4xl">
+          MMA dans le 94 : entraînez-vous avec Pretoria MMA
+        </h2>
+        <p className="mt-4 max-w-3xl leading-relaxed text-zinc-300">
+          Vous cherchez un club de MMA dans le Val-de-Marne ? Pretoria MMA vous accueille
+          à La Queue-en-Brie (94510), pour découvrir les arts martiaux mixtes ou poursuivre
+          votre progression. Nos cours s’adressent aux enfants dès 3 ans, aux adolescents
+          et aux adultes, avec des groupes adaptés à l’âge et au niveau.
+        </p>
+        <p className="mt-3 max-w-3xl leading-relaxed text-zinc-300">
+          Retrouvez les horaires et les tarifs sur la page{' '}
+          <Link href="/cours" className="text-white underline">cours de MMA</Link>.
+          Pour préparer votre premier cours d’essai offert et connaître le lieu de votre séance,
+          {' '}<Link href="/contact" className="text-white underline">contactez le club à La Queue-en-Brie</Link>.
+        </p>
+      </section>
 
       {/* POURQUOI NOUS REJOINDRE - fond noir */}
       <section className="mx-auto max-w-6xl bg-black px-4 py-16 md:px-6">

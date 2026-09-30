@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { ContactPhones } from '@/components/ContactPhones';
 import { ContactForm } from '@/components/ContactForm';
 
@@ -81,3 +82,21 @@ export default function ContactPage() {
     </div>
   );
 }
+export const metadata: Metadata = {
+  "title": "Contact et essai MMA à La Queue-en-Brie (94) | Pretoria MMA",
+  "description": "Contactez Pretoria MMA à La Queue-en-Brie pour découvrir les cours de MMA dans le Val-de-Marne et préparer votre premier essai.",
+  "alternates": {
+    "canonical": "/contact"
+  },
+  "openGraph": {
+    "title": "Contact et essai MMA à La Queue-en-Brie (94) | Pretoria MMA",
+    "description": "Contactez Pretoria MMA à La Queue-en-Brie pour découvrir les cours de MMA dans le Val-de-Marne et préparer votre premier essai.",
+    "url": "/contact",
+    "images": [
+      {
+        "url": "/images/logo.png",
+        "alt": "Pretoria MMA"
+      }
+    ]
+  }
+};

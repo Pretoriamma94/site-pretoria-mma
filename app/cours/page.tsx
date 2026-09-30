@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -213,3 +214,21 @@ export default function CoursPage() {
     </div>
   );
 }
+export const metadata: Metadata = {
+  "title": "Cours de MMA dans le 94 : horaires et tarifs | Pretoria MMA",
+  "description": "Découvrez les horaires et tarifs des cours de MMA à La Queue-en-Brie, dans le Val-de-Marne : enfants, adolescents et adultes.",
+  "alternates": {
+    "canonical": "/cours"
+  },
+  "openGraph": {
+    "title": "Cours de MMA dans le 94 : horaires et tarifs | Pretoria MMA",
+    "description": "Découvrez les horaires et tarifs des cours de MMA à La Queue-en-Brie, dans le Val-de-Marne : enfants, adolescents et adultes.",
+    "url": "/cours",
+    "images": [
+      {
+        "url": "/images/logo.png",
+        "alt": "Pretoria MMA"
+      }
+    ]
+  }
+};
