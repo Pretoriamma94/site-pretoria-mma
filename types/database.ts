@@ -408,6 +408,12 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['inscription_paiements']['Insert']>;
         Relationships: [];
       };
+      club_videos: {
+        Row: { id: string; title: string; description: string; storage_path: string; published: boolean; uploaded: boolean; created_at: string };
+        Insert: { id?: string; title: string; description?: string; storage_path: string; published?: boolean; uploaded?: boolean; created_at?: string };
+        Update: Partial<Database['public']['Tables']['club_videos']['Insert']>;
+        Relationships: [];
+      };
       member_observations: {
         Row: { inscription_id: string; content: string; updated_at: string };
         Insert: { inscription_id: string; content: string; updated_at?: string };

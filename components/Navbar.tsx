@@ -15,6 +15,7 @@ const navLinks = [
   { href: '/le-club', label: 'Le club' },
   { href: '/cours', label: 'Cours' },
   { href: '/equipement', label: 'Équipement' },
+  { href: '/videos', label: 'Vidéos' },
   { href: '/actualites', label: 'Actualités' },
   { href: '/contact', label: 'Contact' },
 ];

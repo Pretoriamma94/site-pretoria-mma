@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   '/le-club',
   '/cours',
   '/equipement',
+  '/videos',
   '/actualites',
   '/contact',
   '/inscription',
