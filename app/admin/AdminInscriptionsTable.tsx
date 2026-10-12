@@ -1,5 +1,7 @@
 'use client';
 
+import { MemberLicenceCheckbox, useMemberLicences } from './MemberLicenceCheckbox';
+
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -159,6 +161,7 @@ export function AdminInscriptionsTable({
 }: Props) {
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
+  const licences = useMemberLicences(rows.map(row => row.id));
   const [paiementModesById, setPaiementModesById] = useState(initialPaiementModesById);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
@@ -378,6 +381,7 @@ export function AdminInscriptionsTable({
                     <div className="font-semibold text-zinc-50">
                       {row.prenom} {row.nom}
                     </div>
+                    {Number(row.montant_paye ?? 0) > 0 && (<MemberLicenceCheckbox id={row.id} name={`${row.prenom} ${row.nom}`} licences={licences} />)}
                     {bureau ? (
                       <div className="mt-1">
                         <MembreBureauBadge compact />
@@ -950,6 +954,7 @@ export function AdminInscriptionsTable({
                         : ''}
                     </p>
                   )}
+                  {Number(selected.montant_paye ?? 0) > 0 && (<MemberLicenceCheckbox id={selected.id} name={`${selected.prenom} ${selected.nom}`} licences={licences} />)}
                   <InscriptionDocumentDownloads
                     inscriptionId={selected.id}
                     documents={getAdminDocumentSlots(selected)}

@@ -7,6 +7,7 @@ import { BackNavButton } from '@/components/BackNavButton';
 import { logoutAdminAction } from './auth-actions';
 
 const NAV_ITEMS = [
+  { href: '/admin/galerie', label: 'Galerie photo', match: (p: string) => p.startsWith('/admin/galerie') },
   { href: '/admin/videos', label: 'Vidéos', match: (p: string) => p.startsWith('/admin/videos') },
   { href: '/admin', label: 'Accueil', match: (p: string) => p === '/admin' },
   {
